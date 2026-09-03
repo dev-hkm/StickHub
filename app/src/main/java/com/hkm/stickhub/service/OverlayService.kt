@@ -40,6 +40,9 @@ import com.hkm.stickhub.R
 import com.hkm.stickhub.data.model.StickerItem
 import com.hkm.stickhub.data.repository.StickerRepository
 import com.hkm.stickhub.ui.haptics.StickHubHaptics
+import com.hkm.stickhub.ui.theme.AppVisualTheme
+import com.hkm.stickhub.ui.theme.OverlayPalette
+import com.hkm.stickhub.ui.theme.ThemePaletteResolver
 import com.hkm.stickhub.ui.theme.ThemePreferences
 import com.hkm.stickhub.util.ClipboardHelper
 import kotlinx.coroutines.CoroutineScope
@@ -65,6 +68,28 @@ class OverlayService : Service() {
 
     private var bubbleView: View? = null
     private var isPanelOpen = false
+
+    private var bubbleIcon: ImageView? = null
+    private var bubbleBg: GradientDrawable? = null
+    private var panelBg: GradientDrawable? = null
+    private var panelHeaderView: LinearLayout? = null
+    private var panelTitleView: TextView? = null
+    private var panelSearchView: EditText? = null
+    private var searchBg: GradientDrawable? = null
+    private var categoryScrollView: HorizontalScrollView? = null
+    private var closeBtnView: ImageView? = null
+    private var closeBtnBg: GradientDrawable? = null
+    private var resizeBtnView: ImageView? = null
+    private var resizeHandleBg: GradientDrawable? = null
+    private var emptyStateTextView: TextView? = null
+
+    private fun currentPalette(): OverlayPalette {
+        return ThemePaletteResolver.resolveOverlayPalette(
+            context = this,
+            visualTheme = ThemePreferences.getVisualTheme(this),
+            isDark = isDarkMode()
+        )
+    }
     private var panelGeneration = 0L
 
     // Explicit named references for the popup layout hierarchy
@@ -103,7 +128,7 @@ class OverlayService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_REFRESH_CONFIGURATION && ::windowManager.isInitialized) {
-            recreateOverlayViews()
+            refreshOverlayConfiguration()
         }
         return START_STICKY
     }
@@ -127,24 +152,80 @@ class OverlayService : Service() {
         return ThemePreferences.resolveIsDark(this, ThemePreferences.getThemeMode(this))
     }
 
-    private fun overlayPrimaryColor(dark: Boolean): Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        getColor(if (dark) android.R.color.system_accent1_200 else android.R.color.system_accent1_600)
-    } else {
-        if (dark) 0xFFD4D8E2.toInt() else 0xFF2B303A.toInt()
-    }
-
-    private fun overlaySurfaceColor(dark: Boolean): Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        getColor(if (dark) android.R.color.system_neutral1_900 else android.R.color.system_neutral1_50)
-    } else {
-        if (dark) 0xFF1A1C20.toInt() else Color.WHITE
-    }
-
     private fun withAlpha(color: Int, alpha: Int): Int = Color.argb(
         alpha.coerceIn(0, 255),
         Color.red(color),
         Color.green(color),
         Color.blue(color)
     )
+
+    private fun refreshOverlayConfiguration() {
+        if (bubbleView == null || panelRoot == null) {
+            recreateOverlayViews()
+            return
+        }
+
+        val palette = currentPalette()
+        val density = resources.displayMetrics.density
+
+        // 1. Refresh Bubble styling & dimensions
+        val bubbleSizeDp = OverlayPreferences.bubbleSizeDp(this)
+        val bubbleSize = (bubbleSizeDp * density).toInt()
+        bubbleView?.let { bubble ->
+            if (::bubbleParams.isInitialized) {
+                bubbleParams.width = bubbleSize
+                bubbleParams.height = bubbleSize
+                bubbleBg?.apply {
+                    setColor(withAlpha(palette.surfaceColor, if (palette.isDark) 240 else 245))
+                    setStroke((1.5f * density).toInt(), palette.primaryColor)
+                }
+                bubbleIcon?.setColorFilter(palette.primaryColor)
+                if (bubble.isAttachedToWindow) {
+                    windowManager.updateViewLayout(bubble, bubbleParams)
+                }
+            }
+        }
+
+        // 2. Refresh Panel visibility & colors
+        val showTitle = OverlayPreferences.showTitle(this)
+        val showSearch = OverlayPreferences.showSearch(this)
+        val showCategories = OverlayPreferences.showCategories(this)
+
+        panelHeaderView?.visibility = if (showTitle) View.VISIBLE else View.GONE
+        panelTitleView?.apply {
+            visibility = if (showTitle) View.VISIBLE else View.GONE
+            setTextColor(palette.textColor)
+        }
+        panelSearchView?.apply {
+            visibility = if (showSearch) View.VISIBLE else View.GONE
+            setTextColor(palette.textColor)
+            setHintTextColor(withAlpha(palette.mutedTextColor, 160))
+        }
+        searchBg?.setColor(withAlpha(palette.surfaceVariantColor, if (palette.isDark) 140 else 200))
+        categoryScrollView?.visibility = if (showCategories) View.VISIBLE else View.GONE
+
+        panelBg?.apply {
+            setColor(withAlpha(palette.surfaceColor, if (palette.isDark) 244 else 250))
+            setStroke((1 * density).toInt(), withAlpha(palette.outlineColor, if (palette.isDark) 60 else 70))
+        }
+        closeBtnView?.setColorFilter(palette.textColor)
+        closeBtnBg?.apply {
+            setColor(withAlpha(palette.surfaceColor, if (palette.isDark) 200 else 220))
+            setStroke((1 * density).toInt(), withAlpha(palette.outlineColor, if (palette.isDark) 60 else 70))
+        }
+        resizeBtnView?.setColorFilter(palette.primaryColor)
+        resizeHandleBg?.setColor(withAlpha(palette.surfaceColor, if (palette.isDark) 190 else 210))
+        emptyStateTextView?.setTextColor(palette.mutedTextColor)
+
+        setupCategoryChips()
+        refreshPanelStickers()
+
+        panelRoot?.let { panel ->
+            if (panel.isAttachedToWindow && ::panelParams.isInitialized) {
+                windowManager.updateViewLayout(panel, panelParams)
+            }
+        }
+    }
 
     private fun recreateOverlayViews() {
         val wasPanelOpen = isPanelOpen
@@ -313,24 +394,25 @@ class OverlayService : Service() {
             y = initialY
         }
 
-        val dark = isDarkMode()
-        val primaryColor = overlayPrimaryColor(dark)
+        val palette = currentPalette()
         val bubble = FrameLayout(this).apply {
             val bg = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(withAlpha(overlaySurfaceColor(dark), if (dark) 240 else 245))
-                setStroke((1.5f * density).toInt(), primaryColor)
+                setColor(withAlpha(palette.surfaceColor, if (palette.isDark) 240 else 245))
+                setStroke((1.5f * density).toInt(), palette.primaryColor)
             }
+            bubbleBg = bg
             background = bg
             elevation = 16f
 
             // Lucide Sticker Vector Icon scaled proportionally to bubble size
             val icon = ImageView(this@OverlayService).apply {
                 setImageDrawable(ContextCompat.getDrawable(this@OverlayService, LucideR.drawable.lucide_ic_sticker))
-                setColorFilter(primaryColor)
+                setColorFilter(palette.primaryColor)
                 val pad = (bubbleSize * 0.22f).toInt()
                 setPadding(pad, pad, pad, pad)
             }
+            bubbleIcon = icon
             addView(icon)
         }
 
@@ -474,17 +556,17 @@ class OverlayService : Service() {
             y = clampedBounds.y
         }
 
-        val dark = isDarkMode()
-        val primaryColor = overlayPrimaryColor(dark)
+        val palette = currentPalette()
 
         // 1. Root popup FrameLayout: combines content layer and floating controls layer
         val root = FrameLayout(this).apply {
             val bg = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
                 cornerRadius = 16 * density
-                setColor(withAlpha(overlaySurfaceColor(dark), if (dark) 244 else 250))
-                setStroke((1 * density).toInt(), withAlpha(if (dark) Color.WHITE else Color.BLACK, 35))
+                setColor(withAlpha(palette.surfaceColor, if (palette.isDark) 244 else 250))
+                setStroke((1 * density).toInt(), withAlpha(palette.outlineColor, if (palette.isDark) 60 else 70))
             }
+            panelBg = bg
             background = bg
             elevation = 14f
             val outerPad = if (isGridOnly) (4 * density).toInt() else (6 * density).toInt()
@@ -550,10 +632,11 @@ class OverlayService : Service() {
             visibility = if (showTitle) View.VISIBLE else View.GONE
             setOnTouchListener(panelDragListener)
         }
+        panelHeaderView = header
 
         val title = TextView(this).apply {
             text = "Quick Stickers"
-            setTextColor(if (dark) Color.WHITE else 0xFF1A1A1A.toInt())
+            setTextColor(palette.textColor)
             textSize = 14f
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             layoutParams = LinearLayout.LayoutParams(
@@ -562,21 +645,23 @@ class OverlayService : Service() {
             )
             visibility = if (showTitle) View.VISIBLE else View.GONE
         }
+        panelTitleView = title
         header.addView(title)
         content.addView(header)
 
         // B. Search Box (Compact ~40dp, shown only when showSearch is true)
         val search = EditText(this).apply {
             hint = "Search stickers..."
-            setHintTextColor(withAlpha(if (dark) Color.WHITE else Color.BLACK, 100))
-            setTextColor(if (dark) Color.WHITE else Color.BLACK)
+            setHintTextColor(withAlpha(palette.mutedTextColor, 160))
+            setTextColor(palette.textColor)
             textSize = 13f
             setSingleLine(true)
             val sBg = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
                 cornerRadius = 12 * density
-                setColor(withAlpha(if (dark) Color.WHITE else Color.BLACK, if (dark) 28 else 18))
+                setColor(withAlpha(palette.surfaceVariantColor, if (palette.isDark) 140 else 200))
             }
+            searchBg = sBg
             background = sBg
             val pH = (10 * density).toInt()
             val pV = (6 * density).toInt()
@@ -602,6 +687,7 @@ class OverlayService : Service() {
                 override fun afterTextChanged(s: Editable?) {}
             })
         }
+        panelSearchView = search
         content.addView(search)
 
         // C. Category Chips HorizontalScrollView (shown only when showCategories is true)
@@ -615,6 +701,7 @@ class OverlayService : Service() {
             }
             visibility = if (showCategories) View.VISIBLE else View.GONE
         }
+        categoryScrollView = chipsScroll
         val chipsGroup = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
         }
@@ -662,15 +749,16 @@ class OverlayService : Service() {
         // Top-End Close Button. Tap closes; a deliberate hold turns it into the popup drag handle.
         val closeBtn = ImageView(this).apply {
             setImageDrawable(ContextCompat.getDrawable(this@OverlayService, LucideR.drawable.lucide_ic_x))
-            setColorFilter(if (dark) Color.WHITE else 0xFF222222.toInt())
+            setColorFilter(palette.textColor)
             val btnSize = (30 * density).toInt()
             val pad = (6 * density).toInt()
             setPadding(pad, pad, pad, pad)
             val btnBg = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(withAlpha(overlaySurfaceColor(dark), if (dark) 200 else 220))
-                setStroke((1 * density).toInt(), withAlpha(if (dark) Color.WHITE else Color.BLACK, 30))
+                setColor(withAlpha(palette.surfaceColor, if (palette.isDark) 200 else 220))
+                setStroke((1 * density).toInt(), withAlpha(palette.outlineColor, if (palette.isDark) 60 else 70))
             }
+            closeBtnBg = btnBg
             background = btnBg
             contentDescription = "Close popup. Hold and drag to move."
             layoutParams = FrameLayout.LayoutParams(btnSize, btnSize).apply {
@@ -736,12 +824,13 @@ class OverlayService : Service() {
                 else -> true
             }
         }
+        closeBtnView = closeBtn
         root.addView(closeBtn)
 
         // Bottom-End Resize Handle (Lucide move_diagonal_2)
         val resizeBtn = ImageView(this).apply {
             setImageDrawable(ContextCompat.getDrawable(this@OverlayService, LucideR.drawable.lucide_ic_move_diagonal_2))
-            setColorFilter(primaryColor)
+            setColorFilter(palette.primaryColor)
             val btnSize = (30 * density).toInt()
             val pad = (7 * density).toInt()
             setPadding(pad, pad, pad, pad)
@@ -753,8 +842,9 @@ class OverlayService : Service() {
                     14 * density, 14 * density,
                     4 * density, 4 * density
                 )
-                setColor(withAlpha(overlaySurfaceColor(dark), if (dark) 190 else 210))
+                setColor(withAlpha(palette.surfaceColor, if (palette.isDark) 190 else 210))
             }
+            resizeHandleBg = handleBg
             background = handleBg
             contentDescription = "Resize quick stickers"
             layoutParams = FrameLayout.LayoutParams(btnSize, btnSize).apply {
@@ -816,6 +906,7 @@ class OverlayService : Service() {
                 else -> true
             }
         }
+        resizeBtnView = resizeBtn
         root.addView(resizeBtn)
 
         // Store explicit references
@@ -887,9 +978,8 @@ class OverlayService : Service() {
 
         if (chipScroll?.visibility != View.VISIBLE) return
 
-        val dark = isDarkMode()
+        val palette = currentPalette()
         val density = resources.displayMetrics.density
-        val primaryColor = overlayPrimaryColor(dark)
         val categories = listOf("All", "Favorites", "Frequent") + repository.categoriesFlow.value.map { it.name }
 
         for (cat in categories) {
@@ -899,17 +989,26 @@ class OverlayService : Service() {
                 textSize = 11f
                 typeface = if (isSelected) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
                 setTextColor(
-                    if (isSelected) Color.WHITE
-                    else if (dark) 0xAAFFFFFF.toInt()
-                    else 0xAA000000.toInt()
+                    if (isSelected) {
+                        if (palette.visualTheme == AppVisualTheme.HERBARIUM) palette.onPrimaryContainerColor
+                        else Color.WHITE
+                    } else {
+                        palette.mutedTextColor
+                    }
                 )
                 val bg = GradientDrawable().apply {
                     shape = GradientDrawable.RECTANGLE
                     cornerRadius = 10 * density
                     if (isSelected) {
-                        setColor(primaryColor)
+                        setColor(
+                            if (palette.visualTheme == AppVisualTheme.HERBARIUM) palette.primaryContainerColor
+                            else palette.primaryColor
+                        )
+                        if (palette.visualTheme == AppVisualTheme.HERBARIUM) {
+                            setStroke((1 * density).toInt(), palette.primaryColor)
+                        }
                     } else {
-                        setColor(withAlpha(if (dark) Color.WHITE else Color.BLACK, if (dark) 24 else 14))
+                        setColor(withAlpha(palette.surfaceVariantColor, if (palette.isDark) 140 else 200))
                     }
                 }
                 background = bg

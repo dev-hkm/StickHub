@@ -125,6 +125,10 @@ import com.hkm.stickhub.ui.library.LibrarySnapshotState
 import com.hkm.stickhub.ui.library.LibraryStartupRefreshPolicy
 import com.hkm.stickhub.ui.library.StickerLibraryViewMode
 import com.hkm.stickhub.ui.theme.AppThemeMode
+import com.hkm.stickhub.ui.theme.AppVisualTheme
+import com.hkm.stickhub.ui.theme.BotanicalLeafMotif
+import com.hkm.stickhub.ui.theme.ThemePreferences
+import com.hkm.stickhub.ui.theme.parchmentWash
 import com.hkm.stickhub.ui.theme.StickHubMotion
 import com.hkm.stickhub.util.BackupHelper
 import com.hkm.stickhub.util.ClipboardHelper
@@ -149,7 +153,9 @@ fun StickHubApp(
     incomingSharedUri: Uri? = null,
     onClearSharedUri: () -> Unit = {},
     themeMode: AppThemeMode = AppThemeMode.SYSTEM,
-    onThemeModeChange: (AppThemeMode) -> Unit = {}
+    onThemeModeChange: (AppThemeMode) -> Unit = {},
+    visualTheme: AppVisualTheme = AppVisualTheme.DEFAULT,
+    onVisualThemeChange: (AppVisualTheme) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -540,7 +546,11 @@ fun StickHubApp(
         Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .zIndex(0f),
+                .zIndex(0f)
+                .parchmentWash(
+                    enabled = visualTheme == AppVisualTheme.HERBARIUM,
+                    isDark = ThemePreferences.resolveIsDark(context, themeMode)
+                ),
             color = MaterialTheme.colorScheme.background
         ) {
             Scaffold(
@@ -687,7 +697,7 @@ fun StickHubApp(
                                             }
                                         } else if (displayedStickers.isEmpty()) {
                                             item(key = "empty_library", span = { GridItemSpan(maxLineSpan) }) {
-                                                EmptyLibraryView(searchQuery = searchQuery)
+                                                EmptyLibraryView(searchQuery = searchQuery, visualTheme = visualTheme)
                                             }
                                         } else {
                                             items(displayedStickers, key = { it.id }) { sticker ->
@@ -790,7 +800,7 @@ fun StickHubApp(
                                             }
                                         } else if (displayedStickers.isEmpty()) {
                                             item(key = "empty_library", span = { GridItemSpan(maxLineSpan) }) {
-                                                EmptyLibraryView(searchQuery = searchQuery)
+                                                EmptyLibraryView(searchQuery = searchQuery, visualTheme = visualTheme)
                                             }
                                         } else {
                                             items(displayedStickers, key = { it.id }) { sticker ->
@@ -972,7 +982,7 @@ fun StickHubApp(
                                             }
                                         } else if (displayedStickers.isEmpty()) {
                                             item(key = "empty_library", span = { GridItemSpan(maxLineSpan) }) {
-                                                EmptyLibraryView(searchQuery = searchQuery)
+                                                EmptyLibraryView(searchQuery = searchQuery, visualTheme = visualTheme)
                                             }
                                         } else {
                                             items(displayedStickers, key = { it.id }) { sticker ->
@@ -1072,7 +1082,7 @@ fun StickHubApp(
                                             }
                                         } else if (displayedStickers.isEmpty()) {
                                             item(key = "empty_library") {
-                                                EmptyLibraryView(searchQuery = searchQuery)
+                                                EmptyLibraryView(searchQuery = searchQuery, visualTheme = visualTheme)
                                             }
                                         } else {
                                             items(displayedStickers, key = { it.id }) { sticker ->
@@ -1121,6 +1131,8 @@ fun StickHubApp(
             SettingsScreen(
                 themeMode = themeMode,
                 onThemeModeChange = onThemeModeChange,
+                visualTheme = visualTheme,
+                onVisualThemeChange = onVisualThemeChange,
                 libraryViewMode = libraryViewMode,
                 onLibraryViewModeChange = { newMode ->
                     libraryViewMode = newMode
@@ -1985,7 +1997,10 @@ private fun LibraryLoadFailureView(onRetry: () -> Unit) {
 }
 
 @Composable
-private fun EmptyLibraryView(searchQuery: String) {
+private fun EmptyLibraryView(
+    searchQuery: String,
+    visualTheme: AppVisualTheme = AppVisualTheme.DEFAULT
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -1996,12 +2011,22 @@ private fun EmptyLibraryView(searchQuery: String) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(
-                painter = painterResource(LucideR.drawable.lucide_ic_folder_open),
-                contentDescription = null,
-                modifier = Modifier.size(56.dp),
-                tint = MaterialTheme.colorScheme.outline
-            )
+            if (visualTheme == AppVisualTheme.HERBARIUM && searchQuery.isEmpty()) {
+                BotanicalLeafMotif(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .padding(bottom = 12.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                    alpha = 0.25f
+                )
+            } else {
+                Icon(
+                    painter = painterResource(LucideR.drawable.lucide_ic_folder_open),
+                    contentDescription = null,
+                    modifier = Modifier.size(56.dp),
+                    tint = MaterialTheme.colorScheme.outline
+                )
+            }
             Spacer(modifier = Modifier.height(14.dp))
             Text(
                 text = if (searchQuery.isNotEmpty()) "No matching stickers found" else "Your library is empty",

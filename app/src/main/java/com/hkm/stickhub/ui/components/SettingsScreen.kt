@@ -1,7 +1,13 @@
 package com.hkm.stickhub.ui.components
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import com.hkm.stickhub.ui.theme.AppVisualTheme
+import com.hkm.stickhub.ui.theme.BotanicalColors
+import com.hkm.stickhub.ui.theme.ThemePreferences
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -61,6 +67,8 @@ import kotlin.math.abs
 fun SettingsScreen(
     themeMode: AppThemeMode,
     onThemeModeChange: (AppThemeMode) -> Unit,
+    visualTheme: AppVisualTheme = AppVisualTheme.DEFAULT,
+    onVisualThemeChange: (AppVisualTheme) -> Unit = {},
     libraryViewMode: StickerLibraryViewMode,
     onLibraryViewModeChange: (StickerLibraryViewMode) -> Unit,
     showLibrarySearch: Boolean,
@@ -200,6 +208,66 @@ fun SettingsScreen(
                 SectionHeader("APPEARANCE")
 
                 Text(
+                    text = "Color theme",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                val context = LocalContext.current
+                val isDark = ThemePreferences.resolveIsDark(context, themeMode)
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    ColorThemeCard(
+                        theme = AppVisualTheme.DEFAULT,
+                        selected = visualTheme == AppVisualTheme.DEFAULT,
+                        swatches = if (isDark) {
+                            listOf(Color(0xFFD4D8E2), Color(0xFF383E4B), Color(0xFF1A1C20), Color(0xFFC4C7D0))
+                        } else {
+                            listOf(Color(0xFF2B303A), Color(0xFFE2E6EE), Color(0xFFFFFFFF), Color(0xFF4A4E57))
+                        },
+                        onClick = {
+                            if (visualTheme != AppVisualTheme.DEFAULT) {
+                                haptics.performCopyAck()
+                                onVisualThemeChange(AppVisualTheme.DEFAULT)
+                            }
+                        }
+                    )
+
+                    ColorThemeCard(
+                        theme = AppVisualTheme.HERBARIUM,
+                        selected = visualTheme == AppVisualTheme.HERBARIUM,
+                        swatches = if (isDark) {
+                            listOf(
+                                BotanicalColors.DarkSagePrimary,
+                                BotanicalColors.DarkPrimaryContainer,
+                                BotanicalColors.DarkPaperSurface,
+                                BotanicalColors.DarkMutedRoseTertiary
+                            )
+                        } else {
+                            listOf(
+                                BotanicalColors.LightLeafGreenPrimary,
+                                BotanicalColors.LightSagePrimaryContainer,
+                                BotanicalColors.LightWarmPaperSurface,
+                                BotanicalColors.LightMutedTerracottaTertiary
+                            )
+                        },
+                        onClick = {
+                            if (visualTheme != AppVisualTheme.HERBARIUM) {
+                                haptics.performCopyAck()
+                                onVisualThemeChange(AppVisualTheme.HERBARIUM)
+                            }
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
                     text = "Theme mode",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
@@ -216,6 +284,17 @@ fun SettingsScreen(
                     },
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
+
+                Text(
+                    text = "Live preview",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                SpecimenPreviewSurface(visualTheme = visualTheme)
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Surface(
                     shape = RoundedCornerShape(14.dp),
@@ -639,5 +718,168 @@ private fun formatStorageSize(bytes: Long): String {
         bytes < 1024 -> "$bytes B"
         bytes < 1024 * 1024 -> "${bytes / 1024} KB"
         else -> String.format("%.1f MB", bytes.toDouble() / (1024 * 1024))
+    }
+}
+
+@Composable
+private fun ColorThemeCard(
+    theme: AppVisualTheme,
+    selected: Boolean,
+    swatches: List<Color>,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
+        border = BorderStroke(
+            width = if (selected) 2.dp else 1.dp,
+            color = if (selected) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(
+                role = Role.RadioButton,
+                onClick = onClick
+            )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = theme.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        for (swatch in swatches) {
+                            Box(
+                                modifier = Modifier
+                                    .size(14.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(swatch)
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = theme.subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (selected) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(LucideR.drawable.lucide_ic_check),
+                        contentDescription = "Selected",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpecimenPreviewSurface(visualTheme: AppVisualTheme) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (visualTheme == AppVisualTheme.HERBARIUM) "BOTANICAL SPECIMEN" else "SYSTEM PALETTE",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    letterSpacing = 0.5.sp
+                )
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Text(
+                        text = if (visualTheme == AppVisualTheme.HERBARIUM) "Herbarium" else "Default",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "Tactile paper card",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+                    )
+                }
+
+                FilledTonalButton(
+                    onClick = { /* Interactive preview */ },
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(
+                            if (visualTheme == AppVisualTheme.HERBARIUM) LucideR.drawable.lucide_ic_leaf
+                            else LucideR.drawable.lucide_ic_sparkles
+                        ),
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Sample",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+            }
+        }
     }
 }

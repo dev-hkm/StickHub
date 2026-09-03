@@ -14,6 +14,7 @@ import com.hkm.stickhub.data.repository.StickerRepository
 import com.hkm.stickhub.service.OverlayService
 import com.hkm.stickhub.ui.StickHubApp
 import com.hkm.stickhub.ui.theme.AppThemeMode
+import com.hkm.stickhub.ui.theme.AppVisualTheme
 import com.hkm.stickhub.ui.theme.StickHubTheme
 import com.hkm.stickhub.ui.theme.ThemePreferences
 
@@ -25,6 +26,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var repository: StickerRepository
     private var incomingSharedUri by mutableStateOf<Uri?>(null)
     private var themeMode by mutableStateOf(AppThemeMode.SYSTEM)
+    private var visualTheme by mutableStateOf(AppVisualTheme.DEFAULT)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,12 +49,16 @@ class MainActivity : ComponentActivity() {
         }
         repository = StickerRepository(applicationContext)
         themeMode = ThemePreferences.getThemeMode(this)
+        visualTheme = ThemePreferences.getVisualTheme(this)
 
         handleIncomingIntent(intent)
 
         setContent {
             val resolvedIsDark = ThemePreferences.resolveIsDark(this, themeMode)
-            StickHubTheme(darkTheme = resolvedIsDark) {
+            StickHubTheme(
+                visualTheme = visualTheme,
+                darkTheme = resolvedIsDark
+            ) {
                 StickHubApp(
                     repository = repository,
                     incomingSharedUri = incomingSharedUri,
@@ -61,6 +67,17 @@ class MainActivity : ComponentActivity() {
                     onThemeModeChange = { newMode ->
                         themeMode = newMode
                         ThemePreferences.setThemeMode(this, newMode)
+                        if (OverlayService.isRunning) {
+                            startService(
+                                Intent(this, OverlayService::class.java)
+                                    .setAction(OverlayService.ACTION_REFRESH_CONFIGURATION)
+                            )
+                        }
+                    },
+                    visualTheme = visualTheme,
+                    onVisualThemeChange = { newTheme ->
+                        visualTheme = newTheme
+                        ThemePreferences.setVisualTheme(this, newTheme)
                         if (OverlayService.isRunning) {
                             startService(
                                 Intent(this, OverlayService::class.java)

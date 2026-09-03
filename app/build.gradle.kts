@@ -45,9 +45,9 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version bump for settings transition, bottom-sheet lifecycle, semantic haptics, and overlay rotation reflow.
-        versionCode = 25
-        versionName = "2.2.2"
+        // Version bump for complete theme system and Vintage Botanical Herbarium visual theme.
+        versionCode = 26
+        versionName = "2.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -9,6 +9,7 @@ import android.content.res.Configuration
 object ThemePreferences {
     private const val PREFS_NAME = "stickhub_theme_preferences"
     private const val KEY_THEME_MODE = "app_theme_mode"
+    private const val KEY_VISUAL_THEME = "visual_theme"
 
     fun getThemeMode(context: Context): AppThemeMode {
         val raw = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -25,6 +26,23 @@ object ThemePreferences {
 
     fun parseThemeMode(raw: String?): AppThemeMode {
         return AppThemeMode.fromString(raw)
+    }
+
+    fun getVisualTheme(context: Context): AppVisualTheme {
+        val raw = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_VISUAL_THEME, null)
+        return parseVisualTheme(raw)
+    }
+
+    fun setVisualTheme(context: Context, theme: AppVisualTheme) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_VISUAL_THEME, theme.id)
+            .apply()
+    }
+
+    fun parseVisualTheme(raw: String?): AppVisualTheme {
+        return AppVisualTheme.fromString(raw)
     }
 
     /**
