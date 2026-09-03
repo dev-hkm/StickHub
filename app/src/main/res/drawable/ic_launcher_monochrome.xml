@@ -1,0 +1,34 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <!-- Themed launcher icons are monochrome by Android design. Alpha layers retain the
+         supplied mascot's stacked notes, face, arms, and feet after the launcher tints it. -->
+    <group
+        android:scaleX="1.17"
+        android:scaleY="1.17"
+        android:translateX="-43.52"
+        android:translateY="-43.52">
+        <path android:fillColor="#FFFFFF" android:fillAlpha="0.20"
+            android:pathData="M184,340.96a72,12.96 0,1 0,144 0a72,12.96 0,1 0,-144 0z" />
+        <path android:fillColor="#FFFFFF" android:fillAlpha="0.42"
+            android:pathData="M209.01,182.42L258.31,171.94A20.16,20.16 59.68,0 1,282.22 187.47L296.29,253.67A20.16,20.16 123.87,0 1,280.76 277.58L231.46,288.06A20.16,20.16 123.87,0 1,207.55 272.53L193.48,206.33A20.16,20.16 85.94,0 1,209.01 182.42z" />
+        <path android:fillColor="#FFFFFF" android:fillAlpha="0.56"
+            android:pathData="M260.37,178.28L307.17,186.53A20.16,20.16 58.29,0 1,323.52 209.89L312.27,273.7A20.16,20.16 58.29,0 1,288.91 290.06L242.12,281.8A20.16,20.16 115.66,0 1,225.76 258.45L237.01,194.63A20.16,20.16 115.66,0 1,260.37 178.28z" />
+        <path android:fillColor="#FFFFFF" android:fillAlpha="0.72"
+            android:pathData="M212.59,215.15L264.31,211.54A21.6,21.6 133.45,0 1,287.36 231.58L291.88,296.22A21.6,21.6 61.83,0 1,271.84 319.27L220.13,322.89A21.6,21.6 63.56,0 1,197.07 302.85L192.55,238.21A21.6,21.6 0,0 1,212.59 215.15z" />
+        <path android:fillColor="#00000000" android:strokeColor="#FFFFFF" android:strokeWidth="11.52" android:strokeLineCap="round"
+            android:pathData="M202.72,260.32C189.76,261.76 181.84,269.68 181.84,279.76C181.84,285.52 185.44,290.56 191.2,294.16M310.72,258.88C323.68,260.32 331.6,267.52 333.76,277.6C335.2,284.8 332.32,290.56 327.28,294.88" />
+        <path android:fillColor="#FFFFFF"
+            android:pathData="M226.65,202.27L282.77,200.31A24.48,24.48 0,0 1,308.09 223.92L310.7,298.76A24.48,24.48 133.09,0 1,287.09 324.07L230.97,326.03A24.48,24.48 74.03,0 1,205.65 302.42L203.04,227.59A24.48,24.48 55.26,0 1,226.65 202.27z" />
+        <path android:fillColor="#FFFFFF" android:fillAlpha="0.82"
+            android:pathData="M231.27,210.75L278.76,209.1A20.16,20.16 131.04,0 1,299.61 228.54L301.92,294.74A20.16,20.16 60.57,0 1,282.48 315.59L234.98,317.25A20.16,20.16 105.23,0 1,214.13 297.8L211.82,231.61A20.16,20.16 111.63,0 1,231.27 210.75z" />
+        <path android:fillColor="#FFFFFF" android:fillAlpha="0.26"
+            android:pathData="M239.17,251.54m-5.4,0.19a5.4,5.4 132.26,1 1,10.79 -0.38a5.4,5.4 132.26,1 1,-10.79 0.38M272.99,250.36m-5.4,0.19a5.4,5.4 70.03,1 1,10.79 -0.38a5.4,5.4 70.03,1 1,-10.79 0.38" />
+        <path android:fillColor="#00000000" android:strokeColor="#FFFFFF" android:strokeAlpha="0.30" android:strokeWidth="4.32" android:strokeLineCap="round"
+            android:pathData="M243.45,270.85C248.66,275.71 265.21,275.13 270.07,269.92M231.13,289.29L279.34,287.6M231.48,299.36L268.89,298.05" />
+        <path android:fillColor="#00000000" android:strokeColor="#FFFFFF" android:strokeWidth="6.48" android:strokeLineCap="round"
+            android:pathData="M240.16,324.4L236.56,334.48M273.28,324.4L276.88,334.48M228.64,335.92L239.44,335.92M274,335.92L284.8,335.92" />
+    </group>
+</vector>

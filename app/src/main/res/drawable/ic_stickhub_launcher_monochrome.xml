@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+  <group
+      android:scaleX="0.95"
+      android:scaleY="0.95"
+      android:translateX="12.8"
+      android:translateY="12.8">
+
+    <!-- Background card 1 -->
+    <path
+        android:pathData="M223.2,176.26L270.07,171.33A21.28,21.28 129.77,0 1,293.45 190.27L300.92,261.32A21.28,21.28 128.93,0 1,281.98 284.71L235.12,289.63A21.28,21.28 129.14,0 1,211.73 270.69L204.26,199.64A21.28,21.28 132.67,0 1,223.2 176.26z"
+        android:fillColor="#000000"
+        android:fillAlpha="0.35"/>
+
+    <!-- Background card 2 -->
+    <path
+        android:pathData="M249.01,176.33L294.27,181.89A19.76,19.76 104.7,0 1,311.48 203.91L302.96,273.31A19.76,19.76 104.7,0 1,280.94 290.51L235.68,284.95A19.76,19.76 50.46,0 1,218.47 262.93L226.99,193.53A19.76,19.76 52.45,0 1,249.01 176.33z"
+        android:fillColor="#000000"
+        android:fillAlpha="0.5"/>
+
+    <!-- Main Character Sticker Body Silhouette -->
+    <path
+        android:pathData="M256,202.04C267.4,190.64 277.28,181.52 287.16,181.52C296.28,181.52 302.36,189.12 302.36,199L302.36,203.56C309.2,203.56 314.52,208.88 314.52,216.48L314.52,254.48C314.52,281.84 292.48,303.88 265.12,303.88L246.88,303.88C219.52,303.88 197.48,281.84 197.48,254.48L197.48,216.48C197.48,208.88 202.8,203.56 209.64,203.56L209.64,199C209.64,189.12 215.72,181.52 224.84,181.52C234.72,181.52 244.6,190.64 256,202.04Z"
+        android:fillColor="#000000"/>
+
+    <!-- Folded corner tab -->
+    <path
+        android:pathData="M284.88,272.72C295.52,272.72 303.88,281.08 303.88,291.72C303.88,300.08 297.8,306.92 289.44,306.92C286.4,306.92 283.36,306.16 280.32,303.88L265.88,293.24C262.84,290.96 262.84,287.16 265.88,284.88L278.8,275C280.32,273.48 282.6,272.72 284.88,272.72Z"
+        android:fillColor="#000000"
+        android:fillAlpha="0.6"/>
+
+    <!-- Left Sparkle -->
+    <path
+        android:pathData="M84,157L89,169L101,174L89,179L84,191L79,179L67,174L79,169L84,157Z"
+        android:fillColor="#000000"/>
+
+    <!-- Right Sparkle -->
+    <path
+        android:pathData="M431,344L436,356L448,361L436,366L431,378L426,366L414,361L426,356L431,344Z"
+        android:fillColor="#000000"/>
+
+    <!-- Floating Star 1 -->
+    <path
+        android:pathData="M221.04,217.24L224.08,224.08L230.92,227.12L224.08,230.16L221.04,237L218,230.16L211.16,227.12L218,224.08L221.04,217.24Z"
+        android:fillColor="#000000"/>
+
+    <!-- Floating Star 2 -->
+    <path
+        android:pathData="M290.2,224.08L293.24,230.92L300.08,233.96L293.24,237L290.2,243.84L287.16,237L280.32,233.96L287.16,230.92L290.2,224.08Z"
+        android:fillColor="#000000"/>
+  </group>
+</vector>
