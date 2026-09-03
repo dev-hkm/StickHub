@@ -7,6 +7,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import com.hkm.stickhub.ui.theme.AppVisualTheme
 import com.hkm.stickhub.ui.theme.BotanicalColors
+import com.hkm.stickhub.ui.theme.SketchbookColors
+import com.hkm.stickhub.ui.theme.notebookPaperLines
 import com.hkm.stickhub.ui.theme.ThemePreferences
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -260,6 +262,32 @@ fun SettingsScreen(
                             if (visualTheme != AppVisualTheme.HERBARIUM) {
                                 haptics.performCopyAck()
                                 onVisualThemeChange(AppVisualTheme.HERBARIUM)
+                            }
+                        }
+                    )
+
+                    ColorThemeCard(
+                        theme = AppVisualTheme.SKETCHBOOK,
+                        selected = visualTheme == AppVisualTheme.SKETCHBOOK,
+                        swatches = if (isDark) {
+                            listOf(
+                                SketchbookColors.DarkPaperSurface,
+                                SketchbookColors.DarkPrimaryBlue,
+                                SketchbookColors.DarkRedAccent,
+                                SketchbookColors.DarkMutedHighlighter
+                            )
+                        } else {
+                            listOf(
+                                SketchbookColors.LightPaperSurface,
+                                SketchbookColors.LightNavyInkPrimary,
+                                SketchbookColors.LightMutedRedAccent,
+                                SketchbookColors.LightHighlighterYellow
+                            )
+                        },
+                        onClick = {
+                            if (visualTheme != AppVisualTheme.SKETCHBOOK) {
+                                haptics.performCopyAck()
+                                onVisualThemeChange(AppVisualTheme.SKETCHBOOK)
                             }
                         }
                     )
@@ -804,11 +832,38 @@ private fun ColorThemeCard(
 
 @Composable
 private fun SpecimenPreviewSurface(visualTheme: AppVisualTheme) {
+    val context = LocalContext.current
+    val isDark = ThemePreferences.resolveIsDark(context, ThemePreferences.getThemeMode(context))
+
+    val headerTitle = when (visualTheme) {
+        AppVisualTheme.DEFAULT -> "SYSTEM PALETTE"
+        AppVisualTheme.HERBARIUM -> "BOTANICAL SPECIMEN"
+        AppVisualTheme.SKETCHBOOK -> "SKETCH-NOTE SPECIMEN"
+    }
+
+    val sampleCardText = when (visualTheme) {
+        AppVisualTheme.DEFAULT -> "Material 3 card"
+        AppVisualTheme.HERBARIUM -> "Warm parchment paper"
+        AppVisualTheme.SKETCHBOOK -> "Ruled notebook paper"
+    }
+
+    val iconRes = when (visualTheme) {
+        AppVisualTheme.DEFAULT -> LucideR.drawable.lucide_ic_sparkles
+        AppVisualTheme.HERBARIUM -> LucideR.drawable.lucide_ic_leaf
+        AppVisualTheme.SKETCHBOOK -> LucideR.drawable.lucide_ic_pen_tool
+    }
+
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (visualTheme == AppVisualTheme.SKETCHBOOK) {
+                    Modifier.notebookPaperLines(enabled = true, isDark = isDark)
+                } else Modifier
+            )
     ) {
         Column(
             modifier = Modifier
@@ -822,7 +877,7 @@ private fun SpecimenPreviewSurface(visualTheme: AppVisualTheme) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (visualTheme == AppVisualTheme.HERBARIUM) "BOTANICAL SPECIMEN" else "SYSTEM PALETTE",
+                    text = headerTitle,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -833,7 +888,7 @@ private fun SpecimenPreviewSurface(visualTheme: AppVisualTheme) {
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Text(
-                        text = if (visualTheme == AppVisualTheme.HERBARIUM) "Herbarium" else "Default",
+                        text = visualTheme.title,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -853,7 +908,7 @@ private fun SpecimenPreviewSurface(visualTheme: AppVisualTheme) {
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = "Tactile paper card",
+                        text = sampleCardText,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
@@ -866,10 +921,7 @@ private fun SpecimenPreviewSurface(visualTheme: AppVisualTheme) {
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Icon(
-                        painter = painterResource(
-                            if (visualTheme == AppVisualTheme.HERBARIUM) LucideR.drawable.lucide_ic_leaf
-                            else LucideR.drawable.lucide_ic_sparkles
-                        ),
+                        painter = painterResource(iconRes),
                         contentDescription = null,
                         modifier = Modifier.size(14.dp)
                     )

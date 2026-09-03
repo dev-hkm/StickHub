@@ -217,3 +217,110 @@ val HerbariumTypography = Typography(
         letterSpacing = 0.5.sp
     )
 )
+
+val PatrickHandFontFamily = FontFamily(
+    Font(R.font.patrick_hand_regular, FontWeight.Normal)
+)
+
+val SketchbookTypography = Typography(
+    displayLarge = TextStyle(
+        fontFamily = PatrickHandFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 52.sp,
+        lineHeight = 58.sp,
+        letterSpacing = (-0.5).sp
+    ),
+    displayMedium = TextStyle(
+        fontFamily = PatrickHandFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 42.sp,
+        lineHeight = 48.sp
+    ),
+    displaySmall = TextStyle(
+        fontFamily = PatrickHandFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 34.sp,
+        lineHeight = 40.sp
+    ),
+    headlineLarge = TextStyle(
+        fontFamily = PatrickHandFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 30.sp,
+        lineHeight = 36.sp
+    ),
+    headlineMedium = TextStyle(
+        fontFamily = PatrickHandFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 26.sp,
+        lineHeight = 32.sp
+    ),
+    headlineSmall = TextStyle(
+        fontFamily = PatrickHandFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 22.sp,
+        lineHeight = 28.sp
+    ),
+    titleLarge = TextStyle(
+        fontFamily = PatrickHandFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 20.sp,
+        lineHeight = 26.sp,
+        letterSpacing = 0.2.sp
+    ),
+    titleMedium = TextStyle(
+        fontFamily = PatrickHandFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 17.sp,
+        lineHeight = 24.sp,
+        letterSpacing = 0.2.sp
+    ),
+    titleSmall = TextStyle(
+        fontFamily = PatrickHandFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 15.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.2.sp
+    ),
+    bodyLarge = TextStyle(
+        fontFamily = PatrickHandFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 17.sp,
+        lineHeight = 26.sp,
+        letterSpacing = 0.4.sp
+    ),
+    bodyMedium = TextStyle(
+        fontFamily = PatrickHandFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 15.sp,
+        lineHeight = 23.sp,
+        letterSpacing = 0.3.sp
+    ),
+    bodySmall = TextStyle(
+        fontFamily = PatrickHandFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 13.sp,
+        lineHeight = 19.sp,
+        letterSpacing = 0.3.sp
+    ),
+    labelLarge = TextStyle(
+        fontFamily = PatrickHandFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 15.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.4.sp
+    ),
+    labelMedium = TextStyle(
+        fontFamily = PatrickHandFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+        letterSpacing = 0.5.sp
+    ),
+    labelSmall = TextStyle(
+        fontFamily = PatrickHandFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.6.sp
+    )
+)

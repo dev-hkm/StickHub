@@ -129,6 +129,8 @@ import com.hkm.stickhub.ui.theme.AppVisualTheme
 import com.hkm.stickhub.ui.theme.BotanicalLeafMotif
 import com.hkm.stickhub.ui.theme.ThemePreferences
 import com.hkm.stickhub.ui.theme.parchmentWash
+import com.hkm.stickhub.ui.theme.notebookPaperLines
+import com.hkm.stickhub.ui.theme.SketchDoodleMotif
 import com.hkm.stickhub.ui.theme.StickHubMotion
 import com.hkm.stickhub.util.BackupHelper
 import com.hkm.stickhub.util.ClipboardHelper
@@ -547,9 +549,18 @@ fun StickHubApp(
             modifier = Modifier
                 .fillMaxSize()
                 .zIndex(0f)
-                .parchmentWash(
-                    enabled = visualTheme == AppVisualTheme.HERBARIUM,
-                    isDark = ThemePreferences.resolveIsDark(context, themeMode)
+                .then(
+                    when (visualTheme) {
+                        AppVisualTheme.HERBARIUM -> Modifier.parchmentWash(
+                            enabled = true,
+                            isDark = ThemePreferences.resolveIsDark(context, themeMode)
+                        )
+                        AppVisualTheme.SKETCHBOOK -> Modifier.notebookPaperLines(
+                            enabled = true,
+                            isDark = ThemePreferences.resolveIsDark(context, themeMode)
+                        )
+                        AppVisualTheme.DEFAULT -> Modifier
+                    }
                 ),
             color = MaterialTheme.colorScheme.background
         ) {
@@ -2011,14 +2022,35 @@ private fun EmptyLibraryView(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            if (visualTheme == AppVisualTheme.HERBARIUM && searchQuery.isEmpty()) {
-                BotanicalLeafMotif(
-                    modifier = Modifier
-                        .size(72.dp)
-                        .padding(bottom = 12.dp),
-                    tint = MaterialTheme.colorScheme.primary,
-                    alpha = 0.25f
-                )
+            if (searchQuery.isEmpty()) {
+                when (visualTheme) {
+                    AppVisualTheme.HERBARIUM -> {
+                        BotanicalLeafMotif(
+                            modifier = Modifier
+                                .size(72.dp)
+                                .padding(bottom = 12.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                            alpha = 0.25f
+                        )
+                    }
+                    AppVisualTheme.SKETCHBOOK -> {
+                        SketchDoodleMotif(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .padding(bottom = 12.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                            accentTint = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
+                    AppVisualTheme.DEFAULT -> {
+                        Icon(
+                            painter = painterResource(LucideR.drawable.lucide_ic_folder_open),
+                            contentDescription = null,
+                            modifier = Modifier.size(56.dp),
+                            tint = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                }
             } else {
                 Icon(
                     painter = painterResource(LucideR.drawable.lucide_ic_folder_open),

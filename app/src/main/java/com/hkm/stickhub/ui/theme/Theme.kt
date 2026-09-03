@@ -97,6 +97,9 @@ fun StickHubTheme(
     content: @Composable () -> Unit
 ) {
     val rawColorScheme = when (visualTheme) {
+        AppVisualTheme.SKETCHBOOK -> {
+            if (darkTheme) SketchbookDarkColorScheme else SketchbookLightColorScheme
+        }
         AppVisualTheme.HERBARIUM -> {
             if (darkTheme) HerbariumDarkColorScheme else HerbariumLightColorScheme
         }
@@ -115,6 +118,7 @@ fun StickHubTheme(
     val colorScheme = animateColorScheme(target = rawColorScheme)
 
     val typography = when (visualTheme) {
+        AppVisualTheme.SKETCHBOOK -> SketchbookTypography
         AppVisualTheme.HERBARIUM -> HerbariumTypography
         AppVisualTheme.DEFAULT -> Typography
     }

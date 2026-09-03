@@ -1,4 +1,4 @@
-﻿package com.hkm.stickhub.ui.theme
+package com.hkm.stickhub.ui.theme
 
 /**
  * Supported app-wide visual themes.
@@ -18,6 +18,11 @@ enum class AppVisualTheme(
         id = "herbarium",
         title = "Herbarium",
         subtitle = "Parchment, botanical ink, and scientific detail"
+    ),
+    SKETCHBOOK(
+        id = "sketchbook",
+        title = "Sketchbook",
+        subtitle = "Notebook paper and hand-drawn ink"
     );
 
     companion object {

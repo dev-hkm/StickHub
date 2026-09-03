@@ -1,4 +1,4 @@
-﻿package com.hkm.stickhub.ui.theme
+package com.hkm.stickhub.ui.theme
 
 import android.content.Context
 import android.os.Build
@@ -9,7 +9,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 
 /**
- * Curated color tokens for the Herbarium (\"Vintage Botanical Scientific Illustration\") theme.
+ * Curated color tokens for the Herbarium ("Vintage Botanical Scientific Illustration") theme.
  */
 object BotanicalColors {
     // Light Palette
@@ -58,6 +58,65 @@ object BotanicalColors {
     val DarkOutline = Color(0xFF9B8874)
     val DarkOutlineVariant = Color(0xFF50453A)
     val DarkMutedRedError = Color(0xFFFFB4AB)
+    val DarkOnError = Color(0xFF690005)
+    val DarkErrorContainer = Color(0xFF93000A)
+    val DarkOnErrorContainer = Color(0xFFFFDAD6)
+}
+
+/**
+ * Curated color tokens for the Sketchbook ("Hand-Drawn Sketch-Note") theme.
+ */
+object SketchbookColors {
+    // Light Palette
+    val LightNotebookBackground = Color(0xFFF4F1EA)
+    val LightPaperSurface = Color(0xFFFFFCF5)
+    val LightPaperSurfaceVariant = Color(0xFFEBE6DC)
+    val LightNavyInkPrimary = Color(0xFF0E2A5C)
+    val LightOnPrimary = Color(0xFFFFFFFF)
+    val LightPrimaryContainer = Color(0xFFDCE7F7)
+    val LightOnPrimaryContainer = Color(0xFF081B3C)
+    val LightBallpointBlueSecondary = Color(0xFF3158A6)
+    val LightOnSecondary = Color(0xFFFFFFFF)
+    val LightSecondaryContainer = Color(0xFFD7E2F7)
+    val LightOnSecondaryContainer = Color(0xFF0D1D3A)
+    val LightPencilGraphite = Color(0xFF333333)
+    val LightMutedGraphite = Color(0xFF67635E)
+    val LightMutedRedAccent = Color(0xFFB84942)
+    val LightOnTertiary = Color(0xFFFFFFFF)
+    val LightTertiaryContainer = Color(0xFFF9DCDA)
+    val LightOnTertiaryContainer = Color(0xFF3D100D)
+    val LightHighlighterYellow = Color(0xFFF3E899)
+    val LightOnHighlighterYellow = Color(0xFF2B2600)
+    val LightOutline = Color(0xFF9B968D)
+    val LightOutlineVariant = Color(0xFFCCC6BC)
+    val LightMutedRedError = Color(0xFFB84942)
+    val LightOnError = Color(0xFFFFFFFF)
+    val LightErrorContainer = Color(0xFFFFDAD6)
+    val LightOnErrorContainer = Color(0xFF410002)
+
+    // Dark Palette
+    val DarkDeepNotebookBackground = Color(0xFF121A29)
+    val DarkPaperSurface = Color(0xFF1B2433)
+    val DarkPaperSurfaceVariant = Color(0xFF243044)
+    val DarkPrimaryBlue = Color(0xFFB8CCFF)
+    val DarkOnPrimary = Color(0xFF002B73)
+    val DarkPrimaryContainer = Color(0xFF2C4679)
+    val DarkOnPrimaryContainer = Color(0xFFDCE7F7)
+    val DarkSecondaryInkBlue = Color(0xFF9FC0FF)
+    val DarkOnSecondary = Color(0xFF002A66)
+    val DarkSecondaryContainer = Color(0xFF1C3A6E)
+    val DarkOnSecondaryContainer = Color(0xFFD7E3FF)
+    val DarkMainPaperText = Color(0xFFF4F1EA)
+    val DarkMutedPaperText = Color(0xFFCDC7BD)
+    val DarkRedAccent = Color(0xFFFFB4AE)
+    val DarkOnTertiary = Color(0xFF561E1A)
+    val DarkTertiaryContainer = Color(0xFF73332E)
+    val DarkOnTertiaryContainer = Color(0xFFFFDAD6)
+    val DarkMutedHighlighter = Color(0xFFD7C96B)
+    val DarkOnHighlighter = Color(0xFF353000)
+    val DarkOutline = Color(0xFFA29C93)
+    val DarkOutlineVariant = Color(0xFF454D5D)
+    val DarkMutedRedError = Color(0xFFFFB4AE)
     val DarkOnError = Color(0xFF690005)
     val DarkErrorContainer = Color(0xFF93000A)
     val DarkOnErrorContainer = Color(0xFFFFDAD6)
@@ -117,6 +176,60 @@ val HerbariumDarkColorScheme: ColorScheme = darkColorScheme(
     onErrorContainer = BotanicalColors.DarkOnErrorContainer
 )
 
+val SketchbookLightColorScheme: ColorScheme = lightColorScheme(
+    primary = SketchbookColors.LightNavyInkPrimary,
+    onPrimary = SketchbookColors.LightOnPrimary,
+    primaryContainer = SketchbookColors.LightPrimaryContainer,
+    onPrimaryContainer = SketchbookColors.LightOnPrimaryContainer,
+    secondary = SketchbookColors.LightBallpointBlueSecondary,
+    onSecondary = SketchbookColors.LightOnSecondary,
+    secondaryContainer = SketchbookColors.LightSecondaryContainer,
+    onSecondaryContainer = SketchbookColors.LightOnSecondaryContainer,
+    tertiary = SketchbookColors.LightMutedRedAccent,
+    onTertiary = SketchbookColors.LightOnTertiary,
+    tertiaryContainer = SketchbookColors.LightTertiaryContainer,
+    onTertiaryContainer = SketchbookColors.LightOnTertiaryContainer,
+    background = SketchbookColors.LightNotebookBackground,
+    onBackground = SketchbookColors.LightPencilGraphite,
+    surface = SketchbookColors.LightPaperSurface,
+    onSurface = SketchbookColors.LightPencilGraphite,
+    surfaceVariant = SketchbookColors.LightPaperSurfaceVariant,
+    onSurfaceVariant = SketchbookColors.LightMutedGraphite,
+    outline = SketchbookColors.LightOutline,
+    outlineVariant = SketchbookColors.LightOutlineVariant,
+    error = SketchbookColors.LightMutedRedError,
+    onError = SketchbookColors.LightOnError,
+    errorContainer = SketchbookColors.LightErrorContainer,
+    onErrorContainer = SketchbookColors.LightOnErrorContainer
+)
+
+val SketchbookDarkColorScheme: ColorScheme = darkColorScheme(
+    primary = SketchbookColors.DarkPrimaryBlue,
+    onPrimary = SketchbookColors.DarkOnPrimary,
+    primaryContainer = SketchbookColors.DarkPrimaryContainer,
+    onPrimaryContainer = SketchbookColors.DarkOnPrimaryContainer,
+    secondary = SketchbookColors.DarkSecondaryInkBlue,
+    onSecondary = SketchbookColors.DarkOnSecondary,
+    secondaryContainer = SketchbookColors.DarkSecondaryContainer,
+    onSecondaryContainer = SketchbookColors.DarkOnSecondaryContainer,
+    tertiary = SketchbookColors.DarkRedAccent,
+    onTertiary = SketchbookColors.DarkOnTertiary,
+    tertiaryContainer = SketchbookColors.DarkTertiaryContainer,
+    onTertiaryContainer = SketchbookColors.DarkOnTertiaryContainer,
+    background = SketchbookColors.DarkDeepNotebookBackground,
+    onBackground = SketchbookColors.DarkMainPaperText,
+    surface = SketchbookColors.DarkPaperSurface,
+    onSurface = SketchbookColors.DarkMainPaperText,
+    surfaceVariant = SketchbookColors.DarkPaperSurfaceVariant,
+    onSurfaceVariant = SketchbookColors.DarkMutedPaperText,
+    outline = SketchbookColors.DarkOutline,
+    outlineVariant = SketchbookColors.DarkOutlineVariant,
+    error = SketchbookColors.DarkMutedRedError,
+    onError = SketchbookColors.DarkOnError,
+    errorContainer = SketchbookColors.DarkErrorContainer,
+    onErrorContainer = SketchbookColors.DarkOnErrorContainer
+)
+
 /**
  * Shared palette definition for Android View system (OverlayService).
  */
@@ -130,6 +243,9 @@ data class OverlayPalette(
     val mutedTextColor: Int,
     val outlineColor: Int,
     val accentColor: Int,
+    val selectedChipContainerColor: Int,
+    val selectedChipContentColor: Int,
+    val selectedChipStrokeColor: Int?,
     val isDark: Boolean,
     val visualTheme: AppVisualTheme
 )
@@ -146,32 +262,87 @@ object ThemePaletteResolver {
         isDark: Boolean
     ): OverlayPalette {
         return when (visualTheme) {
-            AppVisualTheme.HERBARIUM -> {
+            AppVisualTheme.SKETCHBOOK -> {
                 if (isDark) {
+                    val primary = SketchbookColors.DarkPrimaryBlue.toArgb()
+                    val container = SketchbookColors.DarkPrimaryContainer.toArgb()
+                    val onContainer = SketchbookColors.DarkOnPrimaryContainer.toArgb()
                     OverlayPalette(
-                        surfaceColor = BotanicalColors.DarkPaperSurface.toArgb(),
-                        surfaceVariantColor = BotanicalColors.DarkPaperSurfaceVariant.toArgb(),
-                        primaryColor = BotanicalColors.DarkSagePrimary.toArgb(),
-                        primaryContainerColor = BotanicalColors.DarkPrimaryContainer.toArgb(),
-                        onPrimaryContainerColor = BotanicalColors.DarkOnPrimaryContainer.toArgb(),
-                        textColor = BotanicalColors.DarkParchmentText.toArgb(),
-                        mutedTextColor = BotanicalColors.DarkMutedText.toArgb(),
-                        outlineColor = BotanicalColors.DarkOutline.toArgb(),
-                        accentColor = BotanicalColors.DarkMutedRoseTertiary.toArgb(),
+                        surfaceColor = SketchbookColors.DarkPaperSurface.toArgb(),
+                        surfaceVariantColor = SketchbookColors.DarkPaperSurfaceVariant.toArgb(),
+                        primaryColor = primary,
+                        primaryContainerColor = container,
+                        onPrimaryContainerColor = onContainer,
+                        textColor = SketchbookColors.DarkMainPaperText.toArgb(),
+                        mutedTextColor = SketchbookColors.DarkMutedPaperText.toArgb(),
+                        outlineColor = SketchbookColors.DarkOutline.toArgb(),
+                        accentColor = SketchbookColors.DarkRedAccent.toArgb(),
+                        selectedChipContainerColor = container,
+                        selectedChipContentColor = onContainer,
+                        selectedChipStrokeColor = primary,
                         isDark = true,
                         visualTheme = visualTheme
                     )
                 } else {
+                    val primary = SketchbookColors.LightNavyInkPrimary.toArgb()
+                    val container = SketchbookColors.LightPrimaryContainer.toArgb()
+                    val onContainer = SketchbookColors.LightOnPrimaryContainer.toArgb()
+                    OverlayPalette(
+                        surfaceColor = SketchbookColors.LightPaperSurface.toArgb(),
+                        surfaceVariantColor = SketchbookColors.LightPaperSurfaceVariant.toArgb(),
+                        primaryColor = primary,
+                        primaryContainerColor = container,
+                        onPrimaryContainerColor = onContainer,
+                        textColor = SketchbookColors.LightNavyInkPrimary.toArgb(),
+                        mutedTextColor = SketchbookColors.LightMutedGraphite.toArgb(),
+                        outlineColor = SketchbookColors.LightOutline.toArgb(),
+                        accentColor = SketchbookColors.LightMutedRedAccent.toArgb(),
+                        selectedChipContainerColor = container,
+                        selectedChipContentColor = onContainer,
+                        selectedChipStrokeColor = primary,
+                        isDark = false,
+                        visualTheme = visualTheme
+                    )
+                }
+            }
+            AppVisualTheme.HERBARIUM -> {
+                if (isDark) {
+                    val primary = BotanicalColors.DarkSagePrimary.toArgb()
+                    val container = BotanicalColors.DarkPrimaryContainer.toArgb()
+                    val onContainer = BotanicalColors.DarkOnPrimaryContainer.toArgb()
+                    OverlayPalette(
+                        surfaceColor = BotanicalColors.DarkPaperSurface.toArgb(),
+                        surfaceVariantColor = BotanicalColors.DarkPaperSurfaceVariant.toArgb(),
+                        primaryColor = primary,
+                        primaryContainerColor = container,
+                        onPrimaryContainerColor = onContainer,
+                        textColor = BotanicalColors.DarkParchmentText.toArgb(),
+                        mutedTextColor = BotanicalColors.DarkMutedText.toArgb(),
+                        outlineColor = BotanicalColors.DarkOutline.toArgb(),
+                        accentColor = BotanicalColors.DarkMutedRoseTertiary.toArgb(),
+                        selectedChipContainerColor = container,
+                        selectedChipContentColor = onContainer,
+                        selectedChipStrokeColor = primary,
+                        isDark = true,
+                        visualTheme = visualTheme
+                    )
+                } else {
+                    val primary = BotanicalColors.LightLeafGreenPrimary.toArgb()
+                    val container = BotanicalColors.LightSagePrimaryContainer.toArgb()
+                    val onContainer = BotanicalColors.LightOnPrimaryContainer.toArgb()
                     OverlayPalette(
                         surfaceColor = BotanicalColors.LightWarmPaperSurface.toArgb(),
                         surfaceVariantColor = BotanicalColors.LightPaperSurfaceVariant.toArgb(),
-                        primaryColor = BotanicalColors.LightLeafGreenPrimary.toArgb(),
-                        primaryContainerColor = BotanicalColors.LightSagePrimaryContainer.toArgb(),
-                        onPrimaryContainerColor = BotanicalColors.LightOnPrimaryContainer.toArgb(),
+                        primaryColor = primary,
+                        primaryContainerColor = container,
+                        onPrimaryContainerColor = onContainer,
                         textColor = BotanicalColors.LightBotanicalInkText.toArgb(),
                         mutedTextColor = BotanicalColors.LightMutedInkText.toArgb(),
                         outlineColor = BotanicalColors.LightOutline.toArgb(),
                         accentColor = BotanicalColors.LightMutedTerracottaTertiary.toArgb(),
+                        selectedChipContainerColor = container,
+                        selectedChipContentColor = onContainer,
+                        selectedChipStrokeColor = primary,
                         isDark = false,
                         visualTheme = visualTheme
                     )
@@ -204,6 +375,9 @@ object ThemePaletteResolver {
                         mutedTextColor = if (isDark) 0xFFC4C7D0.toInt() else 0xFF4A4E57.toInt(),
                         outlineColor = if (isDark) 0xFF4A4E57.toInt() else 0xFFC4C7D0.toInt(),
                         accentColor = primary,
+                        selectedChipContainerColor = primary,
+                        selectedChipContentColor = android.graphics.Color.WHITE,
+                        selectedChipStrokeColor = null,
                         isDark = isDark,
                         visualTheme = visualTheme
                     )
@@ -219,6 +393,9 @@ object ThemePaletteResolver {
                             mutedTextColor = 0xFFC4C7D0.toInt(),
                             outlineColor = 0xFF383E4B.toInt(),
                             accentColor = NeutralPrimaryDark.toArgb(),
+                            selectedChipContainerColor = NeutralPrimaryDark.toArgb(),
+                            selectedChipContentColor = android.graphics.Color.WHITE,
+                            selectedChipStrokeColor = null,
                             isDark = true,
                             visualTheme = visualTheme
                         )
@@ -233,6 +410,9 @@ object ThemePaletteResolver {
                             mutedTextColor = 0xFF4A4E57.toInt(),
                             outlineColor = 0xFFE2E6EE.toInt(),
                             accentColor = NeutralPrimaryLight.toArgb(),
+                            selectedChipContainerColor = NeutralPrimaryLight.toArgb(),
+                            selectedChipContentColor = android.graphics.Color.WHITE,
+                            selectedChipStrokeColor = null,
                             isDark = false,
                             visualTheme = visualTheme
                         )

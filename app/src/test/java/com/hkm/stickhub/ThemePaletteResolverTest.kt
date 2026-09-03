@@ -1,4 +1,4 @@
-﻿package com.hkm.stickhub
+package com.hkm.stickhub
 
 import androidx.compose.ui.graphics.toArgb
 import com.hkm.stickhub.ui.theme.AppVisualTheme
@@ -56,5 +56,41 @@ class ThemePaletteResolverTest {
         assertEquals("System palette", AppVisualTheme.DEFAULT.subtitle)
         assertEquals("Herbarium", AppVisualTheme.HERBARIUM.title)
         assertEquals("Parchment, botanical ink, and scientific detail", AppVisualTheme.HERBARIUM.subtitle)
+        assertEquals("Sketchbook", AppVisualTheme.SKETCHBOOK.title)
+        assertEquals("Notebook paper and hand-drawn ink", AppVisualTheme.SKETCHBOOK.subtitle)
+    }
+
+    @Test
+    fun testSketchbookLightColorSchemeMatchesArtDirection() {
+        assertEquals(com.hkm.stickhub.ui.theme.SketchbookColors.LightNotebookBackground, com.hkm.stickhub.ui.theme.SketchbookLightColorScheme.background)
+        assertEquals(com.hkm.stickhub.ui.theme.SketchbookColors.LightPaperSurface, com.hkm.stickhub.ui.theme.SketchbookLightColorScheme.surface)
+        assertEquals(com.hkm.stickhub.ui.theme.SketchbookColors.LightNavyInkPrimary, com.hkm.stickhub.ui.theme.SketchbookLightColorScheme.primary)
+        assertEquals(com.hkm.stickhub.ui.theme.SketchbookColors.LightPrimaryContainer, com.hkm.stickhub.ui.theme.SketchbookLightColorScheme.primaryContainer)
+        assertEquals(com.hkm.stickhub.ui.theme.SketchbookColors.LightBallpointBlueSecondary, com.hkm.stickhub.ui.theme.SketchbookLightColorScheme.secondary)
+        assertEquals(com.hkm.stickhub.ui.theme.SketchbookColors.LightMutedRedAccent, com.hkm.stickhub.ui.theme.SketchbookLightColorScheme.tertiary)
+        assertEquals(com.hkm.stickhub.ui.theme.SketchbookColors.LightPencilGraphite, com.hkm.stickhub.ui.theme.SketchbookLightColorScheme.onSurface)
+        assertEquals(com.hkm.stickhub.ui.theme.SketchbookColors.LightOutline, com.hkm.stickhub.ui.theme.SketchbookLightColorScheme.outline)
+        assertEquals(com.hkm.stickhub.ui.theme.SketchbookColors.LightMutedRedError, com.hkm.stickhub.ui.theme.SketchbookLightColorScheme.error)
+    }
+
+    @Test
+    fun testSketchbookDarkColorSchemeMatchesArtDirection() {
+        assertEquals(com.hkm.stickhub.ui.theme.SketchbookColors.DarkDeepNotebookBackground, com.hkm.stickhub.ui.theme.SketchbookDarkColorScheme.background)
+        assertEquals(com.hkm.stickhub.ui.theme.SketchbookColors.DarkPaperSurface, com.hkm.stickhub.ui.theme.SketchbookDarkColorScheme.surface)
+        assertEquals(com.hkm.stickhub.ui.theme.SketchbookColors.DarkPrimaryBlue, com.hkm.stickhub.ui.theme.SketchbookDarkColorScheme.primary)
+        assertEquals(com.hkm.stickhub.ui.theme.SketchbookColors.DarkPrimaryContainer, com.hkm.stickhub.ui.theme.SketchbookDarkColorScheme.primaryContainer)
+        assertEquals(com.hkm.stickhub.ui.theme.SketchbookColors.DarkSecondaryInkBlue, com.hkm.stickhub.ui.theme.SketchbookDarkColorScheme.secondary)
+        assertEquals(com.hkm.stickhub.ui.theme.SketchbookColors.DarkRedAccent, com.hkm.stickhub.ui.theme.SketchbookDarkColorScheme.tertiary)
+        assertEquals(com.hkm.stickhub.ui.theme.SketchbookColors.DarkMainPaperText, com.hkm.stickhub.ui.theme.SketchbookDarkColorScheme.onSurface)
+        assertEquals(com.hkm.stickhub.ui.theme.SketchbookColors.DarkOutline, com.hkm.stickhub.ui.theme.SketchbookDarkColorScheme.outline)
+        assertEquals(com.hkm.stickhub.ui.theme.SketchbookColors.DarkMutedRedError, com.hkm.stickhub.ui.theme.SketchbookDarkColorScheme.error)
+    }
+
+    @Test
+    fun testSketchbookNeverProducesPureBlackOrNeonColors() {
+        assertNotEquals(0xFF000000.toInt(), com.hkm.stickhub.ui.theme.SketchbookDarkColorScheme.background.toArgb())
+        assertNotEquals(0xFF000000.toInt(), com.hkm.stickhub.ui.theme.SketchbookDarkColorScheme.surface.toArgb())
+        assertNotEquals(0xFF0000FF.toInt(), com.hkm.stickhub.ui.theme.SketchbookLightColorScheme.primary.toArgb())
+        assertNotEquals(0xFFFFFFA5.toInt(), com.hkm.stickhub.ui.theme.SketchbookLightColorScheme.surface.toArgb())
     }
 }

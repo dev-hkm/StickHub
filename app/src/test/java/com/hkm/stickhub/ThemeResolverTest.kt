@@ -58,6 +58,9 @@ class ThemeResolverTest {
         assertEquals(AppVisualTheme.HERBARIUM, ThemePreferences.parseVisualTheme("herbarium"))
         assertEquals(AppVisualTheme.HERBARIUM, ThemePreferences.parseVisualTheme("HERBARIUM"))
         assertEquals(AppVisualTheme.HERBARIUM, AppVisualTheme.fromString("herbarium"))
+        assertEquals(AppVisualTheme.SKETCHBOOK, ThemePreferences.parseVisualTheme("sketchbook"))
+        assertEquals(AppVisualTheme.SKETCHBOOK, ThemePreferences.parseVisualTheme("SKETCHBOOK"))
+        assertEquals(AppVisualTheme.SKETCHBOOK, AppVisualTheme.fromString("sketchbook"))
     }
 
     @Test

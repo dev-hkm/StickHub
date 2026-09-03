@@ -1,4 +1,4 @@
-﻿package com.hkm.stickhub
+package com.hkm.stickhub
 
 import com.hkm.stickhub.ui.theme.AppThemeMode
 import com.hkm.stickhub.ui.theme.AppVisualTheme
@@ -72,6 +72,19 @@ class ThemeSelectionPolicyTest {
         assertFalse(changedAgain)
         assertEquals(1, controller.stateChangeCount)
         assertEquals(1, controller.hapticTriggerCount)
+
+        // Selecting Sketchbook triggers a single state change and haptic
+        val changedToSketchbook = controller.selectVisualTheme(AppVisualTheme.SKETCHBOOK)
+        assertTrue(changedToSketchbook)
+        assertEquals(2, controller.stateChangeCount)
+        assertEquals(2, controller.hapticTriggerCount)
+        assertEquals(AppVisualTheme.SKETCHBOOK, controller.state.visualTheme)
+
+        // Selecting Sketchbook again is a no-op
+        val changedSketchbookAgain = controller.selectVisualTheme(AppVisualTheme.SKETCHBOOK)
+        assertFalse(changedSketchbookAgain)
+        assertEquals(2, controller.stateChangeCount)
+        assertEquals(2, controller.hapticTriggerCount)
     }
 
     @Test

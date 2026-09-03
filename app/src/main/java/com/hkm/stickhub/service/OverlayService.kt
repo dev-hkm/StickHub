@@ -990,8 +990,7 @@ class OverlayService : Service() {
                 typeface = if (isSelected) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
                 setTextColor(
                     if (isSelected) {
-                        if (palette.visualTheme == AppVisualTheme.HERBARIUM) palette.onPrimaryContainerColor
-                        else Color.WHITE
+                        palette.selectedChipContentColor
                     } else {
                         palette.mutedTextColor
                     }
@@ -1000,12 +999,9 @@ class OverlayService : Service() {
                     shape = GradientDrawable.RECTANGLE
                     cornerRadius = 10 * density
                     if (isSelected) {
-                        setColor(
-                            if (palette.visualTheme == AppVisualTheme.HERBARIUM) palette.primaryContainerColor
-                            else palette.primaryColor
-                        )
-                        if (palette.visualTheme == AppVisualTheme.HERBARIUM) {
-                            setStroke((1 * density).toInt(), palette.primaryColor)
+                        setColor(palette.selectedChipContainerColor)
+                        palette.selectedChipStrokeColor?.let { strokeCol ->
+                            setStroke((1 * density).toInt(), strokeCol)
                         }
                     } else {
                         setColor(withAlpha(palette.surfaceVariantColor, if (palette.isDark) 140 else 200))
