@@ -45,9 +45,9 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version bump for Hand-Drawn Sketch-Note Sketchbook visual theme.
-        versionCode = 27
-        versionName = "2.4.0"
+        // Version bump for Quick Stickers overlay enhancements & onboarding.
+        versionCode = 28
+        versionName = "2.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

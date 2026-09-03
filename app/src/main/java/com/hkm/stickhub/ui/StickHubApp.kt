@@ -1,5 +1,11 @@
 package com.hkm.stickhub.ui
 
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.material3.ButtonDefaults
+import com.hkm.stickhub.service.OverlayStartFilterMode
+import com.hkm.stickhub.service.OverlayAfterCopyAction
+import com.hkm.stickhub.service.QuickStickersOnboardingPolicy
+
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
@@ -316,9 +322,47 @@ fun StickHubApp(
 
     var isOverlayRunning by remember { mutableStateOf(OverlayService.isRunning) }
     var overlayBubbleSizeDp by remember { mutableStateOf(OverlayPreferences.bubbleSizeDp(context)) }
+    var overlayBubbleOpacity by remember { mutableFloatStateOf(OverlayPreferences.bubbleOpacity(context)) }
+    var popupMasterOpacity by remember { mutableFloatStateOf(OverlayPreferences.popupMasterOpacity(context)) }
+    var popupSurfaceOpacity by remember { mutableFloatStateOf(OverlayPreferences.popupSurfaceOpacity(context)) }
+    var popupStickersOpacity by remember { mutableFloatStateOf(OverlayPreferences.popupStickersOpacity(context)) }
+    var popupChromeOpacity by remember { mutableFloatStateOf(OverlayPreferences.popupChromeOpacity(context)) }
+    var popupCloseOpacity by remember { mutableFloatStateOf(OverlayPreferences.popupCloseOpacity(context)) }
+    var popupResizeOpacity by remember { mutableFloatStateOf(OverlayPreferences.popupResizeOpacity(context)) }
+    var stickerShadowStrength by remember { mutableFloatStateOf(OverlayPreferences.stickerShadowStrength(context)) }
+    var startFilterMode by remember { mutableStateOf(OverlayPreferences.startFilterMode(context)) }
+    var startCustomCategory by remember { mutableStateOf(OverlayPreferences.startCustomCategory(context)) }
+    var afterCopyAction by remember { mutableStateOf(OverlayPreferences.afterCopyAction(context)) }
     var showQuickStickersTitle by remember { mutableStateOf(OverlayPreferences.showTitle(context)) }
     var showQuickStickersSearch by remember { mutableStateOf(OverlayPreferences.showSearch(context)) }
     var showQuickStickersCategories by remember { mutableStateOf(OverlayPreferences.showCategories(context)) }
+
+    var showOnboarding by remember {
+        mutableStateOf(
+            QuickStickersOnboardingPolicy.isOnboardingEligible(
+                context = context,
+                isOverlayRunning = OverlayService.isRunning,
+                hasOverlayPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) Settings.canDrawOverlays(context) else true,
+                hasActiveModalOrFlow = false
+            )
+        )
+    }
+
+    fun sendLightweightOverlayUpdate() {
+        if (OverlayService.isRunning) {
+            context.startService(
+                Intent(context, OverlayService::class.java).setAction(OverlayService.ACTION_UPDATE_APPEARANCE)
+            )
+        }
+    }
+
+    fun revealOverlayControls() {
+        if (OverlayService.isRunning) {
+            context.startService(
+                Intent(context, OverlayService::class.java).setAction(OverlayService.ACTION_REVEAL_CONTROLS)
+            )
+        }
+    }
     var clipboardImageUri by remember { mutableStateOf<Uri?>(null) }
     var recentlyCopiedId by remember { mutableStateOf<Long?>(null) }
 
@@ -692,7 +736,39 @@ fun StickHubApp(
                                                     activeCutoutUri = uri
                                                     clipboardImageUri = null
                                                 },
-                                                appFocusManager = appFocusManager
+                                                appFocusManager = appFocusManager,
+                                                showQuickStickersOnboarding = showOnboarding,
+                                                onEnableQuickStickers = {
+                                                    QuickStickersOnboardingPolicy.markCompletedOrDismissed(context)
+                                                    showOnboarding = false
+                                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
+                                                        val intent = Intent(
+                                                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                                            Uri.parse("package:${context.packageName}")
+                                                        ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+                                                        context.startActivity(intent)
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar("Please grant 'Display over other apps' to activate Quick Stickers")
+                                                        }
+                                                    } else {
+                                                        val serviceIntent = Intent(context, OverlayService::class.java)
+                                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                                            context.startForegroundService(serviceIntent)
+                                                        } else {
+                                                            context.startService(serviceIntent)
+                                                        }
+                                                        isOverlayRunning = true
+                                                        haptics.performConfirm()
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar("Quick Stickers activated!")
+                                                        }
+                                                    }
+                                                },
+                                                onDismissQuickStickers = {
+                                                    QuickStickersOnboardingPolicy.markCompletedOrDismissed(context)
+                                                    showOnboarding = false
+                                                    haptics.performTap()
+                                                }
                                             )
                                         }
 
@@ -795,7 +871,39 @@ fun StickHubApp(
                                                     activeCutoutUri = uri
                                                     clipboardImageUri = null
                                                 },
-                                                appFocusManager = appFocusManager
+                                                appFocusManager = appFocusManager,
+                                                showQuickStickersOnboarding = showOnboarding,
+                                                onEnableQuickStickers = {
+                                                    QuickStickersOnboardingPolicy.markCompletedOrDismissed(context)
+                                                    showOnboarding = false
+                                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
+                                                        val intent = Intent(
+                                                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                                            Uri.parse("package:${context.packageName}")
+                                                        ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+                                                        context.startActivity(intent)
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar("Please grant 'Display over other apps' to activate Quick Stickers")
+                                                        }
+                                                    } else {
+                                                        val serviceIntent = Intent(context, OverlayService::class.java)
+                                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                                            context.startForegroundService(serviceIntent)
+                                                        } else {
+                                                            context.startService(serviceIntent)
+                                                        }
+                                                        isOverlayRunning = true
+                                                        haptics.performConfirm()
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar("Quick Stickers activated!")
+                                                        }
+                                                    }
+                                                },
+                                                onDismissQuickStickers = {
+                                                    QuickStickersOnboardingPolicy.markCompletedOrDismissed(context)
+                                                    showOnboarding = false
+                                                    haptics.performTap()
+                                                }
                                             )
                                         }
 
@@ -977,7 +1085,39 @@ fun StickHubApp(
                                                     activeCutoutUri = uri
                                                     clipboardImageUri = null
                                                 },
-                                                appFocusManager = appFocusManager
+                                                appFocusManager = appFocusManager,
+                                                showQuickStickersOnboarding = showOnboarding,
+                                                onEnableQuickStickers = {
+                                                    QuickStickersOnboardingPolicy.markCompletedOrDismissed(context)
+                                                    showOnboarding = false
+                                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
+                                                        val intent = Intent(
+                                                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                                            Uri.parse("package:${context.packageName}")
+                                                        ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+                                                        context.startActivity(intent)
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar("Please grant 'Display over other apps' to activate Quick Stickers")
+                                                        }
+                                                    } else {
+                                                        val serviceIntent = Intent(context, OverlayService::class.java)
+                                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                                            context.startForegroundService(serviceIntent)
+                                                        } else {
+                                                            context.startService(serviceIntent)
+                                                        }
+                                                        isOverlayRunning = true
+                                                        haptics.performConfirm()
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar("Quick Stickers activated!")
+                                                        }
+                                                    }
+                                                },
+                                                onDismissQuickStickers = {
+                                                    QuickStickersOnboardingPolicy.markCompletedOrDismissed(context)
+                                                    showOnboarding = false
+                                                    haptics.performTap()
+                                                }
                                             )
                                         }
 
@@ -1077,7 +1217,39 @@ fun StickHubApp(
                                                     activeCutoutUri = uri
                                                     clipboardImageUri = null
                                                 },
-                                                appFocusManager = appFocusManager
+                                                appFocusManager = appFocusManager,
+                                                showQuickStickersOnboarding = showOnboarding,
+                                                onEnableQuickStickers = {
+                                                    QuickStickersOnboardingPolicy.markCompletedOrDismissed(context)
+                                                    showOnboarding = false
+                                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
+                                                        val intent = Intent(
+                                                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                                            Uri.parse("package:${context.packageName}")
+                                                        ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+                                                        context.startActivity(intent)
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar("Please grant 'Display over other apps' to activate Quick Stickers")
+                                                        }
+                                                    } else {
+                                                        val serviceIntent = Intent(context, OverlayService::class.java)
+                                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                                            context.startForegroundService(serviceIntent)
+                                                        } else {
+                                                            context.startService(serviceIntent)
+                                                        }
+                                                        isOverlayRunning = true
+                                                        haptics.performConfirm()
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar("Quick Stickers activated!")
+                                                        }
+                                                    }
+                                                },
+                                                onDismissQuickStickers = {
+                                                    QuickStickersOnboardingPolicy.markCompletedOrDismissed(context)
+                                                    showOnboarding = false
+                                                    haptics.performTap()
+                                                }
                                             )
                                         }
 
@@ -1155,6 +1327,7 @@ fun StickHubApp(
                 onToggleShowCategoryFilters = onToggleShowCategoryFilters,
                 isOverlayRunning = isOverlayRunning,
                 onToggleOverlay = { toggleOverlay() },
+                onRetryOverlayPermission = { toggleOverlay() },
                 overlayBubbleSizeDp = overlayBubbleSizeDp,
                 onOverlayBubbleSizeChange = { sizeDp ->
                     overlayBubbleSizeDp = sizeDp
@@ -1166,6 +1339,128 @@ fun StickHubApp(
                         )
                     }
                 },
+                overlayBubbleOpacity = overlayBubbleOpacity,
+                onOverlayBubbleOpacityChange = { opacity ->
+                    overlayBubbleOpacity = opacity
+                    OverlayPreferences.setBubbleOpacity(context, opacity)
+                    sendLightweightOverlayUpdate()
+                },
+                onLivePreviewBubbleOpacity = { opacity ->
+                    overlayBubbleOpacity = opacity
+                    OverlayPreferences.setBubbleOpacity(context, opacity)
+                    sendLightweightOverlayUpdate()
+                },
+                popupMasterOpacity = popupMasterOpacity,
+                onPopupMasterOpacityChange = { opacity ->
+                    popupMasterOpacity = opacity
+                    OverlayPreferences.setPopupMasterOpacity(context, opacity)
+                    sendLightweightOverlayUpdate()
+                },
+                onLivePreviewMasterOpacity = { opacity ->
+                    popupMasterOpacity = opacity
+                    OverlayPreferences.setPopupMasterOpacity(context, opacity)
+                    sendLightweightOverlayUpdate()
+                },
+                popupSurfaceOpacity = popupSurfaceOpacity,
+                onPopupSurfaceOpacityChange = { opacity ->
+                    popupSurfaceOpacity = opacity
+                    OverlayPreferences.setPopupSurfaceOpacity(context, opacity)
+                    sendLightweightOverlayUpdate()
+                },
+                onLivePreviewSurfaceOpacity = { opacity ->
+                    popupSurfaceOpacity = opacity
+                    OverlayPreferences.setPopupSurfaceOpacity(context, opacity)
+                    sendLightweightOverlayUpdate()
+                },
+                popupStickersOpacity = popupStickersOpacity,
+                onPopupStickersOpacityChange = { opacity ->
+                    popupStickersOpacity = opacity
+                    OverlayPreferences.setPopupStickersOpacity(context, opacity)
+                    sendLightweightOverlayUpdate()
+                },
+                onLivePreviewStickersOpacity = { opacity ->
+                    popupStickersOpacity = opacity
+                    OverlayPreferences.setPopupStickersOpacity(context, opacity)
+                    sendLightweightOverlayUpdate()
+                },
+                popupChromeOpacity = popupChromeOpacity,
+                onPopupChromeOpacityChange = { opacity ->
+                    popupChromeOpacity = opacity
+                    OverlayPreferences.setPopupChromeOpacity(context, opacity)
+                    sendLightweightOverlayUpdate()
+                },
+                onLivePreviewChromeOpacity = { opacity ->
+                    popupChromeOpacity = opacity
+                    OverlayPreferences.setPopupChromeOpacity(context, opacity)
+                    sendLightweightOverlayUpdate()
+                },
+                popupCloseOpacity = popupCloseOpacity,
+                onPopupCloseOpacityChange = { opacity ->
+                    popupCloseOpacity = opacity
+                    OverlayPreferences.setPopupCloseOpacity(context, opacity)
+                    sendLightweightOverlayUpdate()
+                },
+                onLivePreviewCloseOpacity = { opacity ->
+                    popupCloseOpacity = opacity
+                    OverlayPreferences.setPopupCloseOpacity(context, opacity)
+                    sendLightweightOverlayUpdate()
+                },
+                popupResizeOpacity = popupResizeOpacity,
+                onPopupResizeOpacityChange = { opacity ->
+                    popupResizeOpacity = opacity
+                    OverlayPreferences.setPopupResizeOpacity(context, opacity)
+                    sendLightweightOverlayUpdate()
+                },
+                onLivePreviewResizeOpacity = { opacity ->
+                    popupResizeOpacity = opacity
+                    OverlayPreferences.setPopupResizeOpacity(context, opacity)
+                    sendLightweightOverlayUpdate()
+                },
+                stickerShadowStrength = stickerShadowStrength,
+                onStickerShadowStrengthChange = { strength ->
+                    stickerShadowStrength = strength
+                    OverlayPreferences.setStickerShadowStrength(context, strength)
+                    sendLightweightOverlayUpdate()
+                },
+                onLivePreviewShadowStrength = { strength ->
+                    stickerShadowStrength = strength
+                    OverlayPreferences.setStickerShadowStrength(context, strength)
+                    sendLightweightOverlayUpdate()
+                },
+                onRevealOverlayControls = { revealOverlayControls() },
+                onResetOverlayAppearance = {
+                    OverlayPreferences.resetAppearance(context)
+                    overlayBubbleOpacity = OverlayPreferences.bubbleOpacity(context)
+                    popupMasterOpacity = OverlayPreferences.popupMasterOpacity(context)
+                    popupSurfaceOpacity = OverlayPreferences.popupSurfaceOpacity(context)
+                    popupStickersOpacity = OverlayPreferences.popupStickersOpacity(context)
+                    popupChromeOpacity = OverlayPreferences.popupChromeOpacity(context)
+                    popupCloseOpacity = OverlayPreferences.popupCloseOpacity(context)
+                    popupResizeOpacity = OverlayPreferences.popupResizeOpacity(context)
+                    stickerShadowStrength = OverlayPreferences.stickerShadowStrength(context)
+                    overlayBubbleSizeDp = OverlayPreferences.bubbleSizeDp(context)
+                    sendLightweightOverlayUpdate()
+                    if (OverlayService.isRunning) {
+                        context.startService(
+                            Intent(context, OverlayService::class.java)
+                                .setAction(OverlayService.ACTION_REFRESH_CONFIGURATION)
+                        )
+                    }
+                },
+                startFilterMode = startFilterMode,
+                startCustomCategory = startCustomCategory,
+                onStartFilterChange = { mode, customCat ->
+                    startFilterMode = mode
+                    startCustomCategory = customCat
+                    OverlayPreferences.setStartFilterMode(context, mode)
+                    OverlayPreferences.setStartCustomCategory(context, customCat)
+                },
+                afterCopyAction = afterCopyAction,
+                onAfterCopyActionChange = { action ->
+                    afterCopyAction = action
+                    OverlayPreferences.setAfterCopyAction(context, action)
+                },
+                availableCategories = categories.map { it.name },
                 showQuickStickersTitle = showQuickStickersTitle,
                 onToggleShowTitle = { show ->
                     showQuickStickersTitle = show
@@ -1598,6 +1893,9 @@ private fun LibraryHeadersContent(
     onDismissClipboard: () -> Unit,
     onLaunchCutout: (Uri) -> Unit,
     appFocusManager: androidx.compose.ui.focus.FocusManager,
+    showQuickStickersOnboarding: Boolean,
+    onEnableQuickStickers: () -> Unit,
+    onDismissQuickStickers: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val haptics = rememberStickHubHaptics()
@@ -2073,6 +2371,91 @@ private fun EmptyLibraryView(
                 color = MaterialTheme.colorScheme.outline,
                 textAlign = TextAlign.Center
             )
+        }
+    }
+}
+
+
+@Composable
+private fun QuickStickersOnboardingCard(
+    onEnable: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        tonalElevation = 2.dp,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 0.dp, vertical = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(38.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            painter = painterResource(LucideR.drawable.lucide_ic_layers),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Copy stickers while you chat",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Quick Stickers floats over messaging apps so you can search and copy stickers with a single tap without switching apps.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
+                        lineHeight = 18.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = "Not now",
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Button(
+                    onClick = onEnable,
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Text(text = "Enable Quick Stickers")
+                }
+            }
         }
     }
 }

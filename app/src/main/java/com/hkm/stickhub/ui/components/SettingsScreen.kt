@@ -1,5 +1,16 @@
 package com.hkm.stickhub.ui.components
 
+import android.os.Build
+import android.provider.Settings
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.TextButton
+import com.hkm.stickhub.service.OverlayStartFilterMode
+import com.hkm.stickhub.service.OverlayAfterCopyAction
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -79,8 +90,41 @@ fun SettingsScreen(
     onToggleShowCategoryFilters: (Boolean) -> Unit,
     isOverlayRunning: Boolean,
     onToggleOverlay: () -> Unit,
+    onRetryOverlayPermission: () -> Unit,
     overlayBubbleSizeDp: Float,
     onOverlayBubbleSizeChange: (Float) -> Unit,
+    overlayBubbleOpacity: Float,
+    onOverlayBubbleOpacityChange: (Float) -> Unit,
+    onLivePreviewBubbleOpacity: (Float) -> Unit,
+    popupMasterOpacity: Float,
+    onPopupMasterOpacityChange: (Float) -> Unit,
+    onLivePreviewMasterOpacity: (Float) -> Unit,
+    popupSurfaceOpacity: Float,
+    onPopupSurfaceOpacityChange: (Float) -> Unit,
+    onLivePreviewSurfaceOpacity: (Float) -> Unit,
+    popupStickersOpacity: Float,
+    onPopupStickersOpacityChange: (Float) -> Unit,
+    onLivePreviewStickersOpacity: (Float) -> Unit,
+    popupChromeOpacity: Float,
+    onPopupChromeOpacityChange: (Float) -> Unit,
+    onLivePreviewChromeOpacity: (Float) -> Unit,
+    popupCloseOpacity: Float,
+    onPopupCloseOpacityChange: (Float) -> Unit,
+    onLivePreviewCloseOpacity: (Float) -> Unit,
+    popupResizeOpacity: Float,
+    onPopupResizeOpacityChange: (Float) -> Unit,
+    onLivePreviewResizeOpacity: (Float) -> Unit,
+    stickerShadowStrength: Float,
+    onStickerShadowStrengthChange: (Float) -> Unit,
+    onLivePreviewShadowStrength: (Float) -> Unit,
+    onRevealOverlayControls: () -> Unit,
+    onResetOverlayAppearance: () -> Unit,
+    startFilterMode: OverlayStartFilterMode,
+    startCustomCategory: String,
+    onStartFilterChange: (OverlayStartFilterMode, String) -> Unit,
+    afterCopyAction: OverlayAfterCopyAction,
+    onAfterCopyActionChange: (OverlayAfterCopyAction) -> Unit,
+    availableCategories: List<String>,
     showQuickStickersTitle: Boolean,
     onToggleShowTitle: (Boolean) -> Unit,
     showQuickStickersSearch: Boolean,
@@ -100,7 +144,35 @@ fun SettingsScreen(
     var previewBubbleSizeDp by remember(overlayBubbleSizeDp) {
         mutableFloatStateOf(overlayBubbleSizeDp)
     }
+    var previewBubbleOpacity by remember(overlayBubbleOpacity) {
+        mutableFloatStateOf(overlayBubbleOpacity)
+    }
+    var previewMasterOpacity by remember(popupMasterOpacity) {
+        mutableFloatStateOf(popupMasterOpacity)
+    }
+    var previewSurfaceOpacity by remember(popupSurfaceOpacity) {
+        mutableFloatStateOf(popupSurfaceOpacity)
+    }
+    var previewStickersOpacity by remember(popupStickersOpacity) {
+        mutableFloatStateOf(popupStickersOpacity)
+    }
+    var previewChromeOpacity by remember(popupChromeOpacity) {
+        mutableFloatStateOf(popupChromeOpacity)
+    }
+    var previewCloseOpacity by remember(popupCloseOpacity) {
+        mutableFloatStateOf(popupCloseOpacity)
+    }
+    var previewResizeOpacity by remember(popupResizeOpacity) {
+        mutableFloatStateOf(popupResizeOpacity)
+    }
+    var previewShadowStrength by remember(stickerShadowStrength) {
+        mutableFloatStateOf(stickerShadowStrength)
+    }
+    var showResetAppearanceDialog by remember { mutableStateOf(false) }
+    var showStartFilterDialog by remember { mutableStateOf(false) }
+    var showAfterCopyDialog by remember { mutableStateOf(false) }
 
+    val context = LocalContext.current
     val sheetCoroutineScope = rememberCoroutineScope()
     val layoutPickerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showLayoutPicker by remember { mutableStateOf(false) }
@@ -399,9 +471,18 @@ fun SettingsScreen(
             item(key = "section_quick_stickers") {
                 SectionHeader("QUICK STICKERS")
 
+                // --- 1. Availability ---
+                Text(
+                    text = "Availability",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+                )
+
                 SettingsToggleRow(
-                    title = "Floating overlay",
-                    subtitle = "Floating bubble for quick sticker access anywhere",
+                    title = "Enable Quick Stickers",
+                    subtitle = "Floating bubble for instant sticker access while chatting",
                     checked = isOverlayRunning,
                     onCheckedChange = {
                         haptics.performCopyAck()
@@ -409,51 +490,397 @@ fun SettingsScreen(
                     }
                 )
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
-                        .padding(16.dp)
+                val hasOverlayPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    Settings.canDrawOverlays(context)
+                } else true
+
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "Bubble size",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
+                        Icon(
+                            painter = painterResource(
+                                if (hasOverlayPermission) LucideR.drawable.lucide_ic_circle_check
+                                else LucideR.drawable.lucide_ic_circle_alert
+                            ),
+                            contentDescription = null,
+                            tint = if (hasOverlayPermission) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(20.dp)
                         )
-                        Text(
-                            text = "${previewBubbleSizeDp.toInt()} dp",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Slider(
-                        value = previewBubbleSizeDp,
-                        onValueChange = { previewBubbleSizeDp = it },
-                        onValueChangeFinished = {
-                            if (abs(previewBubbleSizeDp - overlayBubbleSizeDp) >= 0.5f) {
-                                haptics.performCopyAck()
-                                onOverlayBubbleSizeChange(previewBubbleSizeDp)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Display over other apps",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (hasOverlayPermission) "Permission granted" else "Permission required for floating bubble",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (!hasOverlayPermission) {
+                            FilledTonalButton(
+                                onClick = {
+                                    haptics.performCopyAck()
+                                    onRetryOverlayPermission()
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text("Grant", style = MaterialTheme.typography.labelMedium)
                             }
-                        },
-                        valueRange = 36f..84f,
-                        modifier = Modifier.fillMaxWidth()
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // --- 2. Appearance ---
+                Text(
+                    text = "Appearance",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                // 2A. Bubble Group
+                Text(
+                    text = "Bubble",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 6.dp)
+                )
+
+                SettingsSliderItem(
+                    title = "Bubble size",
+                    value = previewBubbleSizeDp,
+                    valueRange = 32f..72f,
+                    valueText = "${previewBubbleSizeDp.toInt()} dp",
+                    onValueChange = { previewBubbleSizeDp = it },
+                    onValueChangeFinished = {
+                        if (abs(it - overlayBubbleSizeDp) >= 0.5f) {
+                            haptics.performCopyAck()
+                            onOverlayBubbleSizeChange(it)
+                        }
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                SettingsSliderItem(
+                    title = "Bubble opacity",
+                    value = previewBubbleOpacity,
+                    valueRange = 0f..1f,
+                    valueText = "${(previewBubbleOpacity * 100).toInt()}% visible",
+                    onValueChange = {
+                        previewBubbleOpacity = it
+                        onLivePreviewBubbleOpacity(it)
+                    },
+                    onValueChangeFinished = {
+                        if (abs(it - overlayBubbleOpacity) >= 0.01f) {
+                            haptics.performCopyAck()
+                            onOverlayBubbleOpacityChange(it)
+                        }
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // 2B. Popup Composition Group
+                Text(
+                    text = "Popup composition",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 6.dp)
+                )
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.30f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                ) {
+                    Text(
+                        text = "Tip: For stickers floating directly on chat without a background, set Master to 100%, Popup background to 0%, and Stickers to 100%.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(12.dp),
+                        lineHeight = 17.sp
                     )
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                SettingsSliderItem(
+                    title = "Whole popup opacity (master)",
+                    subtitle = "Master multiplier for all popup elements",
+                    value = previewMasterOpacity,
+                    valueRange = 0f..1f,
+                    valueText = "${(previewMasterOpacity * 100).toInt()}% visible",
+                    onValueChange = {
+                        previewMasterOpacity = it
+                        onLivePreviewMasterOpacity(it)
+                    },
+                    onValueChangeFinished = {
+                        if (abs(it - popupMasterOpacity) >= 0.01f) {
+                            haptics.performCopyAck()
+                            onPopupMasterOpacityChange(it)
+                        }
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                SettingsSliderItem(
+                    title = "Popup background opacity",
+                    subtitle = "Surface background and border",
+                    value = previewSurfaceOpacity,
+                    valueRange = 0f..1f,
+                    valueText = "${(previewSurfaceOpacity * 100).toInt()}% visible",
+                    onValueChange = {
+                        previewSurfaceOpacity = it
+                        onLivePreviewSurfaceOpacity(it)
+                    },
+                    onValueChangeFinished = {
+                        if (abs(it - popupSurfaceOpacity) >= 0.01f) {
+                            haptics.performCopyAck()
+                            onPopupSurfaceOpacityChange(it)
+                        }
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                SettingsSliderItem(
+                    title = "Sticker opacity",
+                    subtitle = "Sticker images in the grid",
+                    value = previewStickersOpacity,
+                    valueRange = 0f..1f,
+                    valueText = "${(previewStickersOpacity * 100).toInt()}% visible",
+                    onValueChange = {
+                        previewStickersOpacity = it
+                        onLivePreviewStickersOpacity(it)
+                    },
+                    onValueChangeFinished = {
+                        if (abs(it - popupStickersOpacity) >= 0.01f) {
+                            haptics.performCopyAck()
+                            onPopupStickersOpacityChange(it)
+                        }
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                SettingsSliderItem(
+                    title = "Header / search / tags opacity",
+                    subtitle = "Title, search box, and category chips",
+                    value = previewChromeOpacity,
+                    valueRange = 0f..1f,
+                    valueText = "${(previewChromeOpacity * 100).toInt()}% visible",
+                    onValueChange = {
+                        previewChromeOpacity = it
+                        onLivePreviewChromeOpacity(it)
+                    },
+                    onValueChangeFinished = {
+                        if (abs(it - popupChromeOpacity) >= 0.01f) {
+                            haptics.performCopyAck()
+                            onPopupChromeOpacityChange(it)
+                        }
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                SettingsSliderItem(
+                    title = "Close button opacity",
+                    subtitle = "Top-right X button",
+                    value = previewCloseOpacity,
+                    valueRange = 0f..1f,
+                    valueText = "${(previewCloseOpacity * 100).toInt()}% visible",
+                    onValueChange = {
+                        previewCloseOpacity = it
+                        onLivePreviewCloseOpacity(it)
+                    },
+                    onValueChangeFinished = {
+                        if (abs(it - popupCloseOpacity) >= 0.01f) {
+                            haptics.performCopyAck()
+                            onPopupCloseOpacityChange(it)
+                        }
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                SettingsSliderItem(
+                    title = "Resize button opacity",
+                    subtitle = "Bottom-right resize handle",
+                    value = previewResizeOpacity,
+                    valueRange = 0f..1f,
+                    valueText = "${(previewResizeOpacity * 100).toInt()}% visible",
+                    onValueChange = {
+                        previewResizeOpacity = it
+                        onLivePreviewResizeOpacity(it)
+                    },
+                    onValueChangeFinished = {
+                        if (abs(it - popupResizeOpacity) >= 0.01f) {
+                            haptics.performCopyAck()
+                            onPopupResizeOpacityChange(it)
+                        }
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // 2C. Sticker Clarity Group
+                Text(
+                    text = "Sticker clarity",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 6.dp)
+                )
+
+                SettingsSliderItem(
+                    title = "Sticker shadow strength",
+                    subtitle = "Silhouette drop shadow helps stickers stand out over chat backgrounds",
+                    value = previewShadowStrength,
+                    valueRange = 0f..1f,
+                    valueText = "${(previewShadowStrength * 100).toInt()}%",
+                    onValueChange = {
+                        previewShadowStrength = it
+                        onLivePreviewShadowStrength(it)
+                    },
+                    onValueChangeFinished = {
+                        if (abs(it - stickerShadowStrength) >= 0.01f) {
+                            haptics.performCopyAck()
+                            onStickerShadowStrengthChange(it)
+                        }
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 2D. Appearance Actions
+                SettingsClickableRow(
+                    title = "Reveal overlay controls",
+                    subtitle = "Temporarily sets bubble and all popup layers to 100% visibility for 5 seconds",
+                    onClick = {
+                        haptics.performCopyAck()
+                        onRevealOverlayControls()
+                    },
+                    trailing = {
+                        Icon(
+                            painter = painterResource(LucideR.drawable.lucide_ic_eye),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                SettingsClickableRow(
+                    title = "Reset Quick Stickers appearance",
+                    subtitle = "Reset all opacities, shadow, and bubble size to defaults without changing position or data",
+                    onClick = {
+                        showResetAppearanceDialog = true
+                    },
+                    trailing = {
+                        Icon(
+                            painter = painterResource(LucideR.drawable.lucide_ic_rotate_ccw),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // --- 3. Opening behavior ---
+                Text(
+                    text = "Opening behavior",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                // 3.1 Open popup with
+                val filterSummary = when (startFilterMode) {
+                    OverlayStartFilterMode.ALL -> "All stickers"
+                    OverlayStartFilterMode.FAVORITES -> "Favorites"
+                    OverlayStartFilterMode.FREQUENT -> "Frequently used"
+                    OverlayStartFilterMode.LAST_USED -> "Last used filter"
+                    OverlayStartFilterMode.CUSTOM_CATEGORY -> {
+                        if (startCustomCategory.isNotBlank()) "Category: $startCustomCategory"
+                        else "Custom category"
+                    }
+                }
+                SettingsClickableRow(
+                    title = "Open popup with",
+                    subtitle = filterSummary,
+                    onClick = {
+                        showStartFilterDialog = true
+                    },
+                    trailing = {
+                        Icon(
+                            painter = painterResource(LucideR.drawable.lucide_ic_chevron_right),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // 3.2 After copying a sticker
+                val copySummary = when (afterCopyAction) {
+                    OverlayAfterCopyAction.CLOSE_POPUP -> "Close popup"
+                    OverlayAfterCopyAction.KEEP_OPEN -> "Keep popup open"
+                }
+                SettingsClickableRow(
+                    title = "After copying a sticker",
+                    subtitle = copySummary,
+                    onClick = {
+                        showAfterCopyDialog = true
+                    },
+                    trailing = {
+                        Icon(
+                            painter = painterResource(LucideR.drawable.lucide_ic_chevron_right),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // --- 4. Popup content ---
+                Text(
+                    text = "Popup content",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
 
                 SettingsToggleRow(
                     title = "Show title in popup",
@@ -644,6 +1071,183 @@ fun SettingsScreen(
                     }
                 }
             }
+        }
+
+
+        if (showResetAppearanceDialog) {
+            AlertDialog(
+                onDismissRequest = { showResetAppearanceDialog = false },
+                title = { Text("Reset Quick Stickers appearance?") },
+                text = {
+                    Text("This will restore bubble size, bubble transparency, and popup transparency to their default values. Your saved bubble position, stickers, categories, and theme will not be changed.")
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showResetAppearanceDialog = false
+                            haptics.performCopyAck()
+                            previewBubbleSizeDp = 40f
+                            previewBubbleOpacity = 1.0f
+                            previewMasterOpacity = 1.0f
+                            previewSurfaceOpacity = 0.96f
+                            previewStickersOpacity = 1.0f
+                            previewChromeOpacity = 1.0f
+                            previewCloseOpacity = 1.0f
+                            previewResizeOpacity = 0.85f
+                            previewShadowStrength = 0.45f
+                            onResetOverlayAppearance()
+                        }
+                    ) {
+                        Text("Reset")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showResetAppearanceDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        if (showStartFilterDialog) {
+            AlertDialog(
+                onDismissRequest = { showStartFilterDialog = false },
+                title = { Text("Open popup with") },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        listOf(
+                            OverlayStartFilterMode.ALL to "All stickers",
+                            OverlayStartFilterMode.FAVORITES to "Favorites",
+                            OverlayStartFilterMode.FREQUENT to "Frequently used",
+                            OverlayStartFilterMode.LAST_USED to "Last used filter"
+                        ).forEach { (mode, label) ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .selectable(
+                                        selected = startFilterMode == mode,
+                                        onClick = {
+                                            haptics.performCopyAck()
+                                            onStartFilterChange(mode, "")
+                                            showStartFilterDialog = false
+                                        }
+                                    )
+                                    .padding(vertical = 10.dp, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = startFilterMode == mode,
+                                    onClick = null
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+
+                        if (availableCategories.isNotEmpty()) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                            )
+                            Text(
+                                text = "Categories",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(vertical = 4.dp, horizontal = 4.dp)
+                            )
+
+                            availableCategories.forEach { cat ->
+                                val isSelected = startFilterMode == OverlayStartFilterMode.CUSTOM_CATEGORY && startCustomCategory == cat
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .selectable(
+                                            selected = isSelected,
+                                            onClick = {
+                                                haptics.performCopyAck()
+                                                onStartFilterChange(OverlayStartFilterMode.CUSTOM_CATEGORY, cat)
+                                                showStartFilterDialog = false
+                                            }
+                                        )
+                                        .padding(vertical = 10.dp, horizontal = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = isSelected,
+                                        onClick = null
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        text = cat,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showStartFilterDialog = false }) {
+                        Text("Done")
+                    }
+                }
+            )
+        }
+
+        if (showAfterCopyDialog) {
+            AlertDialog(
+                onDismissRequest = { showAfterCopyDialog = false },
+                title = { Text("After copying a sticker") },
+                text = {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        listOf(
+                            OverlayAfterCopyAction.CLOSE_POPUP to "Close popup (Default)",
+                            OverlayAfterCopyAction.KEEP_OPEN to "Keep popup open"
+                        ).forEach { (action, label) ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .selectable(
+                                        selected = afterCopyAction == action,
+                                        onClick = {
+                                            haptics.performCopyAck()
+                                            onAfterCopyActionChange(action)
+                                            showAfterCopyDialog = false
+                                        }
+                                    )
+                                    .padding(vertical = 12.dp, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = afterCopyAction == action,
+                                    onClick = null
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showAfterCopyDialog = false }) {
+                        Text("Done")
+                    }
+                }
+            )
         }
 
         if (showLayoutPicker) {
@@ -933,5 +1537,106 @@ private fun SpecimenPreviewSurface(visualTheme: AppVisualTheme) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SettingsClickableRow(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    trailing: @Composable (() -> Unit)? = null
+) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (trailing != null) {
+                Spacer(modifier = Modifier.width(8.dp))
+                trailing()
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun SettingsSliderItem(
+    title: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    valueText: String,
+    onValueChange: (Float) -> Unit,
+    onValueChangeFinished: (Float) -> Unit,
+    subtitle: String? = null
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+            .padding(14.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f, fill = false)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (subtitle != null) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = valueText,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            onValueChangeFinished = { onValueChangeFinished(value) },
+            valueRange = valueRange,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }

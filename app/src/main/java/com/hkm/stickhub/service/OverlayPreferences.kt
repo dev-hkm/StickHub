@@ -1,4 +1,4 @@
-package com.hkm.stickhub.service
+﻿package com.hkm.stickhub.service
 
 import android.content.Context
 
@@ -20,6 +20,24 @@ object OverlayPreferences {
     private const val KEY_PANEL_HEIGHT = "panel_height_px"
     private const val KEY_PANEL_X = "panel_pos_x"
     private const val KEY_PANEL_Y = "panel_pos_y"
+
+    // Multi-layer opacities
+    private const val KEY_BUBBLE_OPACITY = "bubble_opacity"
+    private const val KEY_POPUP_MASTER_OPACITY = "popup_master_opacity"
+    private const val KEY_POPUP_SURFACE_OPACITY = "popup_surface_opacity"
+    private const val KEY_POPUP_STICKERS_OPACITY = "popup_stickers_opacity"
+    private const val KEY_POPUP_CHROME_OPACITY = "popup_chrome_opacity"
+    private const val KEY_POPUP_CLOSE_OPACITY = "popup_close_opacity"
+    private const val KEY_POPUP_RESIZE_OPACITY = "popup_resize_opacity"
+
+    // Sticker shadow
+    private const val KEY_STICKER_SHADOW_STRENGTH = "sticker_shadow_strength"
+
+    private const val KEY_START_FILTER_MODE = "start_filter_mode"
+    private const val KEY_START_CUSTOM_CATEGORY = "start_custom_category"
+    private const val KEY_LAST_USED_FILTER = "last_used_filter"
+
+    private const val KEY_AFTER_COPY_ACTION = "after_copy_action"
 
     const val DEFAULT_BUBBLE_SIZE_DP = 40f
     const val MIN_BUBBLE_SIZE_DP = 32f
@@ -58,6 +76,182 @@ object OverlayPreferences {
             .apply()
     }
 
+    // --- Multi-Layer Opacity Preferences ---
+
+    fun bubbleOpacity(context: Context): Float = context
+        .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .getFloat(KEY_BUBBLE_OPACITY, OverlayOpacityPolicy.DEFAULT_BUBBLE_OPACITY)
+        .coerceIn(0f, 1f)
+
+    fun setBubbleOpacity(context: Context, opacity: Float) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putFloat(KEY_BUBBLE_OPACITY, opacity.coerceIn(0f, 1f))
+            .apply()
+    }
+
+    fun popupMasterOpacity(context: Context): Float = context
+        .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .getFloat(KEY_POPUP_MASTER_OPACITY, OverlayOpacityPolicy.DEFAULT_MASTER_OPACITY)
+        .coerceIn(0f, 1f)
+
+    fun setPopupMasterOpacity(context: Context, opacity: Float) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putFloat(KEY_POPUP_MASTER_OPACITY, opacity.coerceIn(0f, 1f))
+            .apply()
+    }
+
+    fun popupSurfaceOpacity(context: Context): Float = context
+        .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .getFloat(KEY_POPUP_SURFACE_OPACITY, OverlayOpacityPolicy.DEFAULT_SURFACE_OPACITY)
+        .coerceIn(0f, 1f)
+
+    fun setPopupSurfaceOpacity(context: Context, opacity: Float) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putFloat(KEY_POPUP_SURFACE_OPACITY, opacity.coerceIn(0f, 1f))
+            .apply()
+    }
+
+    fun popupStickersOpacity(context: Context): Float = context
+        .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .getFloat(KEY_POPUP_STICKERS_OPACITY, OverlayOpacityPolicy.DEFAULT_STICKERS_OPACITY)
+        .coerceIn(0f, 1f)
+
+    fun setPopupStickersOpacity(context: Context, opacity: Float) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putFloat(KEY_POPUP_STICKERS_OPACITY, opacity.coerceIn(0f, 1f))
+            .apply()
+    }
+
+    fun popupChromeOpacity(context: Context): Float = context
+        .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .getFloat(KEY_POPUP_CHROME_OPACITY, OverlayOpacityPolicy.DEFAULT_CHROME_OPACITY)
+        .coerceIn(0f, 1f)
+
+    fun setPopupChromeOpacity(context: Context, opacity: Float) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putFloat(KEY_POPUP_CHROME_OPACITY, opacity.coerceIn(0f, 1f))
+            .apply()
+    }
+
+    fun popupCloseOpacity(context: Context): Float = context
+        .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .getFloat(KEY_POPUP_CLOSE_OPACITY, OverlayOpacityPolicy.DEFAULT_CLOSE_OPACITY)
+        .coerceIn(0f, 1f)
+
+    fun setPopupCloseOpacity(context: Context, opacity: Float) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putFloat(KEY_POPUP_CLOSE_OPACITY, opacity.coerceIn(0f, 1f))
+            .apply()
+    }
+
+    fun popupResizeOpacity(context: Context): Float = context
+        .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .getFloat(KEY_POPUP_RESIZE_OPACITY, OverlayOpacityPolicy.DEFAULT_RESIZE_OPACITY)
+        .coerceIn(0f, 1f)
+
+    fun setPopupResizeOpacity(context: Context, opacity: Float) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putFloat(KEY_POPUP_RESIZE_OPACITY, opacity.coerceIn(0f, 1f))
+            .apply()
+    }
+
+    // --- Sticker Shadow Preference ---
+
+    fun stickerShadowStrength(context: Context): Float = context
+        .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        .getFloat(KEY_STICKER_SHADOW_STRENGTH, StickerShadowPolicy.DEFAULT_STRENGTH)
+        .coerceIn(0f, 1f)
+
+    fun setStickerShadowStrength(context: Context, strength: Float) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putFloat(KEY_STICKER_SHADOW_STRENGTH, strength.coerceIn(0f, 1f))
+            .apply()
+    }
+
+    /**
+     * Resets visual appearance (all layer opacities, shadow, and bubble size) to default values.
+     * Preserves positions, dimensions, filters, stickers, categories, theme, and all other settings.
+     */
+    fun resetAppearance(context: Context) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putFloat(KEY_BUBBLE_OPACITY, OverlayOpacityPolicy.DEFAULT_BUBBLE_OPACITY)
+            .putFloat(KEY_POPUP_MASTER_OPACITY, OverlayOpacityPolicy.DEFAULT_MASTER_OPACITY)
+            .putFloat(KEY_POPUP_SURFACE_OPACITY, OverlayOpacityPolicy.DEFAULT_SURFACE_OPACITY)
+            .putFloat(KEY_POPUP_STICKERS_OPACITY, OverlayOpacityPolicy.DEFAULT_STICKERS_OPACITY)
+            .putFloat(KEY_POPUP_CHROME_OPACITY, OverlayOpacityPolicy.DEFAULT_CHROME_OPACITY)
+            .putFloat(KEY_POPUP_CLOSE_OPACITY, OverlayOpacityPolicy.DEFAULT_CLOSE_OPACITY)
+            .putFloat(KEY_POPUP_RESIZE_OPACITY, OverlayOpacityPolicy.DEFAULT_RESIZE_OPACITY)
+            .putFloat(KEY_STICKER_SHADOW_STRENGTH, StickerShadowPolicy.DEFAULT_STRENGTH)
+            .putFloat(KEY_BUBBLE_SIZE_DP, DEFAULT_BUBBLE_SIZE_DP)
+            .apply()
+    }
+
+    // --- Start Filter Preferences ---
+
+    fun startFilterMode(context: Context): OverlayStartFilterMode {
+        val raw = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_START_FILTER_MODE, OverlayStartFilterMode.ALL.id)
+        return OverlayStartFilterMode.fromId(raw)
+    }
+
+    fun setStartFilterMode(context: Context, mode: OverlayStartFilterMode) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_START_FILTER_MODE, mode.id)
+            .apply()
+    }
+
+    fun startCustomCategory(context: Context): String {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_START_CUSTOM_CATEGORY, "")
+            .orEmpty()
+    }
+
+    fun setStartCustomCategory(context: Context, category: String) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_START_CUSTOM_CATEGORY, category.trim())
+            .apply()
+    }
+
+    fun lastUsedFilter(context: Context): String? {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_LAST_USED_FILTER, null)
+    }
+
+    fun setLastUsedFilter(context: Context, filter: String) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_LAST_USED_FILTER, filter.trim())
+            .apply()
+    }
+
+    // --- After-Copy Preferences ---
+
+    fun afterCopyAction(context: Context): OverlayAfterCopyAction {
+        val raw = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_AFTER_COPY_ACTION, OverlayAfterCopyAction.CLOSE_POPUP.id)
+        return OverlayAfterCopyAction.fromId(raw)
+    }
+
+    fun setAfterCopyAction(context: Context, action: OverlayAfterCopyAction) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_AFTER_COPY_ACTION, action.id)
+            .apply()
+    }
+
+    // --- Content Visibility Preferences ---
+
     fun showTitle(context: Context): Boolean = context
         .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         .getBoolean(KEY_SHOW_TITLE, true)
@@ -90,6 +284,8 @@ object OverlayPreferences {
             .putBoolean(KEY_SHOW_CATEGORIES, show)
             .apply()
     }
+
+    // --- Panel Geometry Preferences ---
 
     fun panelWidthPx(context: Context): Int = context
         .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
