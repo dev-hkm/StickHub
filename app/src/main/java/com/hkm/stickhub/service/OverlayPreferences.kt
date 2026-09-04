@@ -180,8 +180,7 @@ object OverlayPreferences {
      * Resets visual appearance (all layer opacities, shadow, and bubble size) to default values.
      * Preserves positions, dimensions, filters, stickers, categories, theme, and all other settings.
      */
-    fun resetAppearance(context: Context) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    fun resetAppearance(context: Context) {        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putFloat(KEY_BUBBLE_OPACITY, OverlayOpacityPolicy.DEFAULT_BUBBLE_OPACITY)
             .putFloat(KEY_POPUP_MASTER_OPACITY, OverlayOpacityPolicy.DEFAULT_MASTER_OPACITY)
@@ -192,6 +191,25 @@ object OverlayPreferences {
             .putFloat(KEY_POPUP_RESIZE_OPACITY, OverlayOpacityPolicy.DEFAULT_RESIZE_OPACITY)
             .putFloat(KEY_STICKER_SHADOW_STRENGTH, StickerShadowPolicy.DEFAULT_STRENGTH)
             .putFloat(KEY_BUBBLE_SIZE_DP, DEFAULT_BUBBLE_SIZE_DP)
+            .apply()
+    }
+
+    /**
+     * Applies an [OverlayAppearancePreset] atomically: all layer opacities
+     * plus shadow land in a single preferences edit. Size, position,
+     * filters, stickers, categories and theme are never touched.
+     */
+    fun applyAppearancePreset(context: Context, preset: OverlayAppearancePreset) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putFloat(KEY_BUBBLE_OPACITY, OverlayOpacityPolicy.clamp(preset.bubble))
+            .putFloat(KEY_POPUP_MASTER_OPACITY, OverlayOpacityPolicy.clamp(preset.master))
+            .putFloat(KEY_POPUP_SURFACE_OPACITY, OverlayOpacityPolicy.clamp(preset.surface))
+            .putFloat(KEY_POPUP_STICKERS_OPACITY, OverlayOpacityPolicy.clamp(preset.stickers))
+            .putFloat(KEY_POPUP_CHROME_OPACITY, OverlayOpacityPolicy.clamp(preset.chrome))
+            .putFloat(KEY_POPUP_CLOSE_OPACITY, OverlayOpacityPolicy.clamp(preset.close))
+            .putFloat(KEY_POPUP_RESIZE_OPACITY, OverlayOpacityPolicy.clamp(preset.resize))
+            .putFloat(KEY_STICKER_SHADOW_STRENGTH, OverlayOpacityPolicy.clamp(preset.shadow))
             .apply()
     }
 

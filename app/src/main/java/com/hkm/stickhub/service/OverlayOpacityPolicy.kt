@@ -13,7 +13,11 @@ object OverlayOpacityPolicy {
     const val DEFAULT_RESIZE_OPACITY = 0.85f
     const val DEFAULT_SHADOW_STRENGTH = 0.45f
 
-    fun clamp(value: Float): Float = value.coerceIn(0f, 1f)
+    /**
+     * Corrupted preferences (NaN/±infinity) must recover to a visible value,
+     * never propagate into window alpha. coerceIn alone passes NaN through.
+     */
+    fun clamp(value: Float): Float = if (!value.isFinite()) 1f else value.coerceIn(0f, 1f)
 
     fun effectiveSurfaceOpacity(master: Float, surface: Float): Float =
         clamp(master) * clamp(surface)

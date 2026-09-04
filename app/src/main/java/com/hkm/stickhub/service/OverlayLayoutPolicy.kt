@@ -99,6 +99,8 @@ object OverlayLayoutPolicy {
 
     /**
      * Clamps panel size and coordinates so the overlay is always 100% inside the visible screen.
+     * Nominal minimums never win over the real viewport: on tiny screens the
+     * effective minimum shrinks so the panel still fits instead of overflowing.
      */
     fun clampPanelBounds(
         x: Int,
@@ -112,11 +114,13 @@ object OverlayLayoutPolicy {
         maxWidth: Int,
         maxHeight: Int
     ): PanelBounds {
-        val effectiveMaxWidth = max(minWidth, maxWidth.coerceAtMost(screenWidth))
-        val effectiveMaxHeight = max(minHeight, maxHeight.coerceAtMost(screenHeight))
+        val capW = max(1, minOf(maxWidth, screenWidth))
+        val capH = max(1, minOf(maxHeight, screenHeight))
+        val effectiveMinW = minOf(max(1, minWidth), capW)
+        val effectiveMinH = minOf(max(1, minHeight), capH)
 
-        val clampedW = width.coerceIn(minWidth, effectiveMaxWidth)
-        val clampedH = height.coerceIn(minHeight, effectiveMaxHeight)
+        val clampedW = width.coerceIn(effectiveMinW, capW)
+        val clampedH = height.coerceIn(effectiveMinH, capH)
 
         val maxX = max(0, screenWidth - clampedW)
         val maxY = max(0, screenHeight - clampedH)
@@ -174,6 +178,7 @@ object OverlayLayoutPolicy {
 
     /**
      * Clamps bubble size and coordinates so the bubble is guaranteed 100% inside screen bounds.
+     * An oversized bubble shrinks to the viewport instead of overflowing it.
      */
     fun clampBubbleBounds(
         x: Int,
@@ -182,7 +187,7 @@ object OverlayLayoutPolicy {
         screenWidth: Int,
         screenHeight: Int
     ): BubbleBounds {
-        val safeSize = max(1, bubbleSize)
+        val safeSize = max(1, minOf(bubbleSize, screenWidth, screenHeight))
         val maxX = max(0, screenWidth - safeSize)
         val maxY = max(0, screenHeight - safeSize)
         val clampedX = x.coerceIn(0, maxX)

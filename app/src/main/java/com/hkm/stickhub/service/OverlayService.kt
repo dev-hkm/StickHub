@@ -8,8 +8,6 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
@@ -17,7 +15,6 @@ import android.os.Build
 import android.os.IBinder
 import android.text.Editable
 import android.text.TextWatcher
-import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -27,7 +24,6 @@ import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
 import android.widget.EditText
 import android.widget.FrameLayout
-import android.widget.GridLayout
 import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -53,10 +49,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import android.content.res.Configuration
-import android.util.LruCache
-import java.io.File
 import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.max
@@ -85,36 +78,74 @@ class OverlayService : Service() {
     private var emptyStateTextView: TextView? = null
     private var panelSurfaceView: View? = null
     private var chromeContainer: LinearLayout? = null
-    private var stickerGridScroll: androidx.core.widget.NestedScrollView? = null
+    private var stickerRecyclerView: androidx.recyclerview.widget.RecyclerView? = null
+    private var stickerAdapter: OverlayStickerAdapter? = null
 
     private fun effectiveSurfaceOpacity(): Float {
-        val master = OverlayPreferences.popupMasterOpacity(this)
         val surface = OverlayPreferences.popupSurfaceOpacity(this)
-        return OverlayOpacityPolicy.effectiveSurfaceOpacity(master, surface)
+        return appearanceState.opacity(
+            "surface",
+            effectiveMasterOpacity() * OverlayOpacityPolicy.clamp(surface),
+            nowMs()
+        )
     }
 
     private fun effectiveChromeOpacity(): Float {
-        val master = OverlayPreferences.popupMasterOpacity(this)
         val chrome = OverlayPreferences.popupChromeOpacity(this)
-        return OverlayOpacityPolicy.effectiveChromeOpacity(master, chrome)
+        return appearanceState.opacity(
+            "chrome",
+            effectiveMasterOpacity() * OverlayOpacityPolicy.clamp(chrome),
+            nowMs()
+        )
     }
 
     private fun effectiveStickersOpacity(): Float {
-        val master = OverlayPreferences.popupMasterOpacity(this)
         val stickers = OverlayPreferences.popupStickersOpacity(this)
-        return OverlayOpacityPolicy.effectiveStickersOpacity(master, stickers)
+        return appearanceState.opacity(
+            "stickers",
+            effectiveMasterOpacity() * OverlayOpacityPolicy.clamp(stickers),
+            nowMs()
+        )
     }
 
     private fun effectiveCloseOpacity(): Float {
-        val master = OverlayPreferences.popupMasterOpacity(this)
         val close = OverlayPreferences.popupCloseOpacity(this)
-        return OverlayOpacityPolicy.effectiveCloseOpacity(master, close)
+        return appearanceState.opacity(
+            "close",
+            effectiveMasterOpacity() * OverlayOpacityPolicy.clamp(close),
+            nowMs()
+        )
     }
 
     private fun effectiveResizeOpacity(): Float {
-        val master = OverlayPreferences.popupMasterOpacity(this)
         val resize = OverlayPreferences.popupResizeOpacity(this)
-        return OverlayOpacityPolicy.effectiveResizeOpacity(master, resize)
+        return appearanceState.opacity(
+            "resize",
+            effectiveMasterOpacity() * OverlayOpacityPolicy.clamp(resize),
+            nowMs()
+        )
+    }
+
+    private fun effectiveBubbleOpacity(): Float {
+        return appearanceState.opacity(
+            "bubble",
+            OverlayOpacityPolicy.clamp(OverlayPreferences.bubbleOpacity(this)),
+            nowMs()
+        )
+    }
+
+    private fun effectiveMasterOpacity(): Float {
+        return appearanceState.opacity(
+            "master",
+            OverlayOpacityPolicy.clamp(OverlayPreferences.popupMasterOpacity(this)),
+            nowMs()
+        )
+    }
+
+    private fun nowMs(): Long = try {
+        android.os.SystemClock.uptimeMillis()
+    } catch (_: Exception) {
+        0L
     }
 
     private fun currentPalette(): OverlayPalette {
@@ -135,8 +166,6 @@ class OverlayService : Service() {
     private var searchBox: EditText? = null
     private var chipScroll: HorizontalScrollView? = null
     private var chipContainer: LinearLayout? = null
-    private var gridScrollView: androidx.core.widget.NestedScrollView? = null
-    private var stickerGrid: GridLayout? = null
     private var resizeHandle: ImageView? = null
 
     private lateinit var bubbleParams: WindowManager.LayoutParams
@@ -145,11 +174,10 @@ class OverlayService : Service() {
     private var selectedCategory = "All"
     private var searchQuery = ""
     private var searchDebounceJob: Job? = null
+    private var openRefreshJob: Job? = null
 
-    // In-memory downsampled thumbnail cache for smooth overlay scrolling
-    private val thumbnailCache = object : LruCache<String, Bitmap>(8 * 1024 * 1024) {
-        override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount
-    }
+    /** Transient slider previews (never persisted) + the 5s reveal deadline. */
+    private val appearanceState = OverlayAppearanceState()
 
     companion object {
         const val CHANNEL_ID = "stickhub_overlay_channel"
@@ -158,21 +186,46 @@ class OverlayService : Service() {
         const val ACTION_UPDATE_APPEARANCE = "com.hkm.stickhub.action.UPDATE_APPEARANCE"
         const val ACTION_UPDATE_SHADOW = "com.hkm.stickhub.action.UPDATE_SHADOW"
         const val ACTION_REVEAL_CONTROLS = "com.hkm.stickhub.action.REVEAL_CONTROLS"
+        const val ACTION_PREVIEW_APPEARANCE = "com.hkm.stickhub.PREVIEW_APPEARANCE"
+        const val EXTRA_APPEARANCE_LAYER = "appearance_layer"
+        const val EXTRA_APPEARANCE_VALUE = "appearance_value"
         var isRunning = false
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    private fun hasOverlayPermission(): Boolean {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+            android.provider.Settings.canDrawOverlays(this)
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Never loop restarts without permission, and never claim STICKY:
+        // the overlay lives exactly as long as the user keeps it enabled.
+        if (!hasOverlayPermission()) {
+            isRunning = false
+            stopSelf()
+            return START_NOT_STICKY
+        }
         if (::windowManager.isInitialized) {
             when (intent?.action) {
                 ACTION_REFRESH_CONFIGURATION -> refreshOverlayConfiguration()
-                ACTION_UPDATE_APPEARANCE -> updateOverlayAppearance()
+                ACTION_UPDATE_APPEARANCE -> {
+                    appearanceState.clearPreviews()
+                    updateOverlayAppearance()
+                }
                 ACTION_UPDATE_SHADOW -> updateStickerShadows()
                 ACTION_REVEAL_CONTROLS -> revealOverlayControls()
+                ACTION_PREVIEW_APPEARANCE -> {
+                    val layer = intent.getStringExtra(EXTRA_APPEARANCE_LAYER)
+                    val value = intent.getFloatExtra(EXTRA_APPEARANCE_VALUE, Float.NaN)
+                    if (appearanceState.preview(layer, value)) {
+                        updateOverlayAppearance()
+                    }
+                }
             }
         }
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     override fun onCreate() {
@@ -240,13 +293,13 @@ class OverlayService : Service() {
         // slider tick during drag, and a rebuild (decode + shadow re-render
         // for every sticker) is what caused settings jank + useless sliders.
         // Sticker shadow re-render has its own debounced action (ACTION_UPDATE_SHADOW).
-        val bubbleAlpha = OverlayPreferences.bubbleOpacity(this)
-        bubbleView?.alpha = bubbleAlpha
+        // Transient previews flow through effective*() without touching prefs.
+        bubbleView?.alpha = effectiveBubbleOpacity()
 
         if (isPanelOpen) {
             panelSurfaceView?.alpha = effectiveSurfaceOpacity()
             chromeContainer?.alpha = effectiveChromeOpacity()
-            stickerGridScroll?.alpha = effectiveStickersOpacity()
+            stickerRecyclerView?.alpha = effectiveStickersOpacity()
             closeBtnView?.alpha = effectiveCloseOpacity()
             resizeBtnView?.alpha = effectiveResizeOpacity()
         }
@@ -286,23 +339,19 @@ class OverlayService : Service() {
     private fun updateStickerShadows() {
         StickerShadowRenderer.clearCache()
         if (isPanelOpen) {
-            refreshPanelStickers()
+            submitStickers(force = true)
         }
     }
 
     private fun revealOverlayControls() {
         revealJob?.cancel()
-        bubbleView?.alpha = 1.0f
-        if (isPanelOpen) {
-            panelSurfaceView?.alpha = 1.0f
-            chromeContainer?.alpha = 1.0f
-            stickerGridScroll?.alpha = 1.0f
-            closeBtnView?.alpha = 1.0f
-            resizeBtnView?.alpha = 1.0f
-        }
+        // Reveal is a 5s deadline inside the appearance state: every alpha
+        // lookup below (including a panel opened mid-window) resolves to 1.
+        appearanceState.reveal(nowMs())
+        updateOverlayAppearance()
 
         revealJob = serviceScope.launch {
-            delay(5000)
+            delay(OverlayAppearanceState.REVEAL_DURATION_MS)
             updateOverlayAppearance()
         }
     }
@@ -352,9 +401,11 @@ class OverlayService : Service() {
         searchBg?.setColor(withAlpha(palette.surfaceVariantColor, if (palette.isDark) 140 else 200))
         categoryScrollView?.visibility = if (showCategories) View.VISIBLE else View.GONE
 
-        // Hidden rows must not keep filtering invisibly.
-        if (!showSearch) searchQuery = ""
-        if (!showCategories) selectedCategory = "All"
+        // Hidden rows must not keep filtering invisibly. Clearing the EditText
+        // keeps the widget and the query in the same state.
+        syncSearchRow(showSearch)
+        // A hidden tag row keeps the configured start filter; only an invalid
+        // one falls back (resolved at open), never a blind force to All.
 
         panelBg?.apply {
             val chrome = popupChrome()
@@ -372,7 +423,7 @@ class OverlayService : Service() {
         emptyStateTextView?.setTextColor(palette.mutedTextColor)
 
         setupCategoryChips()
-        refreshPanelStickers()
+        submitStickers()
 
         panelRoot?.let { panel ->
             if (panel.isAttachedToWindow && ::panelParams.isInitialized) {
@@ -401,15 +452,19 @@ class OverlayService : Service() {
     }
 
     private fun startForegroundServiceNotification() {
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            "StickHub Overlay",
-            NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            description = "Floating sticker quick access"
+        // NotificationChannel exists only on API 26+; the compat builder
+        // below works back to API 24 without it.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "StickHub Overlay",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Floating sticker quick access"
+            }
+            val manager = getSystemService(NotificationManager::class.java)
+            manager?.createNotificationChannel(channel)
         }
-        val manager = getSystemService(NotificationManager::class.java)
-        manager?.createNotificationChannel(channel)
 
         val intent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
@@ -453,6 +508,10 @@ class OverlayService : Service() {
                     screenWidth = screenW,
                     screenHeight = screenH
                 )
+                if (bubbleParams.width != bounds.size) {
+                    bubbleParams.width = bounds.size
+                    bubbleParams.height = bounds.size
+                }
                 val (newX, newY) = OverlayLayoutPolicy.denormalizePosition(
                     OverlayLayoutPolicy.NormalizedPosition(fracX, fracY),
                     bounds.maxX,
@@ -464,45 +523,50 @@ class OverlayService : Service() {
             }
         }
 
-        // 2. Reflow panel position and dimensions if panel is attached/open
-        panelRoot?.let { panel ->
-            if (panel.isAttachedToWindow && ::panelParams.isInitialized && isPanelOpen) {
-                val density = resources.displayMetrics.density
-                val showTitle = OverlayPreferences.showTitle(this)
-                val showSearch = OverlayPreferences.showSearch(this)
-                val showCategories = OverlayPreferences.showCategories(this)
+        // 2. Reflow panel geometry from one shared snapshot. The saved size is
+        // clamped even while the panel is closed/detached, so reopening after
+        // a rotation never restores a viewport-busting rectangle.
+        if (::panelParams.isInitialized) {
+            val density = resources.displayMetrics.density
+            val showTitle = OverlayPreferences.showTitle(this)
+            val showSearch = OverlayPreferences.showSearch(this)
+            val showCategories = OverlayPreferences.showCategories(this)
 
-                val minW = OverlayLayoutPolicy.minPanelWidthPx(density)
-                val minH = OverlayLayoutPolicy.minPanelHeightPx(
-                    density = density,
-                    showTitle = showTitle,
-                    showSearch = showSearch,
-                    showCategories = showCategories
-                )
-                val maxW = (screenW * 0.94f).toInt()
-                val maxH = (screenH * 0.85f).toInt()
+            val minW = OverlayLayoutPolicy.minPanelWidthPx(density)
+            val minH = OverlayLayoutPolicy.minPanelHeightPx(
+                density = density,
+                showTitle = showTitle,
+                showSearch = showSearch,
+                showCategories = showCategories
+            )
+            val maxW = (screenW * 0.94f).toInt()
+            val maxH = (screenH * 0.85f).toInt()
 
-                val clamped = OverlayLayoutPolicy.clampPanelBounds(
-                    x = panelParams.x,
-                    y = panelParams.y,
-                    width = panelParams.width,
-                    height = panelParams.height,
-                    screenWidth = screenW,
-                    screenHeight = screenH,
-                    minWidth = minW,
-                    minHeight = minH,
-                    maxWidth = maxW,
-                    maxHeight = maxH
-                )
-                panelParams.x = clamped.x
-                panelParams.y = clamped.y
-                panelParams.width = clamped.width
-                panelParams.height = clamped.height
-                windowManager.updateViewLayout(panel, panelParams)
+            val clamped = OverlayLayoutPolicy.clampPanelBounds(
+                x = panelParams.x,
+                y = panelParams.y,
+                width = panelParams.width,
+                height = panelParams.height,
+                screenWidth = screenW,
+                screenHeight = screenH,
+                minWidth = minW,
+                minHeight = minH,
+                maxWidth = maxW,
+                maxHeight = maxH
+            )
+            panelParams.x = clamped.x
+            panelParams.y = clamped.y
+            panelParams.width = clamped.width
+            panelParams.height = clamped.height
 
-                OverlayPreferences.setPanelPosition(this, clamped.x, clamped.y)
-                OverlayPreferences.setPanelWidthPx(this, clamped.width)
-                OverlayPreferences.setPanelHeightPx(this, clamped.height)
+            OverlayPreferences.setPanelPosition(this, clamped.x, clamped.y)
+            OverlayPreferences.setPanelWidthPx(this, clamped.width)
+            OverlayPreferences.setPanelHeightPx(this, clamped.height)
+
+            panelRoot?.let { panel ->
+                if (panel.isAttachedToWindow) {
+                    windowManager.updateViewLayout(panel, panelParams)
+                }
             }
         }
     }
@@ -579,7 +643,7 @@ class OverlayService : Service() {
         var isClick = false
 
         bubble.setOnTouchListener { v, event ->
-            when (event.action) {
+            when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     dragStartX = bubbleParams.x
                     dragStartY = bubbleParams.y
@@ -609,8 +673,8 @@ class OverlayService : Service() {
                 }
                 MotionEvent.ACTION_UP -> {
                     if (isClick) {
-                        StickHubHaptics.performTap(v)
-                        togglePanel()
+                        // Route through click for TalkBack/switch access parity.
+                        v.performClick()
                     } else {
                         val (currentW, currentH) = currentOverlayBounds()
                         val clamped = OverlayLayoutPolicy.clampBubbleBounds(
@@ -634,8 +698,37 @@ class OverlayService : Service() {
                     }
                     true
                 }
+                MotionEvent.ACTION_CANCEL -> {
+                    // Gesture aborted (e.g. rotation mid-drag): persist where
+                    // the bubble actually is instead of dropping the move.
+                    val (currentW, currentH) = currentOverlayBounds()
+                    val clamped = OverlayLayoutPolicy.clampBubbleBounds(
+                        x = bubbleParams.x,
+                        y = bubbleParams.y,
+                        bubbleSize = bubbleParams.width,
+                        screenWidth = currentW,
+                        screenHeight = currentH
+                    )
+                    val normalized = OverlayLayoutPolicy.normalizePosition(
+                        x = clamped.x,
+                        y = clamped.y,
+                        maxX = clamped.maxX,
+                        maxY = clamped.maxY
+                    )
+                    OverlayPreferences.setBubblePositionFraction(
+                        this@OverlayService,
+                        normalized.fractionX,
+                        normalized.fractionY
+                    )
+                    true
+                }
                 else -> false
             }
+        }
+
+        bubble.setOnClickListener {
+            StickHubHaptics.performTap(it)
+            togglePanel()
         }
 
         bubbleView = bubble
@@ -653,9 +746,9 @@ class OverlayService : Service() {
         val showCategories = OverlayPreferences.showCategories(this)
         val isGridOnly = !showTitle && !showSearch && !showCategories
 
-        // If search/categories are disabled, reset query/filters so no hidden filters persist
+        // If search is disabled, no hidden query may persist. Category
+        // selection stays as-is; the open-time start-filter policy decides.
         if (!showSearch) searchQuery = ""
-        if (!showCategories) selectedCategory = "All"
 
         // Dynamic minimum bounds calculated based on enabled chrome
         val minPanelWidth = OverlayLayoutPolicy.minPanelWidthPx(density)
@@ -777,7 +870,7 @@ class OverlayService : Service() {
         var draggingPanel = false
 
         val panelDragListener = View.OnTouchListener { _, event ->
-            when (event.action) {
+            when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     initialPanelX = panelParams.x
                     initialPanelY = panelParams.y
@@ -867,7 +960,7 @@ class OverlayService : Service() {
                     searchDebounceJob = serviceScope.launch {
                         delay(200)
                         searchQuery = s?.toString()?.trim()?.lowercase().orEmpty()
-                        refreshPanelStickers()
+                        submitStickers()
                     }
                 }
                 override fun afterTextChanged(s: Editable?) {}
@@ -895,31 +988,44 @@ class OverlayService : Service() {
         chrome.addView(chipsScroll)
         content.addView(chrome)
 
-        // D. Sticker Grid inside ScrollView with its own opacity.
-        val scroll = androidx.core.widget.NestedScrollView(this).apply {
+        // D. Sticker list: RecyclerView + GridLayoutManager with its own
+        // opacity. Only attached cells decode thumbnails (see adapter).
+        val recycler = androidx.recyclerview.widget.RecyclerView(this).apply {
+            layoutManager = androidx.recyclerview.widget.GridLayoutManager(
+                this@OverlayService,
+                OverlayLayoutPolicy.GRID_COLUMNS
+            )
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0,
                 1f
             )
-            isFillViewport = true
+            clipToPadding = false
             alpha = effectiveStickersOpacity()
         }
-        stickerGridScroll = scroll
-
-        val grid = GridLayout(this).apply {
-            columnCount = OverlayLayoutPolicy.GRID_COLUMNS
-            alignmentMode = GridLayout.ALIGN_BOUNDS
-            useDefaultMargins = false
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT
-            )
-        }
-        scroll.addView(grid)
-        content.addView(scroll)
+        stickerRecyclerView = recycler
+        stickerAdapter = OverlayStickerAdapter(serviceScope) { view, sticker ->
+            onStickerSelected(view, sticker)
+        }.also { recycler.adapter = it }
+        content.addView(recycler)
 
         root.addView(content)
+
+        // Empty-library placeholder lives above the surface, below controls.
+        val emptyView = TextView(this).apply {
+            text = "No stickers found"
+            textSize = 13f
+            gravity = Gravity.CENTER
+            setTextColor(withAlpha(if (isDarkMode()) Color.WHITE else Color.BLACK, 130))
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            elevation = 12f
+            visibility = View.GONE
+        }
+        emptyStateTextView = emptyView
+        root.addView(emptyView)
 
         // If title is hidden, allow dragging from the top rim of the panel
         if (!showTitle) {
@@ -936,11 +1042,13 @@ class OverlayService : Service() {
         // 3. Layer 2: Floating Controls overlaying the popup edges
 
         // Top-End Close Button. Tap closes; a deliberate hold turns it into the popup drag handle.
+        // The 36dp hit box exceeds the 30dp artwork so the control stays
+        // finger-friendly without visually crowding the popup corner.
         val closeBtn = ImageView(this).apply {
             setImageDrawable(ContextCompat.getDrawable(this@OverlayService, LucideR.drawable.lucide_ic_x))
             setColorFilter(palette.textColor)
-            val btnSize = (30 * density).toInt()
-            val pad = (6 * density).toInt()
+            val btnSize = (36 * density).toInt()
+            val pad = (9 * density).toInt()
             setPadding(pad, pad, pad, pad)
             val btnBg = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
@@ -1005,8 +1113,8 @@ class OverlayService : Service() {
                     if (movingFromClose) {
                         OverlayPreferences.setPanelPosition(this@OverlayService, panelParams.x, panelParams.y)
                     } else if (!closeGestureCancelled && event.actionMasked == MotionEvent.ACTION_UP) {
-                        StickHubHaptics.performTap(view)
-                        togglePanel()
+                        // Route through click for TalkBack/switch access parity.
+                        view.performClick()
                     }
                     movingFromClose = false
                     true
@@ -1014,16 +1122,21 @@ class OverlayService : Service() {
                 else -> true
             }
         }
+        closeBtn.setOnClickListener { view ->
+            StickHubHaptics.performTap(view)
+            togglePanel()
+        }
         closeBtn.alpha = effectiveCloseOpacity()
         closeBtnView = closeBtn
         root.addView(closeBtn)
 
-        // Bottom-End Resize Handle (Lucide move_diagonal_2)
+        // Bottom-End Resize Handle (Lucide move_diagonal_2). Same 36dp
+        // reasoning as the close button: bigger target, same artwork.
         val resizeBtn = ImageView(this).apply {
             setImageDrawable(ContextCompat.getDrawable(this@OverlayService, LucideR.drawable.lucide_ic_move_diagonal_2))
             setColorFilter(palette.accentColor)
-            val btnSize = (30 * density).toInt()
-            val pad = (7 * density).toInt()
+            val btnSize = (36 * density).toInt()
+            val pad = (10 * density).toInt()
             setPadding(pad, pad, pad, pad)
             val handleBg = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
@@ -1051,7 +1164,7 @@ class OverlayService : Service() {
         var initialResizeTouchY = 0f
 
         resizeBtn.setOnTouchListener { view, event ->
-            when (event.action) {
+            when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     initialPanelWidth = panelParams.width
                     initialPanelHeight = panelParams.height
@@ -1067,6 +1180,15 @@ class OverlayService : Service() {
                     val (currentW, currentH) = currentOverlayBounds()
                     val currentMaxW = (currentW * 0.94f).toInt()
                     val currentMaxH = (currentH * 0.85f).toInt()
+                    // Minimums recomputed live: chrome toggles during the
+                    // panel's life must not leave a stale floor behind.
+                    val liveMinW = OverlayLayoutPolicy.minPanelWidthPx(density)
+                    val liveMinH = OverlayLayoutPolicy.minPanelHeightPx(
+                        density = density,
+                        showTitle = OverlayPreferences.showTitle(this@OverlayService),
+                        showSearch = OverlayPreferences.showSearch(this@OverlayService),
+                        showCategories = OverlayPreferences.showCategories(this@OverlayService)
+                    )
 
                     val clamped = OverlayLayoutPolicy.clampPanelBounds(
                         x = panelParams.x,
@@ -1075,8 +1197,8 @@ class OverlayService : Service() {
                         height = targetH,
                         screenWidth = currentW,
                         screenHeight = currentH,
-                        minWidth = minPanelWidth,
-                        minHeight = minPanelHeight,
+                        minWidth = liveMinW,
+                        minHeight = liveMinH,
                         maxWidth = currentMaxW,
                         maxHeight = currentMaxH
                     )
@@ -1092,7 +1214,7 @@ class OverlayService : Service() {
                     OverlayPreferences.setPanelWidthPx(this@OverlayService, panelParams.width)
                     OverlayPreferences.setPanelHeightPx(this@OverlayService, panelParams.height)
                     OverlayPreferences.setPanelPosition(this@OverlayService, panelParams.x, panelParams.y)
-                    refreshPanelStickers()
+                    submitStickers()
                     true
                 }
                 else -> true
@@ -1110,14 +1232,14 @@ class OverlayService : Service() {
         searchBox = search
         chipScroll = chipsScroll
         chipContainer = chipsGroup
-        gridScrollView = scroll
-        stickerGrid = grid
         resizeHandle = resizeBtn
     }
 
     private fun togglePanel() {
         val panel = panelRoot ?: return
         val currentToken = ++panelGeneration
+        openRefreshJob?.cancel()
+        openRefreshJob = null
 
         if (isPanelOpen) {
             if (searchBox?.hasFocus() == true) {
@@ -1128,7 +1250,7 @@ class OverlayService : Service() {
             panel.animate().cancel()
             panelSurfaceView?.animate()?.alpha(0f)?.setDuration(200)?.start()
             chromeContainer?.animate()?.alpha(0f)?.setDuration(200)?.start()
-            stickerGridScroll?.animate()?.alpha(0f)?.setDuration(200)?.start()
+            stickerRecyclerView?.animate()?.alpha(0f)?.setDuration(200)?.start()
             closeBtnView?.animate()?.alpha(0f)?.setDuration(200)?.start()
             resizeBtnView?.animate()?.alpha(0f)?.setDuration(200)?.start()
 
@@ -1147,10 +1269,13 @@ class OverlayService : Service() {
             isPanelOpen = false
         } else {
             panel.animate().cancel()
+            // A superseded open must never publish: capture the generation and
+            // bail if another toggle stole the panel meanwhile.
+            val openToken = currentToken
+            openRefreshJob?.cancel()
             // Single source of truth at open time: re-sync chrome visibility
             // from prefs on EVERY open (not just at view creation), so a
             // missed REFRESH intent or stale view can never show hidden rows.
-            // Hidden rows also drop their filters so nothing filters invisibly.
             val openShowTitle = OverlayPreferences.showTitle(this)
             val openShowSearch = OverlayPreferences.showSearch(this)
             val openShowCategories = OverlayPreferences.showCategories(this)
@@ -1158,10 +1283,12 @@ class OverlayService : Service() {
             panelTitleView?.visibility = if (openShowTitle) View.VISIBLE else View.GONE
             panelSearchView?.visibility = if (openShowSearch) View.VISIBLE else View.GONE
             categoryScrollView?.visibility = if (openShowCategories) View.VISIBLE else View.GONE
-            if (!openShowSearch) searchQuery = ""
-            if (!openShowCategories) selectedCategory = "All"
-            serviceScope.launch {
+            syncSearchRow(openShowSearch)
+            // A hidden tag row keeps the configured start filter (default /
+            // last-used / custom with safe fallback) instead of forcing All.
+            openRefreshJob = serviceScope.launch {
                 repository.refresh()
+                if (panelGeneration != openToken) return@launch
                 // Resolve start filter from policy
                 val categories = repository.categoriesFlow.value.map { it.name }
                 val startMode = OverlayPreferences.startFilterMode(this@OverlayService)
@@ -1173,13 +1300,14 @@ class OverlayService : Service() {
                     lastUsedFilter = lastUsed,
                     availableCategories = categories
                 )
+                if (panelGeneration != openToken) return@launch
                 setupCategoryChips()
-                refreshPanelStickers()
+                submitStickers()
             }
 
             panelSurfaceView?.alpha = 0f
             chromeContainer?.alpha = 0f
-            stickerGridScroll?.alpha = 0f
+            stickerRecyclerView?.alpha = 0f
             closeBtnView?.alpha = 0f
             resizeBtnView?.alpha = 0f
 
@@ -1193,7 +1321,7 @@ class OverlayService : Service() {
 
             panelSurfaceView?.animate()?.alpha(effectiveSurfaceOpacity())?.setDuration(260)?.start()
             chromeContainer?.animate()?.alpha(effectiveChromeOpacity())?.setDuration(260)?.start()
-            stickerGridScroll?.animate()?.alpha(effectiveStickersOpacity())?.setDuration(260)?.start()
+            stickerRecyclerView?.animate()?.alpha(effectiveStickersOpacity())?.setDuration(260)?.start()
             closeBtnView?.animate()?.alpha(effectiveCloseOpacity())?.setDuration(260)?.start()
             resizeBtnView?.animate()?.alpha(effectiveResizeOpacity())?.setDuration(260)?.start()
 
@@ -1208,8 +1336,23 @@ class OverlayService : Service() {
         }
     }
 
-    private fun setupCategoryChips() {
-        val group = chipContainer ?: return
+    /**
+     * Keeps the search widget and the backing query in the same state. Hiding
+     * the row cancels a pending debounce and clears both the EditText and the
+     * query, so no invisible filter survives.
+     */
+    private fun syncSearchRow(showSearch: Boolean) {
+        if (showSearch) return
+        searchDebounceJob?.cancel()
+        searchDebounceJob = null
+        searchQuery = ""
+        val box = panelSearchView
+        if (box != null && box.text.isNotEmpty()) {
+            box.setText("")
+        }
+    }
+
+    private fun setupCategoryChips() {        val group = chipContainer ?: return
         group.removeAllViews()
 
         if (chipScroll?.visibility != View.VISIBLE) return
@@ -1261,19 +1404,15 @@ class OverlayService : Service() {
                     // mode could never observe anything but the default.
                     OverlayPreferences.setLastUsedFilter(this@OverlayService, cat)
                     setupCategoryChips()
-                    refreshPanelStickers()
+                    submitStickers()
                 }
             }
             group.addView(chip)
         }
     }
 
-    @SuppressLint("ClickableViewAccessibility")
-    private fun refreshPanelStickers() {
-        val grid = stickerGrid ?: return
-        grid.removeAllViews()
-
-        val dark = isDarkMode()
+    private fun submitStickers(force: Boolean = false) {
+        val adapter = stickerAdapter ?: return
         val density = resources.displayMetrics.density
         val contentPadding = if (OverlayPreferences.showTitle(this)) (6 * density).toInt() else (4 * density).toInt()
         val cellMargin = (3 * density).toInt()
@@ -1288,149 +1427,15 @@ class OverlayService : Service() {
             selectedCategory = selectedCategory,
             searchQuery = searchQuery
         )
-
-        if (filtered.isEmpty()) {
-            val emptyFrame = FrameLayout(this).apply {
-                layoutParams = GridLayout.LayoutParams().apply {
-                    width = GridLayout.LayoutParams.MATCH_PARENT
-                    height = (140 * density).toInt()
-                    columnSpec = GridLayout.spec(0, OverlayLayoutPolicy.GRID_COLUMNS)
-                }
-                val emptyTv = TextView(this@OverlayService).apply {
-                    text = "No stickers found"
-                    setTextColor(withAlpha(if (dark) Color.WHITE else Color.BLACK, 130))
-                    textSize = 13f
-                    gravity = Gravity.CENTER
-                    layoutParams = FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT
-                    )
-                }
-                addView(emptyTv)
-            }
-            grid.addView(emptyFrame)
-            return
-        }
-
-        for (sticker in filtered) {
-            val itemFrame = FrameLayout(this).apply {
-                layoutParams = GridLayout.LayoutParams().apply {
-                    width = itemSize
-                    height = itemSize
-                    setMargins(cellMargin, cellMargin, cellMargin, cellMargin)
-                }
-
-                val outValue = TypedValue()
-                theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, outValue, true)
-                setBackgroundResource(outValue.resourceId)
-
-                val img = ImageView(this@OverlayService).apply {
-                    layoutParams = FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT
-                    ).apply {
-                        val p = (3 * density).toInt()
-                        setMargins(p, p, p, p)
-                    }
-                    scaleType = ImageView.ScaleType.FIT_CENTER
-                }
-                addView(img)
-
-                loadThumbnailAsync(sticker.filePath, itemSize, img)
-
-                // Brief scale-down press effect for tactile feedback
-                var downX = 0f
-                var downY = 0f
-                var isPress = false
-                setOnTouchListener { v, ev ->
-                    when (ev.action) {
-                        MotionEvent.ACTION_DOWN -> {
-                            downX = ev.x
-                            downY = ev.y
-                            isPress = true
-                            v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(80).start()
-                            false
-                        }
-                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                            v.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
-                            false
-                        }
-                        MotionEvent.ACTION_MOVE -> {
-                            if (isPress && (abs(ev.x - downX) > 20 || abs(ev.y - downY) > 20)) {
-                                isPress = false
-                                v.animate().scaleX(1f).scaleY(1f).setDuration(120).start()
-                            }
-                            false
-                        }
-                        else -> false
-                    }
-                }
-
-                setOnClickListener { view ->
-                    onStickerSelected(view, sticker)
-                }
-            }
-            grid.addView(itemFrame)
-        }
-    }
-
-    private fun loadThumbnailAsync(filePath: String, targetSize: Int, imageView: ImageView) {
-        val file = File(filePath)
-        val lastModified = if (file.exists()) file.lastModified() else 0L
-        val shadowStrength = OverlayPreferences.stickerShadowStrength(this)
-        val isDark = isDarkMode()
-        val density = resources.displayMetrics.density
-
-        val cacheKey = StickerShadowPolicy.buildCacheKey(
-            filePath = filePath,
-            lastModified = lastModified,
-            targetSize = targetSize,
-            shadowStrength = shadowStrength,
-            isDark = isDark
+        val options = OverlayStickerAdapter.RenderOptions(
+            cellSize = itemSize,
+            cellMargin = cellMargin,
+            shadowStrength = OverlayPreferences.stickerShadowStrength(this),
+            isDark = isDarkMode(),
+            density = density
         )
-
-        val cached = StickerShadowRenderer.getCached(cacheKey)
-        if (cached != null) {
-            imageView.setImageBitmap(cached)
-            return
-        }
-
-        serviceScope.launch {
-            val bitmap = withContext(Dispatchers.IO) {
-                try {
-                    if (!file.exists()) return@withContext null
-
-                    val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                    BitmapFactory.decodeFile(file.absolutePath, options)
-
-                    var sample = 1
-                    while (options.outWidth / (sample * 2) >= targetSize && options.outHeight / (sample * 2) >= targetSize) {
-                        sample *= 2
-                    }
-
-                    val decodeOpts = BitmapFactory.Options().apply {
-                        inSampleSize = sample
-                        inPreferredConfig = Bitmap.Config.ARGB_8888
-                    }
-                    val srcBmp = BitmapFactory.decodeFile(file.absolutePath, decodeOpts) ?: return@withContext null
-
-                    val finalBmp = StickerShadowRenderer.renderWithShadow(
-                        source = srcBmp,
-                        shadowStrength = shadowStrength,
-                        isDark = isDark,
-                        density = density
-                    )
-                    StickerShadowRenderer.putCache(cacheKey, finalBmp)
-                    finalBmp
-                } catch (_: Exception) {
-                    null
-                }
-            }
-
-            if (bitmap != null) {
-                imageView.setImageBitmap(bitmap)
-            }
-        }
+        adapter.submit(filtered, options, force)
+        emptyStateTextView?.visibility = if (filtered.isEmpty()) View.VISIBLE else View.GONE
     }
 
     private fun onStickerSelected(view: View, sticker: StickerItem) {
@@ -1509,13 +1514,47 @@ class OverlayService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         isRunning = false
+        revealJob?.cancel()
+        revealJob = null
+        searchDebounceJob?.cancel()
+        searchDebounceJob = null
+        openRefreshJob?.cancel()
+        openRefreshJob = null
         serviceScope.cancel()
-        thumbnailCache.evictAll()
-        bubbleView?.let {
-            if (it.isAttachedToWindow) windowManager.removeView(it)
+        stickerAdapter?.cancelRequests()
+        stickerAdapter = null
+        // Detach exactly once per attached view; WindowManager throws if a
+        // view was already removed, so every removal is individually guarded.
+        bubbleView?.let { bubble ->
+            try {
+                bubble.animate().cancel()
+            } catch (_: Exception) {
+            }
+            if (bubble.isAttachedToWindow) {
+                try {
+                    windowManager.removeViewImmediate(bubble)
+                } catch (_: Exception) {
+                }
+            }
         }
-        panelRoot?.let {
-            if (it.isAttachedToWindow) windowManager.removeView(it)
+        bubbleView = null
+        panelRoot?.let { panel ->
+            try {
+                panel.animate().cancel()
+            } catch (_: Exception) {
+            }
+            if (panel.isAttachedToWindow) {
+                try {
+                    windowManager.removeViewImmediate(panel)
+                } catch (_: Exception) {
+                }
+            }
         }
+        panelRoot = null
+        panelSurfaceView = null
+        chromeContainer = null
+        stickerRecyclerView = null
+        bubbleIcon = null
+        StickerShadowRenderer.clearCache()
     }
 }

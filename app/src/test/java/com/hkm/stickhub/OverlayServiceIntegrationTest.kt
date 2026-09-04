@@ -5,8 +5,10 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.view.View
 import android.view.WindowManager
+import com.hkm.stickhub.data.repository.StickerRepository
 import com.hkm.stickhub.service.OverlayPreferences
 import com.hkm.stickhub.service.OverlayService
+import org.junit.After
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -18,6 +20,14 @@ import org.robolectric.shadows.ShadowSettings
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28])
 class OverlayServiceIntegrationTest {
+    @After
+    fun releaseSharedRepository() {
+        // The service uses the process-wide repository singleton while each
+        // Robolectric test gets a fresh sandbox: drop the shared instance so
+        // no test inherits another sandbox's database handle.
+        StickerRepository.resetSharedInstanceForTests()
+    }
+
     @Test
     @Config(sdk = [25])
     fun supportedPreOreoDeviceCanStartAndStopOverlay() {

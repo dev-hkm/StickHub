@@ -13,7 +13,7 @@ object OverlayStickerFilter {
         searchQuery: String
     ): List<StickerItem> {
         val normalizedQuery = searchQuery.trim().lowercase()
-        return stickers.filter { sticker ->
+        val matched = stickers.filter { sticker ->
             val matchesCategory = when (selectedCategory) {
                 "All" -> true
                 "Favorites" -> sticker.isFavorite
@@ -25,6 +25,13 @@ object OverlayStickerFilter {
                 sticker.tags.lowercase().contains(normalizedQuery) ||
                 sticker.category.lowercase().contains(normalizedQuery)
             matchesCategory && matchesQuery
+        }
+        // Frequent ranks by descending usage; sortedByDescending is stable so
+        // ties keep library order instead of shuffling on every open.
+        return if (selectedCategory == "Frequent") {
+            matched.sortedByDescending { it.usageCount }
+        } else {
+            matched
         }
     }
 }
