@@ -45,9 +45,9 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version 5.1.1: interoperable PNG sticker clipboard/share transport.
-        versionCode = 51
-        versionName = "5.1.1"
+        // Version 5.2.0: auto and long-press subject selection for device photos.
+        versionCode = 52
+        versionName = "5.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

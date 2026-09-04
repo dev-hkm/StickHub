@@ -42,6 +42,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -83,8 +84,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.composables.icons.lucide.R as LucideR
 import com.hkm.stickhub.data.cutout.CutoutCandidate
+import com.hkm.stickhub.data.cutout.CutoutInteractionMode
 import com.hkm.stickhub.data.cutout.CutoutSaveSession
 import com.hkm.stickhub.data.cutout.CutoutSaveState
+import com.hkm.stickhub.data.cutout.CutoutSelectionPolicy
 import com.hkm.stickhub.data.cutout.CutoutState
 import com.hkm.stickhub.data.cutout.SubjectCutoutProcessor
 import com.hkm.stickhub.data.model.CategoryItem
@@ -122,6 +125,7 @@ fun SubjectCutoutSheet(
     val isBusy = isSaving || isCopying
     val readyState = cutoutState as? CutoutState.CandidatesReady
 
+    var interactionMode by remember(imageUri) { mutableStateOf(CutoutInteractionMode.Auto) }
     var selectedCandidate by remember(imageUri) { mutableStateOf<CutoutCandidate?>(null) }
     var transparentBitmap by remember(imageUri) { mutableStateOf<Bitmap?>(null) }
     val selectedCutoutBitmap = selectedCandidate?.cutoutBitmap ?: transparentBitmap
@@ -135,9 +139,13 @@ fun SubjectCutoutSheet(
     // A new CandidatesReady object is a new generation (including retry of the same
     // image): adopt its first subject so the form can never save a bitmap from a
     // superseded generation.
-    LaunchedEffect(readyState) {
+    LaunchedEffect(readyState, interactionMode) {
         transparentBitmap = null
-        selectedCandidate = readyState?.candidates?.firstOrNull()
+        selectedCandidate = if (interactionMode == CutoutInteractionMode.Auto) {
+            readyState?.candidates?.firstOrNull()
+        } else {
+            null
+        }
     }
 
     DisposableEffect(imageUri) {
@@ -151,6 +159,7 @@ fun SubjectCutoutSheet(
     LaunchedEffect(imageUri) {
         // Reset first so a stale generation can never paint into the new image.
         processor.reset()
+        interactionMode = CutoutInteractionMode.Auto
         selectedCandidate = null
         transparentBitmap = null
         title = "Sticker ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())}"
@@ -194,6 +203,29 @@ fun SubjectCutoutSheet(
             }
 
             Spacer(modifier = Modifier.height(12.dp))
+
+            val canChooseCutoutMode = cutoutState !is CutoutState.TransparentDetected &&
+                cutoutState !is CutoutState.NoSubjectFound &&
+                cutoutState !is CutoutState.GooglePlayServicesUnavailable &&
+                cutoutState !is CutoutState.Failed
+            if (canChooseCutoutMode) {
+                CutoutInteractionModeSelector(
+                    selectedMode = interactionMode,
+                    enabled = !isBusy,
+                    onModeSelected = { mode ->
+                        if (mode == interactionMode) return@CutoutInteractionModeSelector
+                        haptics.performTick()
+                        interactionMode = mode
+                        transparentBitmap = null
+                        selectedCandidate = if (mode == CutoutInteractionMode.Auto) {
+                            readyState?.candidates?.firstOrNull()
+                        } else {
+                            null
+                        }
+                    }
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             // Main Content Area with clear phase transitions
             AnimatedContent(
@@ -446,6 +478,7 @@ fun SubjectCutoutSheet(
                                 sourceBitmap = state.sourceBitmap,
                                 candidates = state.candidates,
                                 selectedCandidate = selectedCandidate,
+                                interactionMode = interactionMode,
                                 selectionEnabled = !isBusy,
                                 onSelectCandidate = { candidate ->
                                     haptics.performTick()
@@ -511,6 +544,66 @@ fun SubjectCutoutSheet(
 }
 
 @Composable
+private fun CutoutInteractionModeSelector(
+    selectedMode: CutoutInteractionMode,
+    enabled: Boolean,
+    onModeSelected: (CutoutInteractionMode) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "Cutout method",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = selectedMode == CutoutInteractionMode.Auto,
+                onClick = { onModeSelected(CutoutInteractionMode.Auto) },
+                enabled = enabled,
+                label = { Text("Auto detect") },
+                leadingIcon = {
+                    Icon(
+                        painter = painterResource(LucideR.drawable.lucide_ic_sparkles),
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                },
+                modifier = Modifier.weight(1f)
+            )
+            FilterChip(
+                selected = selectedMode == CutoutInteractionMode.Manual,
+                onClick = { onModeSelected(CutoutInteractionMode.Manual) },
+                enabled = enabled,
+                label = { Text("Choose subject") },
+                leadingIcon = {
+                    Icon(
+                        painter = painterResource(LucideR.drawable.lucide_ic_move_diagonal_2),
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                },
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Text(
+            text = if (selectedMode == CutoutInteractionMode.Auto) {
+                "Use the first clearly detected subject automatically."
+            } else {
+                "Press and hold the subject you want in the full photo."
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp)
+        )
+    }
+}
+
+@Composable
 private fun AnalyzingSkeletonView(
     statusText: String,
     progressPercent: Int = 0
@@ -562,6 +655,7 @@ private fun CandidatesSelectionView(
     sourceBitmap: Bitmap,
     candidates: List<CutoutCandidate>,
     selectedCandidate: CutoutCandidate?,
+    interactionMode: CutoutInteractionMode,
     selectionEnabled: Boolean,
     onSelectCandidate: (CutoutCandidate) -> Unit,
     onWrongTap: () -> Unit
@@ -686,30 +780,21 @@ private fun CandidatesSelectionView(
             }
 
             fun candidateAt(touchOffset: Offset): CutoutCandidate? {
-                val normX = (touchOffset.x - offsetX) / renderW
-                val normY = (touchOffset.y - offsetY) / renderH
-                if (normX !in 0f..1f || normY !in 0f..1f) return null
-                // Overlapping subjects are resolved by the confidence at the
-                // actual touch point, not list order. This makes a long press
-                // feel like Google Photos even when two boxes overlap.
-                return candidates
-                    .mapNotNull { candidate ->
-                        candidate.confidenceAtNormalizedPoint(normX, normY)
-                            ?.let { confidence -> candidate to confidence }
-                    }
-                    .filter { (_, confidence) -> confidence > 0.25f }
-                    .maxWithOrNull(
-                        compareBy<Pair<CutoutCandidate, Float>> { it.second }
-                            .thenBy { it.first.normalizedBounds.width * it.first.normalizedBounds.height }
-                    )
-                    ?.first
+                val normalizedPoint = CutoutSelectionPolicy.normalizedPointForImageTouch(
+                    touch = touchOffset,
+                    imageLeft = offsetX,
+                    imageTop = offsetY,
+                    imageWidth = renderW,
+                    imageHeight = renderH
+                ) ?: return null
+                return CutoutSelectionPolicy.selectAtNormalizedPoint(candidates, normalizedPoint)
             }
 
             // Image and interactive overlay
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .pointerInput(candidates, renderW, renderH, offsetX, offsetY) {
+                    .pointerInput(candidates, interactionMode, renderW, renderH, offsetX, offsetY) {
                         detectTapGestures(
                             onPress = { touchOffset ->
                                 if (candidateAt(touchOffset) != null) {
@@ -729,6 +814,10 @@ private fun CandidatesSelectionView(
                             },
                             onTap = { touchOffset ->
                                 if (!selectionEnabled) return@detectTapGestures
+                                // Manual mode intentionally requires the full
+                                // long-press gesture; a short tap should not
+                                // unexpectedly turn a chat photo into a sticker.
+                                if (interactionMode == CutoutInteractionMode.Manual) return@detectTapGestures
                                 val matched = candidateAt(touchOffset)
                                 if (matched != null) {
                                     onSelectCandidate(matched)
