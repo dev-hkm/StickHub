@@ -2,6 +2,7 @@ package com.hkm.stickhub.data.provider
 
 import android.content.ContentProvider
 import android.content.ContentValues
+import android.content.ClipDescription
 import android.content.Context
 import android.content.UriMatcher
 import android.database.Cursor
@@ -124,6 +125,21 @@ class StickerContentProvider : ContentProvider() {
         // Extension-driven mapping shared with clipboard/backup so MIME,
         // bytes and filenames always agree (covers PNG/JPEG/WebP/GIF/HEIC).
         return StickerMimeTypes.fromFileName(uri.lastPathSegment.orEmpty())
+    }
+
+    /**
+     * Advertise the concrete stream type for URI consumers that negotiate a
+     * typed image before opening it (clipboard paste targets commonly do this).
+     * ContentProvider's default is null, which makes an otherwise valid image
+     * URI look like an unsupported generic attachment to those clients.
+     */
+    override fun getStreamTypes(uri: Uri, mimeTypeFilter: String): Array<String>? {
+        val concreteType = getType(uri)
+        return if (ClipDescription.compareMimeTypes(concreteType, mimeTypeFilter)) {
+            arrayOf(concreteType)
+        } else {
+            null
+        }
     }
 
     override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor {

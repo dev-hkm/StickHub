@@ -53,6 +53,7 @@ import com.composables.icons.lucide.R as LucideR
 import com.hkm.stickhub.data.model.CategoryItem
 import com.hkm.stickhub.data.model.StickerItem
 import com.hkm.stickhub.data.provider.StickerContentProvider
+import com.hkm.stickhub.util.ClipboardHelper
 import com.hkm.stickhub.util.StickerMimeTypes
 import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
 import java.io.File
@@ -334,14 +335,10 @@ private fun shareSticker(context: Context, sticker: StickerItem) {
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = mimeType
             putExtra(Intent.EXTRA_STREAM, uri)
-            // Some receivers inspect ClipData rather than EXTRA_STREAM when
-            // deciding whether transparent media is sticker-like. Keep the
-            // image MIME on ClipData too; newRawUri() would expose only
-            // text/uri-list and can make chat clients fall back to a photo.
-            clipData = android.content.ClipData(
-                android.content.ClipDescription("Sticker", arrayOf(mimeType, "image/*")),
-                android.content.ClipData.Item(uri)
-            )
+            // Use the same provider-backed, typed URI clip as the copy path.
+            // newRawUri() would expose only text/uri-list and can make chat
+            // clients fall back to a photo.
+            clipData = ClipboardHelper.createImageClipData(context, uri, mimeType)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(Intent.createChooser(shareIntent, "Share Sticker"))

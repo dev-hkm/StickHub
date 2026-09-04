@@ -45,9 +45,9 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version 5.1.0: one-tap clipboard import and subject-aware sticker transport.
-        versionCode = 50
-        versionName = "5.1.0"
+        // Version 5.1.1: interoperable PNG sticker clipboard/share transport.
+        versionCode = 51
+        versionName = "5.1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

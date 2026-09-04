@@ -28,7 +28,7 @@ object ClipboardHelper {
 
             // Messaging clients make their sticker/photo decision from the
             // delivered payload, not from StickHub's internal 1024px library
-            // canvas. Prepare a bounded, transparent WebP envelope while
+            // canvas. Prepare a bounded, transparent PNG envelope while
             // retaining the original library file untouched.
             val payload = StickerTransport.prepare(context, file)
             setClipboardPayload(
@@ -72,14 +72,32 @@ object ClipboardHelper {
     }
 
     private fun setClipboardPayload(context: Context, uri: Uri, mimeType: String): Boolean {
-        val clipData = ClipData(
-            ClipDescription("Sticker", arrayOf(mimeType, "image/*")),
-            ClipData.Item(uri)
-        )
+        val clipData = createImageClipData(context, uri, mimeType)
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
             ?: return false
         clipboard.setPrimaryClip(clipData)
         return true
+    }
+
+    /**
+     * Builds a URI clip using the provider's real MIME type. Android's
+     * [ClipData.newUri] path is important here: paste targets can negotiate a
+     * typed image stream from the URI instead of receiving an opaque
+     * text/URI-list reference. The explicit fallback keeps copying functional
+     * if a target/provider lookup is temporarily unavailable.
+     */
+    fun createImageClipData(context: Context, uri: Uri, fallbackMimeType: String): ClipData {
+        val inferred = runCatching {
+            ClipData.newUri(context.contentResolver, "Sticker", uri)
+        }.getOrNull()
+        return if (inferred != null && inferred.description.hasMimeType("image/*")) {
+            inferred
+        } else {
+            ClipData(
+                ClipDescription("Sticker", arrayOf(fallbackMimeType, "image/*")),
+                ClipData.Item(uri)
+            )
+        }
     }
 
     /**

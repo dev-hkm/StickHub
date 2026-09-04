@@ -5,7 +5,6 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Rect
-import android.os.Build
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
@@ -16,9 +15,11 @@ import kotlin.math.roundToInt
 /**
  * Builds the small, transparent image payload used when a sticker leaves
  * StickHub. Library files intentionally keep their original 1024px canvas and
- * PNG fidelity; chat/clipboard consumers get a conventional 512px WebP
- * sticker envelope instead. This prevents messaging clients from treating a
- * needlessly large canvas as a normal photo while keeping the library lossless.
+ * PNG fidelity; chat/clipboard consumers get a conventional 512px transparent
+ * PNG sticker envelope instead. PNG is deliberately used for the transport
+ * copy because Android clipboard consumers commonly negotiate `image/png`
+ * (and several chat apps only offer their sticker path for that MIME). The
+ * library file itself is never rewritten.
  */
 object StickerTransport {
     const val CANVAS_SIZE = 512
@@ -32,7 +33,7 @@ object StickerTransport {
 
     data class Payload(
         val file: File,
-        val mimeType: String = StickerMimeTypes.WEBP
+        val mimeType: String = StickerMimeTypes.PNG
     )
 
     /**
@@ -86,15 +87,9 @@ object StickerTransport {
 
                 val directory = File(context.cacheDir, CACHE_DIR).apply { mkdirs() }
                 cleanup(directory)
-                val target = File(directory, "share_${System.currentTimeMillis()}_${UUID.randomUUID()}.webp")
+                val target = File(directory, "share_${System.currentTimeMillis()}_${UUID.randomUUID()}.png")
                 val encoded = FileOutputStream(target).use { stream ->
-                    val format = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        Bitmap.CompressFormat.WEBP_LOSSLESS
-                    } else {
-                        @Suppress("DEPRECATION")
-                        Bitmap.CompressFormat.WEBP
-                    }
-                    output.compress(format, 100, stream).also { stream.flush() }
+                    output.compress(Bitmap.CompressFormat.PNG, 100, stream).also { stream.flush() }
                 }
                 if (!encoded || target.length() <= 0L) {
                     target.delete()
