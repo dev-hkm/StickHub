@@ -35,6 +35,17 @@ class StickHubDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NA
             "Cảm xúc" to "Reactions",
             "Dễ thương" to "Cute"
         )
+
+        /** True when [column] already exists on [table] (makes ADD COLUMN re-runnable). */
+        fun hasColumn(db: SQLiteDatabase, table: String, column: String): Boolean {
+            db.rawQuery("PRAGMA table_info($table)", null).use { cursor ->
+                val nameIdx = cursor.getColumnIndex("name")
+                while (cursor.moveToNext()) {
+                    if (cursor.getString(nameIdx) == column) return true
+                }
+            }
+            return false
+        }
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -109,7 +120,11 @@ class StickHubDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NA
         if (oldVersion < 3) {
             db.beginTransaction()
             try {
-                db.execSQL("ALTER TABLE $TABLE_STICKERS ADD COLUMN $COL_CONTENT_SHA256 TEXT")
+                // Idempotent: a killed upgrade must be re-runnable without
+                // "duplicate column" crash-looping the DB open.
+                if (!hasColumn(db, TABLE_STICKERS, COL_CONTENT_SHA256)) {
+                    db.execSQL("ALTER TABLE $TABLE_STICKERS ADD COLUMN $COL_CONTENT_SHA256 TEXT")
+                }
                 db.execSQL("CREATE INDEX IF NOT EXISTS idx_stickers_content_hash ON $TABLE_STICKERS ($COL_CONTENT_SHA256)")
                 db.setTransactionSuccessful()
             } finally {
@@ -119,9 +134,11 @@ class StickHubDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NA
         if (oldVersion < 4) {
             db.beginTransaction()
             try {
-                db.execSQL("ALTER TABLE $TABLE_STICKERS ADD COLUMN $COL_SORT_ORDER INTEGER NOT NULL DEFAULT 0")
-                // Preserve the existing newest-first order for every retained user sticker.
-                db.execSQL("UPDATE $TABLE_STICKERS SET $COL_SORT_ORDER = $COL_CREATED_AT")
+                if (!hasColumn(db, TABLE_STICKERS, COL_SORT_ORDER)) {
+                    db.execSQL("ALTER TABLE $TABLE_STICKERS ADD COLUMN $COL_SORT_ORDER INTEGER NOT NULL DEFAULT 0")
+                    // Preserve the existing newest-first order for every retained user sticker.
+                    db.execSQL("UPDATE $TABLE_STICKERS SET $COL_SORT_ORDER = $COL_CREATED_AT")
+                }
                 db.execSQL("CREATE INDEX IF NOT EXISTS idx_stickers_sort_order ON $TABLE_STICKERS ($COL_SORT_ORDER DESC)")
                 db.setTransactionSuccessful()
             } finally {
@@ -131,7 +148,10 @@ class StickHubDbHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NA
         if (oldVersion < 5) {
             db.beginTransaction()
             try {
-                db.execSQL("ALTER TABLE $TABLE_CATEGORIES ADD COLUMN $COL_CAT_DISPLAY_ORDER INTEGER NOT NULL DEFAULT 0")
+                if (!hasColumn(db, TABLE_CATEGORIES, COL_CAT_DISPLAY_ORDER)) {
+                    db.execSQL("ALTER TABLE $TABLE_CATEGORIES ADD COLUMN $COL_CAT_DISPLAY_ORDER INTEGER NOT NULL DEFAULT 0")
+                    db.execSQL("UPDATE $TABLE_CATEGORIES SET $COL_CAT_DISPLAY_ORDER = $COL_CAT_ID WHERE $COL_CAT_NAME != 'General'")
+                }
                 // General is the only default category
                 db.execSQL("UPDATE $TABLE_CATEGORIES SET $COL_CAT_IS_DEFAULT = 1, $COL_CAT_DISPLAY_ORDER = 0 WHERE $COL_CAT_NAME = 'General'")
                 db.execSQL("UPDATE $TABLE_CATEGORIES SET $COL_CAT_IS_DEFAULT = 0 WHERE $COL_CAT_NAME != 'General'")

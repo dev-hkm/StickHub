@@ -61,6 +61,40 @@ class ThemeResolverTest {
         assertEquals(AppVisualTheme.SKETCHBOOK, ThemePreferences.parseVisualTheme("sketchbook"))
         assertEquals(AppVisualTheme.SKETCHBOOK, ThemePreferences.parseVisualTheme("SKETCHBOOK"))
         assertEquals(AppVisualTheme.SKETCHBOOK, AppVisualTheme.fromString("sketchbook"))
+        assertEquals(AppVisualTheme.NEUBRUTALISM, ThemePreferences.parseVisualTheme("neubrutalism"))
+        assertEquals(AppVisualTheme.NEUBRUTALISM, ThemePreferences.parseVisualTheme("NEUBRUTALISM"))
+        assertEquals(AppVisualTheme.NEUBRUTALISM, AppVisualTheme.fromString("neubrutalism"))
+        assertEquals(AppVisualTheme.OLD_MONEY, ThemePreferences.parseVisualTheme("oldmoney"))
+        assertEquals(AppVisualTheme.OLD_MONEY, ThemePreferences.parseVisualTheme("OLD_MONEY"))
+        assertEquals(AppVisualTheme.OLD_MONEY, AppVisualTheme.fromString("oldmoney"))
+        assertEquals(AppVisualTheme.PRESSROOM, ThemePreferences.parseVisualTheme("pressroom"))
+        assertEquals(AppVisualTheme.PRESSROOM, ThemePreferences.parseVisualTheme("PRESSROOM"))
+        assertEquals(AppVisualTheme.PRESSROOM, AppVisualTheme.fromString("pressroom"))
+        assertEquals(AppVisualTheme.ATELIER, ThemePreferences.parseVisualTheme("atelier"))
+        assertEquals(AppVisualTheme.ATELIER, ThemePreferences.parseVisualTheme("ATELIER"))
+        assertEquals(AppVisualTheme.ATELIER, AppVisualTheme.fromString("atelier"))
+        assertEquals(AppVisualTheme.STARBASE, ThemePreferences.parseVisualTheme("starbase"))
+        assertEquals(AppVisualTheme.STARBASE, ThemePreferences.parseVisualTheme("STARBASE"))
+        assertEquals(AppVisualTheme.STARBASE, AppVisualTheme.fromString("starbase"))
+        assertEquals(AppVisualTheme.COTTAGE, ThemePreferences.parseVisualTheme("cottage"))
+        assertEquals(AppVisualTheme.COTTAGE, ThemePreferences.parseVisualTheme("COTTAGE"))
+        assertEquals(AppVisualTheme.COTTAGE, AppVisualTheme.fromString("cottage"))
+        for (theme in listOf(
+            AppVisualTheme.AURORA to "aurora",
+            AppVisualTheme.SYNTHWAVE to "synthwave",
+            AppVisualTheme.GATSBY to "gatsby",
+            AppVisualTheme.UKIYO to "ukiyo",
+            AppVisualTheme.PIXEL to "pixel",
+            AppVisualTheme.KAWAII to "kawaii",
+            AppVisualTheme.SOLARPUNK to "solarpunk",
+            AppVisualTheme.NOIR to "noir",
+            AppVisualTheme.GLASS to "glass",
+            AppVisualTheme.NOUVEAU to "nouveau"
+        )) {
+            assertEquals(theme.first, ThemePreferences.parseVisualTheme(theme.second))
+            assertEquals(theme.first, ThemePreferences.parseVisualTheme(theme.second.uppercase()))
+            assertEquals(theme.first, AppVisualTheme.fromString(theme.second))
+        }
     }
 
     @Test

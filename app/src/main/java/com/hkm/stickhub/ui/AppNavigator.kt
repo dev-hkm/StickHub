@@ -73,4 +73,22 @@ class AppNavigator(
         isTransitioning = false
         onStateChanged?.invoke()
     }
+
+    /**
+     * Rebuilds the stack after process death: [currentRoute] survives via
+     * rememberSaveable but the controller itself does not. Without this,
+     * a restored SETTINGS/CATEGORY screen can never pop (stack is [LIBRARY]).
+     */
+    fun restoreTo(route: AppRoute) {
+        _stack.clear()
+        _stack.add(AppRoute.LIBRARY)
+        if (route == AppRoute.SETTINGS || route == AppRoute.CATEGORY_MANAGEMENT) {
+            _stack.add(AppRoute.SETTINGS)
+        }
+        if (route == AppRoute.CATEGORY_MANAGEMENT) {
+            _stack.add(AppRoute.CATEGORY_MANAGEMENT)
+        }
+        isTransitioning = false
+        onStateChanged?.invoke()
+    }
 }

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -163,6 +164,7 @@ fun StickerStudioBottomSheet(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp)
+                .imePadding()
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -289,11 +291,10 @@ fun StickerStudioBottomSheet(
                     value = sliderFloat,
                     onValueChange = { newVal ->
                         sliderFloat = newVal
-                        val newInt = newVal.roundToInt()
-                        if (newInt != outlineWidthInt) {
-                            haptics.performCopyAck()
-                            outlineWidthInt = newInt
-                        }
+                        outlineWidthInt = newVal.roundToInt()
+                    },
+                    onValueChangeFinished = {
+                        haptics.performCopyAck()
                     },
                     valueRange = 0f..20f,
                     steps = 19,

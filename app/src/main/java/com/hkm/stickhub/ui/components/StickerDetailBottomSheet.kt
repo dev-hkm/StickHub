@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -87,6 +88,7 @@ fun StickerDetailBottomSheet(
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 32.dp)
+                .imePadding()
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -129,7 +131,7 @@ fun StickerDetailBottomSheet(
                     Icon(
                         painter = painterResource(LucideR.drawable.lucide_ic_heart),
                         contentDescription = "Favorite",
-                        tint = if (sticker.isFavorite) Color(0xFFFF5252) else MaterialTheme.colorScheme.onSurface,
+                        tint = if (sticker.isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(18.dp)
                     )
                 }

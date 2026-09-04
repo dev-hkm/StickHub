@@ -139,7 +139,7 @@ fun CompactStickerCard(
                 Icon(
                     painter = painterResource(LucideR.drawable.lucide_ic_heart),
                     contentDescription = "Favorite",
-                    tint = Color(0xFFFF5252),
+                    tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(10.dp)
                 )
             }
@@ -294,7 +294,7 @@ fun LargeStickerCard(
                         Icon(
                             painter = painterResource(LucideR.drawable.lucide_ic_heart),
                             contentDescription = "Favorite",
-                            tint = Color(0xFFFF5252),
+                            tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(13.dp)
                         )
                     }
@@ -551,6 +551,8 @@ fun StickerListItem(
                             text = sticker.category,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
@@ -580,7 +582,7 @@ fun StickerListItem(
                 Icon(
                     painter = painterResource(LucideR.drawable.lucide_ic_heart),
                     contentDescription = "Favorite",
-                    tint = Color(0xFFFF5252),
+                    tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier
                         .size(18.dp)
                         .padding(end = 4.dp)

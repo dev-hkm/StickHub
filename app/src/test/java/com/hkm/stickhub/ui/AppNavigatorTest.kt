@@ -85,4 +85,31 @@ class AppNavigatorTest {
         assertFalse(invalidPush)
         assertEquals(AppRoute.LIBRARY, navigator.currentRoute)
     }
+
+    @Test
+    fun testRestoreToRebuildsStackAfterProcessDeath() {
+        // Fresh controller always starts at [LIBRARY], even when the UI
+        // restored a deeper route via rememberSaveable.
+        val navigator = AppNavigator()
+        navigator.restoreTo(AppRoute.CATEGORY_MANAGEMENT)
+        assertEquals(AppRoute.CATEGORY_MANAGEMENT, navigator.currentRoute)
+        assertEquals(
+            listOf(AppRoute.LIBRARY, AppRoute.SETTINGS, AppRoute.CATEGORY_MANAGEMENT),
+            navigator.stack
+        )
+        // Back works again from the restored depth.
+        assertTrue(navigator.requestPop())
+        assertEquals(AppRoute.SETTINGS, navigator.currentRoute)
+
+        val navigator2 = AppNavigator()
+        navigator2.restoreTo(AppRoute.SETTINGS)
+        assertEquals(listOf(AppRoute.LIBRARY, AppRoute.SETTINGS), navigator2.stack)
+        assertTrue(navigator2.requestPop())
+        assertEquals(AppRoute.LIBRARY, navigator2.currentRoute)
+
+        val navigator3 = AppNavigator()
+        navigator3.restoreTo(AppRoute.LIBRARY)
+        assertEquals(listOf(AppRoute.LIBRARY), navigator3.stack)
+        assertFalse(navigator3.requestPop())
+    }
 }

@@ -439,6 +439,17 @@ class StickerRepository(private val context: Context) {
         createdAt: Long,
         usageCount: Int
     ): StickerItem? = withContext(Dispatchers.IO) {
+        // Skip duplicates: re-importing the same backup must not clone rows.
+        // Null means "skipped" to the caller (not counted as merged).
+        val sourceHash = try {
+            sourceFile.inputStream().use(ClipboardContentHasher::sha256)
+        } catch (_: Exception) {
+            null
+        }
+        if (sourceHash != null && findExistingStickerByContentHash(sourceHash) != null) {
+            return@withContext null
+        }
+
         val finalFileName = "sticker_${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(6)}.png"
         val finalFile = File(stickersDir, finalFileName)
 
@@ -485,16 +496,11 @@ class StickerRepository(private val context: Context) {
     }
 
     suspend fun toggleFavorite(stickerId: Long) = withContext(Dispatchers.IO) {
-        val current = _stickersFlow.value.find { it.id == stickerId } ?: return@withContext
-        val newFav = if (current.isFavorite) 0 else 1
+        // Single-statement flip: immune to double-tap races and works even
+        // when the in-memory flow hasn't loaded yet (post-process-death).
         val db = dbHelper.writableDatabase
-        val cv = ContentValues().apply {
-            put(StickHubDbHelper.COL_IS_FAVORITE, newFav)
-        }
-        db.update(
-            StickHubDbHelper.TABLE_STICKERS,
-            cv,
-            "${StickHubDbHelper.COL_ID} = ?",
+        db.execSQL(
+            "UPDATE ${StickHubDbHelper.TABLE_STICKERS} SET ${StickHubDbHelper.COL_IS_FAVORITE} = 1 - ${StickHubDbHelper.COL_IS_FAVORITE} WHERE ${StickHubDbHelper.COL_ID} = ?",
             arrayOf(stickerId.toString())
         )
         refresh()
@@ -558,17 +564,22 @@ class StickerRepository(private val context: Context) {
     }
 
     suspend fun deleteSticker(stickerId: Long) = withContext(Dispatchers.IO) {
-        val sticker = _stickersFlow.value.find { it.id == stickerId }
-        sticker?.let {
-            val file = File(it.filePath)
-            if (file.exists()) file.delete()
-        }
+        val doomedPath = _stickersFlow.value.find { it.id == stickerId }?.filePath
         val db = dbHelper.writableDatabase
         db.delete(
             StickHubDbHelper.TABLE_STICKERS,
             "${StickHubDbHelper.COL_ID} = ?",
             arrayOf(stickerId.toString())
         )
+        // File goes only after the row is gone: a crash between the two
+        // leaves an orphan file (harmless), never a row pointing at nothing.
+        doomedPath?.let { path ->
+            try {
+                val file = File(path)
+                if (file.exists()) file.delete()
+            } catch (_: Exception) {
+            }
+        }
         refresh()
     }
 
@@ -712,15 +723,16 @@ class StickerRepository(private val context: Context) {
     suspend fun batchDelete(ids: List<Long>): Int = withContext(Dispatchers.IO) {
         if (ids.isEmpty()) return@withContext 0
         var count = 0
+        // Snapshot file paths up-front: files are deleted only AFTER the DB
+        // transaction commits, so a rollback can never orphan rows that point
+        // at already-deleted files.
+        val doomedFiles = ids.mapNotNull { id ->
+            _stickersFlow.value.find { it.id == id }?.filePath
+        }
         val db = dbHelper.writableDatabase
         db.beginTransaction()
         try {
             for (id in ids) {
-                val sticker = _stickersFlow.value.find { it.id == id }
-                sticker?.let {
-                    val file = File(it.filePath)
-                    if (file.exists()) file.delete()
-                }
                 count += db.delete(
                     StickHubDbHelper.TABLE_STICKERS,
                     "${StickHubDbHelper.COL_ID} = ?",
@@ -730,6 +742,13 @@ class StickerRepository(private val context: Context) {
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()
+        }
+        doomedFiles.forEach { path ->
+            try {
+                val file = File(path)
+                if (file.exists()) file.delete()
+            } catch (_: Exception) {
+            }
         }
         refresh()
         count

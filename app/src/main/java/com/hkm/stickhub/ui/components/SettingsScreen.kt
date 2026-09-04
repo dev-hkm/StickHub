@@ -18,13 +18,31 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import com.hkm.stickhub.ui.theme.AppVisualTheme
 import com.hkm.stickhub.ui.theme.BotanicalColors
+import com.hkm.stickhub.ui.theme.NeubrutalismColors
+import com.hkm.stickhub.ui.theme.OldMoneyColors
+import com.hkm.stickhub.ui.theme.PressroomColors
+import com.hkm.stickhub.ui.theme.AtelierColors
+import com.hkm.stickhub.ui.theme.StarbaseColors
+import com.hkm.stickhub.ui.theme.CottageColors
+import com.hkm.stickhub.ui.theme.AuroraColors
+import com.hkm.stickhub.ui.theme.SynthwaveColors
+import com.hkm.stickhub.ui.theme.GatsbyColors
+import com.hkm.stickhub.ui.theme.UkiyoColors
+import com.hkm.stickhub.ui.theme.PixelColors
+import com.hkm.stickhub.ui.theme.KawaiiColors
+import com.hkm.stickhub.ui.theme.SolarpunkColors
+import com.hkm.stickhub.ui.theme.NoirColors
+import com.hkm.stickhub.ui.theme.GlassColors
+import com.hkm.stickhub.ui.theme.NouveauColors
 import com.hkm.stickhub.ui.theme.SketchbookColors
-import com.hkm.stickhub.ui.theme.notebookPaperLines
+import com.hkm.stickhub.ui.theme.specimenDecor
 import com.hkm.stickhub.ui.theme.ThemePreferences
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -53,6 +71,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -64,7 +83,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.composables.icons.lucide.R as LucideR
@@ -75,7 +97,7 @@ import com.hkm.stickhub.ui.theme.AppThemeMode
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     themeMode: AppThemeMode,
@@ -292,9 +314,11 @@ fun SettingsScreen(
                 val context = LocalContext.current
                 val isDark = ThemePreferences.resolveIsDark(context, themeMode)
 
-                Column(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    maxItemsInEachRow = 2
                 ) {
                     ColorThemeCard(
                         theme = AppVisualTheme.DEFAULT,
@@ -360,6 +384,422 @@ fun SettingsScreen(
                             if (visualTheme != AppVisualTheme.SKETCHBOOK) {
                                 haptics.performCopyAck()
                                 onVisualThemeChange(AppVisualTheme.SKETCHBOOK)
+                            }
+                        }
+                    )
+
+                    ColorThemeCard(
+                        theme = AppVisualTheme.NEUBRUTALISM,
+                        selected = visualTheme == AppVisualTheme.NEUBRUTALISM,
+                        swatches = if (isDark) {
+                            listOf(
+                                NeubrutalismColors.DarkCandyYellowPrimary,
+                                NeubrutalismColors.DarkCardSurface,
+                                NeubrutalismColors.DarkSignalRedSecondary,
+                                NeubrutalismColors.DarkSignalBlueTertiary
+                            )
+                        } else {
+                            listOf(
+                                NeubrutalismColors.LightCandyYellowContainer,
+                                NeubrutalismColors.LightInkPrimary,
+                                NeubrutalismColors.LightSignalRedSecondary,
+                                NeubrutalismColors.LightSignalBlueTertiary
+                            )
+                        },
+                        onClick = {
+                            if (visualTheme != AppVisualTheme.NEUBRUTALISM) {
+                                haptics.performCopyAck()
+                                onVisualThemeChange(AppVisualTheme.NEUBRUTALISM)
+                            }
+                        }
+                    )
+
+                    ColorThemeCard(
+                        theme = AppVisualTheme.OLD_MONEY,
+                        selected = visualTheme == AppVisualTheme.OLD_MONEY,
+                        swatches = if (isDark) {
+                            listOf(
+                                OldMoneyColors.DarkBrassPrimary,
+                                OldMoneyColors.DarkGreenSurface,
+                                OldMoneyColors.DarkChampagneSecondary,
+                                OldMoneyColors.DarkSageTertiary
+                            )
+                        } else {
+                            listOf(
+                                OldMoneyColors.LightBrassPrimaryContainer,
+                                OldMoneyColors.LightDeepGreenPrimary,
+                                OldMoneyColors.LightAntiqueBrassSecondary,
+                                OldMoneyColors.LightEmeraldTertiary
+                            )
+                        },
+                        onClick = {
+                            if (visualTheme != AppVisualTheme.OLD_MONEY) {
+                                haptics.performCopyAck()
+                                onVisualThemeChange(AppVisualTheme.OLD_MONEY)
+                            }
+                        }
+                    )
+
+                    ColorThemeCard(
+                        theme = AppVisualTheme.PRESSROOM,
+                        selected = visualTheme == AppVisualTheme.PRESSROOM,
+                        swatches = if (isDark) {
+                            listOf(
+                                PressroomColors.DarkPeachPrimary,
+                                PressroomColors.DarkCocoaSurface,
+                                PressroomColors.DarkCaramelSecondary,
+                                PressroomColors.DarkSageTertiary
+                            )
+                        } else {
+                            listOf(
+                                PressroomColors.LightPeachPrimaryContainer,
+                                PressroomColors.LightCocoaPrimary,
+                                PressroomColors.LightCaramelSecondary,
+                                PressroomColors.LightOliveTertiary
+                            )
+                        },
+                        onClick = {
+                            if (visualTheme != AppVisualTheme.PRESSROOM) {
+                                haptics.performCopyAck()
+                                onVisualThemeChange(AppVisualTheme.PRESSROOM)
+                            }
+                        }
+                    )
+
+                    ColorThemeCard(
+                        theme = AppVisualTheme.ATELIER,
+                        selected = visualTheme == AppVisualTheme.ATELIER,
+                        swatches = if (isDark) {
+                            listOf(
+                                AtelierColors.DarkTerracottaBackground,
+                                AtelierColors.DarkEspressoPrimary,
+                                AtelierColors.DarkCreamSecondary,
+                                AtelierColors.DarkCreamText
+                            )
+                        } else {
+                            listOf(
+                                AtelierColors.LightGallerySurface,
+                                AtelierColors.LightFiredTerracottaPrimary,
+                                AtelierColors.LightPaleTerracottaContainer,
+                                AtelierColors.LightTaupeSecondary
+                            )
+                        },
+                        onClick = {
+                            if (visualTheme != AppVisualTheme.ATELIER) {
+                                haptics.performCopyAck()
+                                onVisualThemeChange(AppVisualTheme.ATELIER)
+                            }
+                        }
+                    )
+
+                    ColorThemeCard(
+                        theme = AppVisualTheme.STARBASE,
+                        selected = visualTheme == AppVisualTheme.STARBASE,
+                        swatches = if (isDark) {
+                            listOf(
+                                StarbaseColors.DarkPeachPrimary,
+                                StarbaseColors.DarkOxbloodSurface,
+                                StarbaseColors.DarkAmberSecondary,
+                                StarbaseColors.DarkMintTertiary
+                            )
+                        } else {
+                            listOf(
+                                StarbaseColors.LightPeachPrimaryContainer,
+                                StarbaseColors.LightOxbloodPrimary,
+                                StarbaseColors.LightEmberSecondary,
+                                StarbaseColors.LightConsoleTertiary
+                            )
+                        },
+                        onClick = {
+                            if (visualTheme != AppVisualTheme.STARBASE) {
+                                haptics.performCopyAck()
+                                onVisualThemeChange(AppVisualTheme.STARBASE)
+                            }
+                        }
+                    )
+
+                    ColorThemeCard(
+                        theme = AppVisualTheme.COTTAGE,
+                        selected = visualTheme == AppVisualTheme.COTTAGE,
+                        swatches = if (isDark) {
+                            listOf(
+                                CottageColors.DarkFadedRosePrimary,
+                                CottageColors.DarkPlumSurface,
+                                CottageColors.DarkSageSecondary,
+                                CottageColors.DarkDustyBlueTertiary
+                            )
+                        } else {
+                            listOf(
+                                CottageColors.LightFadedRoseContainer,
+                                CottageColors.LightRosewoodPrimary,
+                                CottageColors.LightMistSecondaryContainer,
+                                CottageColors.LightPowderTertiaryContainer
+                            )
+                        },
+                        onClick = {
+                            if (visualTheme != AppVisualTheme.COTTAGE) {
+                                haptics.performCopyAck()
+                                onVisualThemeChange(AppVisualTheme.COTTAGE)
+                            }
+                        }
+                    )
+
+                    ColorThemeCard(
+                        theme = AppVisualTheme.AURORA,
+                        selected = visualTheme == AppVisualTheme.AURORA,
+                        swatches = if (isDark) {
+                            listOf(
+                                AuroraColors.DarkSkyPrimary,
+                                AuroraColors.DarkMagentaSecondary,
+                                AuroraColors.DarkCyanTertiary,
+                                AuroraColors.DarkNightSurface
+                            )
+                        } else {
+                            listOf(
+                                AuroraColors.LightAuroraBluePrimary,
+                                AuroraColors.LightMagentaSecondary,
+                                AuroraColors.LightLagoonTertiary,
+                                AuroraColors.LightCloudSurface
+                            )
+                        },
+                        onClick = {
+                            if (visualTheme != AppVisualTheme.AURORA) {
+                                haptics.performCopyAck()
+                                onVisualThemeChange(AppVisualTheme.AURORA)
+                            }
+                        }
+                    )
+
+                    ColorThemeCard(
+                        theme = AppVisualTheme.SYNTHWAVE,
+                        selected = visualTheme == AppVisualTheme.SYNTHWAVE,
+                        swatches = if (isDark) {
+                            listOf(
+                                SynthwaveColors.DarkNeonBluePrimary,
+                                SynthwaveColors.DarkHotPinkSecondary,
+                                SynthwaveColors.DarkCyanTertiary,
+                                SynthwaveColors.DarkDeckSurface
+                            )
+                        } else {
+                            listOf(
+                                SynthwaveColors.LightUltravioletPrimary,
+                                SynthwaveColors.LightHotPinkSecondary,
+                                SynthwaveColors.LightLaserBlueTertiary,
+                                SynthwaveColors.LightChromeSurface
+                            )
+                        },
+                        onClick = {
+                            if (visualTheme != AppVisualTheme.SYNTHWAVE) {
+                                haptics.performCopyAck()
+                                onVisualThemeChange(AppVisualTheme.SYNTHWAVE)
+                            }
+                        }
+                    )
+
+                    ColorThemeCard(
+                        theme = AppVisualTheme.GATSBY,
+                        selected = visualTheme == AppVisualTheme.GATSBY,
+                        swatches = if (isDark) {
+                            listOf(
+                                GatsbyColors.DarkGoldPrimary,
+                                GatsbyColors.DarkFoilSecondary,
+                                GatsbyColors.DarkVelvetSurface,
+                                GatsbyColors.DarkClaretTertiary
+                            )
+                        } else {
+                            listOf(
+                                GatsbyColors.LightGoldPrimaryContainer,
+                                GatsbyColors.LightTuxedoPrimary,
+                                GatsbyColors.LightBronzeSecondary,
+                                GatsbyColors.LightEmeraldTertiary
+                            )
+                        },
+                        onClick = {
+                            if (visualTheme != AppVisualTheme.GATSBY) {
+                                haptics.performCopyAck()
+                                onVisualThemeChange(AppVisualTheme.GATSBY)
+                            }
+                        }
+                    )
+
+                    ColorThemeCard(
+                        theme = AppVisualTheme.UKIYO,
+                        selected = visualTheme == AppVisualTheme.UKIYO,
+                        swatches = if (isDark) {
+                            listOf(
+                                UkiyoColors.DarkMoonPrimary,
+                                UkiyoColors.DarkVermilionSecondary,
+                                UkiyoColors.DarkOchreTertiary,
+                                UkiyoColors.DarkDeepSurface
+                            )
+                        } else {
+                            listOf(
+                                UkiyoColors.LightWashiBackground,
+                                UkiyoColors.LightSumiPrimary,
+                                UkiyoColors.LightVermilionSecondary,
+                                UkiyoColors.LightPrussianTertiary
+                            )
+                        },
+                        onClick = {
+                            if (visualTheme != AppVisualTheme.UKIYO) {
+                                haptics.performCopyAck()
+                                onVisualThemeChange(AppVisualTheme.UKIYO)
+                            }
+                        }
+                    )
+
+                    ColorThemeCard(
+                        theme = AppVisualTheme.PIXEL,
+                        selected = visualTheme == AppVisualTheme.PIXEL,
+                        swatches = if (isDark) {
+                            listOf(
+                                PixelColors.DarkPhosphorPrimary,
+                                PixelColors.DarkAmberSecondary,
+                                PixelColors.DarkCoinTertiary,
+                                PixelColors.DarkCabinetSurface
+                            )
+                        } else {
+                            listOf(
+                                PixelColors.LightPhosphorPrimaryContainer,
+                                PixelColors.LightPhosphorDeepPrimary,
+                                PixelColors.LightCoinSecondaryContainer,
+                                PixelColors.LightCartridgeSurface
+                            )
+                        },
+                        onClick = {
+                            if (visualTheme != AppVisualTheme.PIXEL) {
+                                haptics.performCopyAck()
+                                onVisualThemeChange(AppVisualTheme.PIXEL)
+                            }
+                        }
+                    )
+
+                    ColorThemeCard(
+                        theme = AppVisualTheme.KAWAII,
+                        selected = visualTheme == AppVisualTheme.KAWAII,
+                        swatches = if (isDark) {
+                            listOf(
+                                KawaiiColors.DarkCandyPrimary,
+                                KawaiiColors.DarkSkySecondary,
+                                KawaiiColors.DarkMintTertiary,
+                                KawaiiColors.DarkGrapeSurface
+                            )
+                        } else {
+                            listOf(
+                                KawaiiColors.LightCandyBackground,
+                                KawaiiColors.LightGrapePrimary,
+                                KawaiiColors.LightSkySecondary,
+                                KawaiiColors.LightMintTertiary
+                            )
+                        },
+                        onClick = {
+                            if (visualTheme != AppVisualTheme.KAWAII) {
+                                haptics.performCopyAck()
+                                onVisualThemeChange(AppVisualTheme.KAWAII)
+                            }
+                        }
+                    )
+
+                    ColorThemeCard(
+                        theme = AppVisualTheme.SOLARPUNK,
+                        selected = visualTheme == AppVisualTheme.SOLARPUNK,
+                        swatches = if (isDark) {
+                            listOf(
+                                SolarpunkColors.DarkSproutPrimary,
+                                SolarpunkColors.DarkSolarSecondary,
+                                SolarpunkColors.DarkSkyTertiary,
+                                SolarpunkColors.DarkCanopySurface
+                            )
+                        } else {
+                            listOf(
+                                SolarpunkColors.LightVerdantPrimary,
+                                SolarpunkColors.LightHarvestSecondary,
+                                SolarpunkColors.LightSkyTertiary,
+                                SolarpunkColors.LightCanopySurface
+                            )
+                        },
+                        onClick = {
+                            if (visualTheme != AppVisualTheme.SOLARPUNK) {
+                                haptics.performCopyAck()
+                                onVisualThemeChange(AppVisualTheme.SOLARPUNK)
+                            }
+                        }
+                    )
+
+                    ColorThemeCard(
+                        theme = AppVisualTheme.NOIR,
+                        selected = visualTheme == AppVisualTheme.NOIR,
+                        swatches = if (isDark) {
+                            listOf(
+                                NoirColors.DarkFogPrimary,
+                                NoirColors.DarkStreetlampSecondary,
+                                NoirColors.DarkWineTertiary,
+                                NoirColors.DarkOfficeSurface
+                            )
+                        } else {
+                            listOf(
+                                NoirColors.LightDossierBackground,
+                                NoirColors.LightInkPrimary,
+                                NoirColors.LightStreetlampSecondary,
+                                NoirColors.LightWineTertiary
+                            )
+                        },
+                        onClick = {
+                            if (visualTheme != AppVisualTheme.NOIR) {
+                                haptics.performCopyAck()
+                                onVisualThemeChange(AppVisualTheme.NOIR)
+                            }
+                        }
+                    )
+
+                    ColorThemeCard(
+                        theme = AppVisualTheme.GLASS,
+                        selected = visualTheme == AppVisualTheme.GLASS,
+                        swatches = if (isDark) {
+                            listOf(
+                                GlassColors.DarkBeamPrimary,
+                                GlassColors.DarkIrisSecondary,
+                                GlassColors.DarkCyanTertiary,
+                                GlassColors.DarkPaneSurface
+                            )
+                        } else {
+                            listOf(
+                                GlassColors.LightCobaltPrimary,
+                                GlassColors.LightIrisSecondary,
+                                GlassColors.LightCyanTertiary,
+                                GlassColors.LightPaneSurface
+                            )
+                        },
+                        onClick = {
+                            if (visualTheme != AppVisualTheme.GLASS) {
+                                haptics.performCopyAck()
+                                onVisualThemeChange(AppVisualTheme.GLASS)
+                            }
+                        }
+                    )
+
+                    ColorThemeCard(
+                        theme = AppVisualTheme.NOUVEAU,
+                        selected = visualTheme == AppVisualTheme.NOUVEAU,
+                        swatches = if (isDark) {
+                            listOf(
+                                NouveauColors.DarkSeafoamPrimary,
+                                NouveauColors.DarkGoldSecondary,
+                                NouveauColors.DarkMauveTertiary,
+                                NouveauColors.DarkLagoonSurface
+                            )
+                        } else {
+                            listOf(
+                                NouveauColors.LightDeepTealPrimary,
+                                NouveauColors.LightOldGoldSecondary,
+                                NouveauColors.LightBurgundyTertiary,
+                                NouveauColors.LightGallerySurface
+                            )
+                        },
+                        onClick = {
+                            if (visualTheme != AppVisualTheme.NOUVEAU) {
+                                haptics.performCopyAck()
+                                onVisualThemeChange(AppVisualTheme.NOUVEAU)
                             }
                         }
                     )
@@ -591,10 +1031,11 @@ fun SettingsScreen(
                         onLivePreviewBubbleOpacity(it)
                     },
                     onValueChangeFinished = {
-                        if (abs(it - overlayBubbleOpacity) >= 0.01f) {
-                            haptics.performCopyAck()
-                            onOverlayBubbleOpacityChange(it)
-                        }
+                        // Always persist + push on release. Live ticks already
+                        // sync parent state, so a diff guard here would swallow
+                        // the release (this dead-slider bug killed shadow).
+                        haptics.performCopyAck()
+                        onOverlayBubbleOpacityChange(it)
                     }
                 )
 
@@ -636,10 +1077,11 @@ fun SettingsScreen(
                         onLivePreviewMasterOpacity(it)
                     },
                     onValueChangeFinished = {
-                        if (abs(it - popupMasterOpacity) >= 0.01f) {
-                            haptics.performCopyAck()
-                            onPopupMasterOpacityChange(it)
-                        }
+                        // Always persist + push on release. Live ticks already
+                        // sync parent state, so a diff guard here would swallow
+                        // the release (this dead-slider bug killed shadow).
+                        haptics.performCopyAck()
+                        onPopupMasterOpacityChange(it)
                     }
                 )
 
@@ -656,10 +1098,11 @@ fun SettingsScreen(
                         onLivePreviewSurfaceOpacity(it)
                     },
                     onValueChangeFinished = {
-                        if (abs(it - popupSurfaceOpacity) >= 0.01f) {
-                            haptics.performCopyAck()
-                            onPopupSurfaceOpacityChange(it)
-                        }
+                        // Always persist + push on release. Live ticks already
+                        // sync parent state, so a diff guard here would swallow
+                        // the release (this dead-slider bug killed shadow).
+                        haptics.performCopyAck()
+                        onPopupSurfaceOpacityChange(it)
                     }
                 )
 
@@ -676,10 +1119,11 @@ fun SettingsScreen(
                         onLivePreviewStickersOpacity(it)
                     },
                     onValueChangeFinished = {
-                        if (abs(it - popupStickersOpacity) >= 0.01f) {
-                            haptics.performCopyAck()
-                            onPopupStickersOpacityChange(it)
-                        }
+                        // Always persist + push on release. Live ticks already
+                        // sync parent state, so a diff guard here would swallow
+                        // the release (this dead-slider bug killed shadow).
+                        haptics.performCopyAck()
+                        onPopupStickersOpacityChange(it)
                     }
                 )
 
@@ -690,16 +1134,20 @@ fun SettingsScreen(
                     subtitle = "Title, search box, and category chips",
                     value = previewChromeOpacity,
                     valueRange = 0f..1f,
-                    valueText = "${(previewChromeOpacity * 100).toInt()}% visible",
+                    enabled = showQuickStickersTitle || showQuickStickersSearch || showQuickStickersCategories,
+                    valueText = if (showQuickStickersTitle || showQuickStickersSearch || showQuickStickersCategories)
+                        "${(previewChromeOpacity * 100).toInt()}% visible"
+                    else "Hidden (enable title, search, or categories above)",
                     onValueChange = {
                         previewChromeOpacity = it
                         onLivePreviewChromeOpacity(it)
                     },
                     onValueChangeFinished = {
-                        if (abs(it - popupChromeOpacity) >= 0.01f) {
-                            haptics.performCopyAck()
-                            onPopupChromeOpacityChange(it)
-                        }
+                        // Always persist + push on release. Live ticks already
+                        // sync parent state, so a diff guard here would swallow
+                        // the release (this dead-slider bug killed shadow).
+                        haptics.performCopyAck()
+                        onPopupChromeOpacityChange(it)
                     }
                 )
 
@@ -716,10 +1164,11 @@ fun SettingsScreen(
                         onLivePreviewCloseOpacity(it)
                     },
                     onValueChangeFinished = {
-                        if (abs(it - popupCloseOpacity) >= 0.01f) {
-                            haptics.performCopyAck()
-                            onPopupCloseOpacityChange(it)
-                        }
+                        // Always persist + push on release. Live ticks already
+                        // sync parent state, so a diff guard here would swallow
+                        // the release (this dead-slider bug killed shadow).
+                        haptics.performCopyAck()
+                        onPopupCloseOpacityChange(it)
                     }
                 )
 
@@ -736,10 +1185,11 @@ fun SettingsScreen(
                         onLivePreviewResizeOpacity(it)
                     },
                     onValueChangeFinished = {
-                        if (abs(it - popupResizeOpacity) >= 0.01f) {
-                            haptics.performCopyAck()
-                            onPopupResizeOpacityChange(it)
-                        }
+                        // Always persist + push on release. Live ticks already
+                        // sync parent state, so a diff guard here would swallow
+                        // the release (this dead-slider bug killed shadow).
+                        haptics.performCopyAck()
+                        onPopupResizeOpacityChange(it)
                     }
                 )
 
@@ -765,10 +1215,11 @@ fun SettingsScreen(
                         onLivePreviewShadowStrength(it)
                     },
                     onValueChangeFinished = {
-                        if (abs(it - stickerShadowStrength) >= 0.01f) {
-                            haptics.performCopyAck()
-                            onStickerShadowStrengthChange(it)
-                        }
+                        // Always persist + push on release. Live ticks already
+                        // sync parent state, so a diff guard here would swallow
+                        // the release (this dead-slider bug killed shadow).
+                        haptics.performCopyAck()
+                        onStickerShadowStrengthChange(it)
                     }
                 )
 
@@ -1370,66 +1821,68 @@ private fun ColorThemeCard(
                     else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
         ),
         modifier = Modifier
-            .fillMaxWidth()
+            .fillMaxWidth(0.48f)
             .clip(RoundedCornerShape(14.dp))
             .clickable(
                 role = Role.RadioButton,
                 onClick = onClick
             )
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 12.dp, vertical = 12.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = theme.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = theme.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                if (selected) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(20.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.primary),
+                        contentAlignment = Alignment.Center
                     ) {
-                        for (swatch in swatches) {
-                            Box(
-                                modifier = Modifier
-                                    .size(14.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(swatch)
-                            )
-                        }
+                        Icon(
+                            painter = painterResource(LucideR.drawable.lucide_ic_check),
+                            contentDescription = "Selected",
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(12.dp)
+                        )
                     }
                 }
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = theme.subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
-
-            if (selected) {
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.primary),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(LucideR.drawable.lucide_ic_check),
-                        contentDescription = "Selected",
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(14.dp)
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                for (swatch in swatches) {
+                    Box(
+                        modifier = Modifier
+                            .size(14.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(swatch)
                     )
                 }
             }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = theme.subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -1443,18 +1896,66 @@ private fun SpecimenPreviewSurface(visualTheme: AppVisualTheme) {
         AppVisualTheme.DEFAULT -> "SYSTEM PALETTE"
         AppVisualTheme.HERBARIUM -> "BOTANICAL SPECIMEN"
         AppVisualTheme.SKETCHBOOK -> "SKETCH-NOTE SPECIMEN"
+        AppVisualTheme.NEUBRUTALISM -> "NEUBRUTALIST SPECIMEN"
+        AppVisualTheme.OLD_MONEY -> "OLD MONEY SPECIMEN"
+        AppVisualTheme.PRESSROOM -> "PRESSROOM SPECIMEN"
+        AppVisualTheme.ATELIER -> "ATELIER SPECIMEN"
+        AppVisualTheme.STARBASE -> "STARBASE SPECIMEN"
+        AppVisualTheme.COTTAGE -> "COTTAGE SPECIMEN"
+        AppVisualTheme.AURORA -> "AURORA SPECIMEN"
+        AppVisualTheme.SYNTHWAVE -> "SYNTHWAVE SPECIMEN"
+        AppVisualTheme.GATSBY -> "GATSBY SPECIMEN"
+        AppVisualTheme.UKIYO -> "UKIYO SPECIMEN"
+        AppVisualTheme.PIXEL -> "PIXEL SPECIMEN"
+        AppVisualTheme.KAWAII -> "KAWAII SPECIMEN"
+        AppVisualTheme.SOLARPUNK -> "SOLARPUNK SPECIMEN"
+        AppVisualTheme.NOIR -> "NOIR SPECIMEN"
+        AppVisualTheme.GLASS -> "GLASS SPECIMEN"
+        AppVisualTheme.NOUVEAU -> "NOUVEAU SPECIMEN"
     }
 
     val sampleCardText = when (visualTheme) {
         AppVisualTheme.DEFAULT -> "Material 3 card"
         AppVisualTheme.HERBARIUM -> "Warm parchment paper"
         AppVisualTheme.SKETCHBOOK -> "Ruled notebook paper"
+        AppVisualTheme.NEUBRUTALISM -> "Bold borders, hard shadows"
+        AppVisualTheme.OLD_MONEY -> "Heritage serif and brass"
+        AppVisualTheme.PRESSROOM -> "Warm newsprint and cocoa"
+        AppVisualTheme.ATELIER -> "Gallery white and terracotta"
+        AppVisualTheme.STARBASE -> "Peach glow on oxblood"
+        AppVisualTheme.COTTAGE -> "Faded rose and sage"
+        AppVisualTheme.AURORA -> "Northern mesh gradients"
+        AppVisualTheme.SYNTHWAVE -> "Neon grids and chrome suns"
+        AppVisualTheme.GATSBY -> "Black tie and gold leaf"
+        AppVisualTheme.UKIYO -> "Waves, ink and vermilion"
+        AppVisualTheme.PIXEL -> "Phosphor terminal arcade"
+        AppVisualTheme.KAWAII -> "Pastel pop and sparkles"
+        AppVisualTheme.SOLARPUNK -> "Sun through leaves"
+        AppVisualTheme.NOIR -> "Blinds and streetlamps"
+        AppVisualTheme.GLASS -> "Liquid light on color"
+        AppVisualTheme.NOUVEAU -> "Curves and gold leaf"
     }
 
     val iconRes = when (visualTheme) {
         AppVisualTheme.DEFAULT -> LucideR.drawable.lucide_ic_sparkles
         AppVisualTheme.HERBARIUM -> LucideR.drawable.lucide_ic_leaf
         AppVisualTheme.SKETCHBOOK -> LucideR.drawable.lucide_ic_pen_tool
+        AppVisualTheme.NEUBRUTALISM -> LucideR.drawable.lucide_ic_shapes
+        AppVisualTheme.OLD_MONEY -> LucideR.drawable.lucide_ic_gem
+        AppVisualTheme.PRESSROOM -> LucideR.drawable.lucide_ic_newspaper
+        AppVisualTheme.ATELIER -> LucideR.drawable.lucide_ic_frame
+        AppVisualTheme.STARBASE -> LucideR.drawable.lucide_ic_orbit
+        AppVisualTheme.COTTAGE -> LucideR.drawable.lucide_ic_flower_2
+        AppVisualTheme.AURORA -> LucideR.drawable.lucide_ic_rainbow
+        AppVisualTheme.SYNTHWAVE -> LucideR.drawable.lucide_ic_zap
+        AppVisualTheme.GATSBY -> LucideR.drawable.lucide_ic_crown
+        AppVisualTheme.UKIYO -> LucideR.drawable.lucide_ic_waves
+        AppVisualTheme.PIXEL -> LucideR.drawable.lucide_ic_gamepad_2
+        AppVisualTheme.KAWAII -> LucideR.drawable.lucide_ic_sparkle
+        AppVisualTheme.SOLARPUNK -> LucideR.drawable.lucide_ic_sprout
+        AppVisualTheme.NOIR -> LucideR.drawable.lucide_ic_venetian_mask
+        AppVisualTheme.GLASS -> LucideR.drawable.lucide_ic_droplets
+        AppVisualTheme.NOUVEAU -> LucideR.drawable.lucide_ic_flower
     }
 
     Surface(
@@ -1463,11 +1964,7 @@ private fun SpecimenPreviewSurface(visualTheme: AppVisualTheme) {
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
         modifier = Modifier
             .fillMaxWidth()
-            .then(
-                if (visualTheme == AppVisualTheme.SKETCHBOOK) {
-                    Modifier.notebookPaperLines(enabled = true, isDark = isDark)
-                } else Modifier
-            )
+            .specimenDecor(visualTheme = visualTheme, isDark = isDark)
     ) {
         Column(
             modifier = Modifier
@@ -1592,13 +2089,23 @@ private fun SettingsSliderItem(
     valueText: String,
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: (Float) -> Unit,
-    subtitle: String? = null
+    subtitle: String? = null,
+    enabled: Boolean = true
 ) {
+    // Slider's onValueChangeFinished is () -> Unit, so track the latest drag
+    // value explicitly. Passing the composed `value` directly would persist
+    // a stale frame (the classic "slider snaps back / saves wrong value" bug).
+    var latestValue by remember(valueRange) { mutableFloatStateOf(value) }
+    LaunchedEffect(value) {
+        // Resync when the value changes from outside (e.g. Reset button).
+        // During drag this just echoes the same value back.
+        if (value != latestValue) latestValue = value
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (enabled) 0.35f else 0.15f))
             .padding(14.dp)
     ) {
         Row(
@@ -1606,7 +2113,7 @@ private fun SettingsSliderItem(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f, fill = false)) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleSmall,
@@ -1627,15 +2134,25 @@ private fun SettingsSliderItem(
                 text = valueText,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.End,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .wrapContentWidth(Alignment.End)
             )
         }
         Spacer(modifier = Modifier.height(6.dp))
         Slider(
             value = value,
-            onValueChange = onValueChange,
-            onValueChangeFinished = { onValueChangeFinished(value) },
+            onValueChange = {
+                latestValue = it
+                onValueChange(it)
+            },
+            onValueChangeFinished = { onValueChangeFinished(latestValue) },
             valueRange = valueRange,
+            enabled = enabled,
             modifier = Modifier.fillMaxWidth()
         )
     }

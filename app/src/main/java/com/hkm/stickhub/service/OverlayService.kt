@@ -156,6 +156,7 @@ class OverlayService : Service() {
         const val NOTIF_ID = 1001
         const val ACTION_REFRESH_CONFIGURATION = "com.hkm.stickhub.action.REFRESH_OVERLAY_CONFIGURATION"
         const val ACTION_UPDATE_APPEARANCE = "com.hkm.stickhub.action.UPDATE_APPEARANCE"
+        const val ACTION_UPDATE_SHADOW = "com.hkm.stickhub.action.UPDATE_SHADOW"
         const val ACTION_REVEAL_CONTROLS = "com.hkm.stickhub.action.REVEAL_CONTROLS"
         var isRunning = false
     }
@@ -167,6 +168,7 @@ class OverlayService : Service() {
             when (intent?.action) {
                 ACTION_REFRESH_CONFIGURATION -> refreshOverlayConfiguration()
                 ACTION_UPDATE_APPEARANCE -> updateOverlayAppearance()
+                ACTION_UPDATE_SHADOW -> updateStickerShadows()
                 ACTION_REVEAL_CONTROLS -> revealOverlayControls()
             }
         }
@@ -175,13 +177,28 @@ class OverlayService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        // If the overlay permission was revoked while we were dead, a sticky
+        // restart must not crash on addView — bail out cleanly instead.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M &&
+            !android.provider.Settings.canDrawOverlays(this)
+        ) {
+            isRunning = false
+            stopSelf()
+            return
+        }
         isRunning = true
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         repository = StickerRepository(this)
 
         startForegroundServiceNotification()
-        setupBubbleView()
-        setupPanelView()
+        try {
+            setupBubbleView()
+            setupPanelView()
+        } catch (e: SecurityException) {
+            isRunning = false
+            stopSelf()
+            return
+        }
 
         serviceScope.launch {
             repository.refresh()
@@ -199,9 +216,28 @@ class OverlayService : Service() {
         Color.blue(color)
     )
 
+    /** Per-theme popup frame geometry: most themes share the soft 16dp card,
+     * while Neubrutalism goes sharp + thick, Pixel near-square, Glass rounder. */
+    private data class PopupChrome(val cornerRadiusPx: Float, val strokePx: Int)
+
+    private fun popupChrome(): PopupChrome {
+        val density = resources.displayMetrics.density
+        return when (currentPalette().visualTheme) {
+            AppVisualTheme.NEUBRUTALISM -> PopupChrome(4f * density, (3f * density).toInt().coerceAtLeast(2))
+            AppVisualTheme.PIXEL -> PopupChrome(2f * density, (2f * density).toInt().coerceAtLeast(1))
+            AppVisualTheme.GLASS -> PopupChrome(24f * density, (1f * density).toInt().coerceAtLeast(1))
+            else -> PopupChrome(16f * density, (1f * density).toInt().coerceAtLeast(1))
+        }
+    }
+
     private var revealJob: Job? = null
 
     private fun updateOverlayAppearance() {
+        // Lightweight path: only applies view alphas + colors.
+        // Must NEVER rebuild the sticker grid here — this is called on every
+        // slider tick during drag, and a rebuild (decode + shadow re-render
+        // for every sticker) is what caused settings jank + useless sliders.
+        // Sticker shadow re-render has its own debounced action (ACTION_UPDATE_SHADOW).
         val bubbleAlpha = OverlayPreferences.bubbleOpacity(this)
         bubbleView?.alpha = bubbleAlpha
 
@@ -223,21 +259,33 @@ class OverlayService : Service() {
         bubbleIcon?.setColorFilter(palette.primaryColor)
 
         panelBg?.apply {
+            val chrome = popupChrome()
+            cornerRadius = chrome.cornerRadiusPx
             setColor(withAlpha(palette.surfaceColor, if (palette.isDark) 244 else 250))
-            setStroke((1 * density).toInt(), withAlpha(palette.outlineColor, if (palette.isDark) 60 else 70))
+            setStroke(chrome.strokePx, withAlpha(palette.outlineColor, if (palette.isDark) 60 else 70))
         }
         closeBtnView?.setColorFilter(palette.textColor)
         closeBtnBg?.apply {
             setColor(withAlpha(palette.surfaceColor, if (palette.isDark) 200 else 220))
             setStroke((1 * density).toInt(), withAlpha(palette.outlineColor, if (palette.isDark) 60 else 70))
         }
-        resizeBtnView?.setColorFilter(palette.primaryColor)
+        resizeBtnView?.setColorFilter(palette.accentColor)
         resizeHandleBg?.setColor(withAlpha(palette.surfaceColor, if (palette.isDark) 190 else 210))
         emptyStateTextView?.setTextColor(palette.mutedTextColor)
         searchBg?.setColor(withAlpha(palette.surfaceVariantColor, if (palette.isDark) 140 else 200))
+    }
 
+    /**
+     * Heavy path for sticker shadow strength changes only.
+     * Called once when the shadow slider is released (ACTION_UPDATE_SHADOW),
+     * never per-tick during drag. Re-renders cached thumbnails with the new
+     * silhouette shadow strength.
+     */
+    private fun updateStickerShadows() {
         StickerShadowRenderer.clearCache()
-        refreshPanelStickers()
+        if (isPanelOpen) {
+            refreshPanelStickers()
+        }
     }
 
     private fun revealOverlayControls() {
@@ -302,16 +350,22 @@ class OverlayService : Service() {
         searchBg?.setColor(withAlpha(palette.surfaceVariantColor, if (palette.isDark) 140 else 200))
         categoryScrollView?.visibility = if (showCategories) View.VISIBLE else View.GONE
 
+        // Hidden rows must not keep filtering invisibly.
+        if (!showSearch) searchQuery = ""
+        if (!showCategories) selectedCategory = "All"
+
         panelBg?.apply {
+            val chrome = popupChrome()
+            cornerRadius = chrome.cornerRadiusPx
             setColor(withAlpha(palette.surfaceColor, if (palette.isDark) 244 else 250))
-            setStroke((1 * density).toInt(), withAlpha(palette.outlineColor, if (palette.isDark) 60 else 70))
+            setStroke(chrome.strokePx, withAlpha(palette.outlineColor, if (palette.isDark) 60 else 70))
         }
         closeBtnView?.setColorFilter(palette.textColor)
         closeBtnBg?.apply {
             setColor(withAlpha(palette.surfaceColor, if (palette.isDark) 200 else 220))
             setStroke((1 * density).toInt(), withAlpha(palette.outlineColor, if (palette.isDark) 60 else 70))
         }
-        resizeBtnView?.setColorFilter(palette.primaryColor)
+        resizeBtnView?.setColorFilter(palette.accentColor)
         resizeHandleBg?.setColor(withAlpha(palette.surfaceColor, if (palette.isDark) 190 else 210))
         emptyStateTextView?.setTextColor(palette.mutedTextColor)
 
@@ -660,13 +714,19 @@ class OverlayService : Service() {
         // 1. Root popup FrameLayout: translucent container holding independent layers
         val root = FrameLayout(this)
 
-        // 2. Layer 1: Dedicated Background / Surface View (has its own opacity)
+        // 2. Layer 1: Dedicated Background / Surface View (has its own opacity).
+        // NOTE: elevation must stay on the SAME plane as content + floating
+        // buttons (12f). Siblings with higher elevation paint ON TOP —
+        // a higher surface elevation covered the stickers whenever the
+        // background opacity was raised. Same-plane ties fall back to
+        // insertion order: surface -> content -> close -> resize.
         val surfaceLayer = View(this).apply {
+            val chrome = popupChrome()
             val bg = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = 16 * density
+                cornerRadius = chrome.cornerRadiusPx
                 setColor(withAlpha(palette.surfaceColor, if (palette.isDark) 244 else 250))
-                setStroke((1 * density).toInt(), withAlpha(palette.outlineColor, if (palette.isDark) 60 else 70))
+                setStroke(chrome.strokePx, withAlpha(palette.outlineColor, if (palette.isDark) 60 else 70))
             }
             panelBg = bg
             background = bg
@@ -680,18 +740,22 @@ class OverlayService : Service() {
         panelSurfaceView = surfaceLayer
         root.addView(surfaceLayer)
 
-        // 3. Layer 2: Panel Content LinearLayout
+        // 3. Layer 2: Panel Content LinearLayout.
+        // Same elevation plane as the surface (12f): ties fall back to
+        // insertion order, so content always paints ABOVE the background.
+        // Transparent container emits no shadow of its own.
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
+            elevation = 12f
             val outerPad = if (isGridOnly) (4 * density).toInt() else (6 * density).toInt()
             setPadding(outerPad, outerPad, outerPad, outerPad)
         }
 
-        // Chrome Container (Header, Search, Categories) with its own opacity
+        // Chrome Container (Header, Search, Categories) with its own opacity.
         val chrome = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(
@@ -829,7 +893,7 @@ class OverlayService : Service() {
         chrome.addView(chipsScroll)
         content.addView(chrome)
 
-        // D. Sticker Grid inside ScrollView with its own opacity
+        // D. Sticker Grid inside ScrollView with its own opacity.
         val scroll = androidx.core.widget.NestedScrollView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -884,6 +948,7 @@ class OverlayService : Service() {
             closeBtnBg = btnBg
             background = btnBg
             contentDescription = "Close popup. Hold and drag to move."
+            elevation = 12f
             layoutParams = FrameLayout.LayoutParams(btnSize, btnSize).apply {
                 gravity = Gravity.TOP or Gravity.END
                 setMargins(0, (2 * density).toInt(), (2 * density).toInt(), 0)
@@ -934,7 +999,7 @@ class OverlayService : Service() {
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     view.removeCallbacks(closeLongPress)
                     closePressActive = false
-                    closeBtn.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(160).start()
+                    closeBtn.animate().scaleX(1f).scaleY(1f).alpha(effectiveCloseOpacity()).setDuration(160).start()
                     if (movingFromClose) {
                         OverlayPreferences.setPanelPosition(this@OverlayService, panelParams.x, panelParams.y)
                     } else if (!closeGestureCancelled && event.actionMasked == MotionEvent.ACTION_UP) {
@@ -954,7 +1019,7 @@ class OverlayService : Service() {
         // Bottom-End Resize Handle (Lucide move_diagonal_2)
         val resizeBtn = ImageView(this).apply {
             setImageDrawable(ContextCompat.getDrawable(this@OverlayService, LucideR.drawable.lucide_ic_move_diagonal_2))
-            setColorFilter(palette.primaryColor)
+            setColorFilter(palette.accentColor)
             val btnSize = (30 * density).toInt()
             val pad = (7 * density).toInt()
             setPadding(pad, pad, pad, pad)
@@ -971,6 +1036,7 @@ class OverlayService : Service() {
             resizeHandleBg = handleBg
             background = handleBg
             contentDescription = "Resize quick stickers"
+            elevation = 12f
             layoutParams = FrameLayout.LayoutParams(btnSize, btnSize).apply {
                 gravity = Gravity.BOTTOM or Gravity.END
                 setMargins(0, 0, (2 * density).toInt(), (2 * density).toInt())
@@ -1079,6 +1145,19 @@ class OverlayService : Service() {
             isPanelOpen = false
         } else {
             panel.animate().cancel()
+            // Single source of truth at open time: re-sync chrome visibility
+            // from prefs on EVERY open (not just at view creation), so a
+            // missed REFRESH intent or stale view can never show hidden rows.
+            // Hidden rows also drop their filters so nothing filters invisibly.
+            val openShowTitle = OverlayPreferences.showTitle(this)
+            val openShowSearch = OverlayPreferences.showSearch(this)
+            val openShowCategories = OverlayPreferences.showCategories(this)
+            panelHeaderView?.visibility = if (openShowTitle) View.VISIBLE else View.GONE
+            panelTitleView?.visibility = if (openShowTitle) View.VISIBLE else View.GONE
+            panelSearchView?.visibility = if (openShowSearch) View.VISIBLE else View.GONE
+            categoryScrollView?.visibility = if (openShowCategories) View.VISIBLE else View.GONE
+            if (!openShowSearch) searchQuery = ""
+            if (!openShowCategories) selectedCategory = "All"
             serviceScope.launch {
                 repository.refresh()
                 // Resolve start filter from policy
@@ -1176,6 +1255,9 @@ class OverlayService : Service() {
                 setOnClickListener {
                     StickHubHaptics.performTap(it)
                     selectedCategory = cat
+                    // Persist for START_FILTER=LAST_USED; without this the
+                    // mode could never observe anything but the default.
+                    OverlayPreferences.setLastUsedFilter(this@OverlayService, cat)
                     setupCategoryChips()
                     refreshPanelStickers()
                 }

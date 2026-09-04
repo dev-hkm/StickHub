@@ -45,9 +45,9 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version bump for Quick Stickers overlay enhancements & onboarding.
-        versionCode = 28
-        versionName = "2.5.0"
+        // Version bump for full audit polish pass (DB/migration/nav/overlay/haptics/themes).
+        versionCode = 40
+        versionName = "3.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

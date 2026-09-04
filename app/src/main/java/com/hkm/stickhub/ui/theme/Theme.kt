@@ -15,6 +15,7 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -30,7 +31,14 @@ private val DarkColorScheme = darkColorScheme(
     surfaceVariant = Color(0xFF262930),
     onSurfaceVariant = Color(0xFFC4C7D0),
     background = NeutralBackgroundDark,
-    onBackground = Color(0xFFEDEDED)
+    onBackground = Color(0xFFEDEDED),
+    surfaceBright = Color(0xFF262930),
+    surfaceDim = NeutralSurfaceDark,
+    surfaceContainerLowest = NeutralSurfaceDark,
+    surfaceContainerLow = NeutralSurfaceDark,
+    surfaceContainer = Color(0xFF262930),
+    surfaceContainerHigh = Color(0xFF262930),
+    surfaceContainerHighest = Color(0xFF262930)
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -43,7 +51,14 @@ private val LightColorScheme = lightColorScheme(
     surfaceVariant = Color(0xFFF0F2F5),
     onSurfaceVariant = Color(0xFF4A4E57),
     background = NeutralBackgroundLight,
-    onBackground = Color(0xFF1A1C20)
+    onBackground = Color(0xFF1A1C20),
+    surfaceBright = NeutralSurfaceLight,
+    surfaceDim = Color(0xFFF0F2F5),
+    surfaceContainerLowest = NeutralSurfaceLight,
+    surfaceContainerLow = NeutralSurfaceLight,
+    surfaceContainer = Color(0xFFF0F2F5),
+    surfaceContainerHigh = Color(0xFFF0F2F5),
+    surfaceContainerHighest = Color(0xFFF0F2F5)
 )
 
 /**
@@ -84,7 +99,26 @@ fun animateColorScheme(
         onErrorContainer = animateColorAsState(target.onErrorContainer, animationSpec, label = "theme_onErrorContainer").value,
         outline = animateColorAsState(target.outline, animationSpec, label = "theme_outline").value,
         outlineVariant = animateColorAsState(target.outlineVariant, animationSpec, label = "theme_outlineVariant").value,
-        scrim = animateColorAsState(target.scrim, animationSpec, label = "theme_scrim").value
+        scrim = animateColorAsState(target.scrim, animationSpec, label = "theme_scrim").value,
+        surfaceBright = animateColorAsState(target.surfaceBright, animationSpec, label = "theme_surfaceBright").value,
+        surfaceDim = animateColorAsState(target.surfaceDim, animationSpec, label = "theme_surfaceDim").value,
+        surfaceContainer = animateColorAsState(target.surfaceContainer, animationSpec, label = "theme_surfaceContainer").value,
+        surfaceContainerHigh = animateColorAsState(target.surfaceContainerHigh, animationSpec, label = "theme_surfaceContainerHigh").value,
+        surfaceContainerHighest = animateColorAsState(target.surfaceContainerHighest, animationSpec, label = "theme_surfaceContainerHighest").value,
+        surfaceContainerLow = animateColorAsState(target.surfaceContainerLow, animationSpec, label = "theme_surfaceContainerLow").value,
+        surfaceContainerLowest = animateColorAsState(target.surfaceContainerLowest, animationSpec, label = "theme_surfaceContainerLowest").value,
+        primaryFixed = animateColorAsState(target.primaryFixed, animationSpec, label = "theme_primaryFixed").value,
+        primaryFixedDim = animateColorAsState(target.primaryFixedDim, animationSpec, label = "theme_primaryFixedDim").value,
+        onPrimaryFixed = animateColorAsState(target.onPrimaryFixed, animationSpec, label = "theme_onPrimaryFixed").value,
+        onPrimaryFixedVariant = animateColorAsState(target.onPrimaryFixedVariant, animationSpec, label = "theme_onPrimaryFixedVariant").value,
+        secondaryFixed = animateColorAsState(target.secondaryFixed, animationSpec, label = "theme_secondaryFixed").value,
+        secondaryFixedDim = animateColorAsState(target.secondaryFixedDim, animationSpec, label = "theme_secondaryFixedDim").value,
+        onSecondaryFixed = animateColorAsState(target.onSecondaryFixed, animationSpec, label = "theme_onSecondaryFixed").value,
+        onSecondaryFixedVariant = animateColorAsState(target.onSecondaryFixedVariant, animationSpec, label = "theme_onSecondaryFixedVariant").value,
+        tertiaryFixed = animateColorAsState(target.tertiaryFixed, animationSpec, label = "theme_tertiaryFixed").value,
+        tertiaryFixedDim = animateColorAsState(target.tertiaryFixedDim, animationSpec, label = "theme_tertiaryFixedDim").value,
+        onTertiaryFixed = animateColorAsState(target.onTertiaryFixed, animationSpec, label = "theme_onTertiaryFixed").value,
+        onTertiaryFixedVariant = animateColorAsState(target.onTertiaryFixedVariant, animationSpec, label = "theme_onTertiaryFixedVariant").value
     )
 }
 
@@ -97,6 +131,54 @@ fun StickHubTheme(
     content: @Composable () -> Unit
 ) {
     val rawColorScheme = when (visualTheme) {
+        AppVisualTheme.AURORA -> {
+            if (darkTheme) AuroraDarkColorScheme else AuroraLightColorScheme
+        }
+        AppVisualTheme.SYNTHWAVE -> {
+            if (darkTheme) SynthwaveDarkColorScheme else SynthwaveLightColorScheme
+        }
+        AppVisualTheme.GATSBY -> {
+            if (darkTheme) GatsbyDarkColorScheme else GatsbyLightColorScheme
+        }
+        AppVisualTheme.UKIYO -> {
+            if (darkTheme) UkiyoDarkColorScheme else UkiyoLightColorScheme
+        }
+        AppVisualTheme.PIXEL -> {
+            if (darkTheme) PixelDarkColorScheme else PixelLightColorScheme
+        }
+        AppVisualTheme.KAWAII -> {
+            if (darkTheme) KawaiiDarkColorScheme else KawaiiLightColorScheme
+        }
+        AppVisualTheme.SOLARPUNK -> {
+            if (darkTheme) SolarpunkDarkColorScheme else SolarpunkLightColorScheme
+        }
+        AppVisualTheme.NOIR -> {
+            if (darkTheme) NoirDarkColorScheme else NoirLightColorScheme
+        }
+        AppVisualTheme.GLASS -> {
+            if (darkTheme) GlassDarkColorScheme else GlassLightColorScheme
+        }
+        AppVisualTheme.NOUVEAU -> {
+            if (darkTheme) NouveauDarkColorScheme else NouveauLightColorScheme
+        }
+        AppVisualTheme.COTTAGE -> {
+            if (darkTheme) CottageDarkColorScheme else CottageLightColorScheme
+        }
+        AppVisualTheme.STARBASE -> {
+            if (darkTheme) StarbaseDarkColorScheme else StarbaseLightColorScheme
+        }
+        AppVisualTheme.ATELIER -> {
+            if (darkTheme) AtelierDarkColorScheme else AtelierLightColorScheme
+        }
+        AppVisualTheme.PRESSROOM -> {
+            if (darkTheme) PressroomDarkColorScheme else PressroomLightColorScheme
+        }
+        AppVisualTheme.OLD_MONEY -> {
+            if (darkTheme) OldMoneyDarkColorScheme else OldMoneyLightColorScheme
+        }
+        AppVisualTheme.NEUBRUTALISM -> {
+            if (darkTheme) NeubrutalismDarkColorScheme else NeubrutalismLightColorScheme
+        }
         AppVisualTheme.SKETCHBOOK -> {
             if (darkTheme) SketchbookDarkColorScheme else SketchbookLightColorScheme
         }
@@ -118,6 +200,22 @@ fun StickHubTheme(
     val colorScheme = animateColorScheme(target = rawColorScheme)
 
     val typography = when (visualTheme) {
+        AppVisualTheme.AURORA -> AuroraTypography
+        AppVisualTheme.SYNTHWAVE -> SynthwaveTypography
+        AppVisualTheme.GATSBY -> GatsbyTypography
+        AppVisualTheme.UKIYO -> UkiyoTypography
+        AppVisualTheme.PIXEL -> PixelTypography
+        AppVisualTheme.KAWAII -> KawaiiTypography
+        AppVisualTheme.SOLARPUNK -> SolarpunkTypography
+        AppVisualTheme.NOIR -> NoirTypography
+        AppVisualTheme.GLASS -> GlassTypography
+        AppVisualTheme.NOUVEAU -> NouveauTypography
+        AppVisualTheme.COTTAGE -> CottageTypography
+        AppVisualTheme.STARBASE -> StarbaseTypography
+        AppVisualTheme.ATELIER -> AtelierTypography
+        AppVisualTheme.PRESSROOM -> PressroomTypography
+        AppVisualTheme.OLD_MONEY -> OldMoneyTypography
+        AppVisualTheme.NEUBRUTALISM -> NeubrutalismTypography
         AppVisualTheme.SKETCHBOOK -> SketchbookTypography
         AppVisualTheme.HERBARIUM -> HerbariumTypography
         AppVisualTheme.DEFAULT -> Typography
@@ -146,3 +244,34 @@ fun StickHubTheme(
         content = content
     )
 }
+
+/**
+ * Shared background decor switch used by both the library canvas and the
+ * settings specimen preview, so the two can never drift apart again.
+ */
+fun Modifier.specimenDecor(
+    visualTheme: AppVisualTheme,
+    isDark: Boolean
+): Modifier = this.then(
+    when (visualTheme) {
+        AppVisualTheme.HERBARIUM -> Modifier.parchmentWash(enabled = true, isDark = isDark)
+        AppVisualTheme.SKETCHBOOK -> Modifier.notebookPaperLines(enabled = true, isDark = isDark)
+        AppVisualTheme.NEUBRUTALISM -> Modifier.neubrutalistDots(enabled = true, isDark = isDark)
+        AppVisualTheme.OLD_MONEY -> Modifier.editorialPinstripes(enabled = true, isDark = isDark)
+        AppVisualTheme.PRESSROOM -> Modifier.pressroomColumns(enabled = true, isDark = isDark)
+        AppVisualTheme.ATELIER -> Modifier.galleryHairlines(enabled = true, isDark = isDark)
+        AppVisualTheme.STARBASE -> Modifier.missionReticle(enabled = true, isDark = isDark)
+        AppVisualTheme.COTTAGE -> Modifier.cottageBlossoms(enabled = true, isDark = isDark)
+        AppVisualTheme.AURORA -> Modifier.auroraMesh(enabled = true, isDark = isDark)
+        AppVisualTheme.SYNTHWAVE -> Modifier.synthGrid(enabled = true, isDark = isDark)
+        AppVisualTheme.GATSBY -> Modifier.decoFrame(enabled = true, isDark = isDark)
+        AppVisualTheme.UKIYO -> Modifier.seigaihaWaves(enabled = true, isDark = isDark)
+        AppVisualTheme.PIXEL -> Modifier.crtScanlines(enabled = true, isDark = isDark)
+        AppVisualTheme.KAWAII -> Modifier.sparkleDust(enabled = true, isDark = isDark)
+        AppVisualTheme.SOLARPUNK -> Modifier.solarGlow(enabled = true, isDark = isDark)
+        AppVisualTheme.NOIR -> Modifier.venetianSlats(enabled = true, isDark = isDark)
+        AppVisualTheme.GLASS -> Modifier.glassBlobs(enabled = true, isDark = isDark)
+        AppVisualTheme.NOUVEAU -> Modifier.whiplashVines(enabled = true, isDark = isDark)
+        AppVisualTheme.DEFAULT -> Modifier
+    }
+)

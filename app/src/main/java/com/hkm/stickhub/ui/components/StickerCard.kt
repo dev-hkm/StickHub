@@ -166,7 +166,7 @@ fun StickerCard(
                 Icon(
                     painter = painterResource(LucideR.drawable.lucide_ic_heart),
                     contentDescription = "Favorite",
-                    tint = Color(0xFFFF5252),
+                    tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(12.dp)
                 )
             }

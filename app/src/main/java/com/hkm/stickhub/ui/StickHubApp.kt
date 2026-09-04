@@ -1,6 +1,8 @@
 package com.hkm.stickhub.ui
 
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import android.os.SystemClock
 import androidx.compose.material3.ButtonDefaults
 import com.hkm.stickhub.service.OverlayStartFilterMode
 import com.hkm.stickhub.service.OverlayAfterCopyAction
@@ -132,10 +134,25 @@ import com.hkm.stickhub.ui.library.LibraryStartupRefreshPolicy
 import com.hkm.stickhub.ui.library.StickerLibraryViewMode
 import com.hkm.stickhub.ui.theme.AppThemeMode
 import com.hkm.stickhub.ui.theme.AppVisualTheme
+import com.hkm.stickhub.ui.theme.specimenDecor
 import com.hkm.stickhub.ui.theme.BotanicalLeafMotif
 import com.hkm.stickhub.ui.theme.ThemePreferences
-import com.hkm.stickhub.ui.theme.parchmentWash
-import com.hkm.stickhub.ui.theme.notebookPaperLines
+import com.hkm.stickhub.ui.theme.AuroraRibbonMotif
+import com.hkm.stickhub.ui.theme.SynthSunMotif
+import com.hkm.stickhub.ui.theme.DecoSunMotif
+import com.hkm.stickhub.ui.theme.WaveMotif
+import com.hkm.stickhub.ui.theme.PixelInvaderMotif
+import com.hkm.stickhub.ui.theme.KawaiiCloudMotif
+import com.hkm.stickhub.ui.theme.SolarLeafMotif
+import com.hkm.stickhub.ui.theme.NoirLampMotif
+import com.hkm.stickhub.ui.theme.GlassDropletMotif
+import com.hkm.stickhub.ui.theme.NouveauBloomMotif
+import com.hkm.stickhub.ui.theme.CottageRoseMotif
+import com.hkm.stickhub.ui.theme.StarbasePlanetMotif
+import com.hkm.stickhub.ui.theme.AtelierFrameMotif
+import com.hkm.stickhub.ui.theme.PressFrontPageMotif
+import com.hkm.stickhub.ui.theme.OldMoneySealMotif
+import com.hkm.stickhub.ui.theme.NeoStickerMotif
 import com.hkm.stickhub.ui.theme.SketchDoodleMotif
 import com.hkm.stickhub.ui.theme.StickHubMotion
 import com.hkm.stickhub.util.BackupHelper
@@ -195,12 +212,17 @@ fun StickHubApp(
         }
     }
 
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf("All") }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var selectedCategory by rememberSaveable { mutableStateOf("All") }
 
     // Navigation Controller and Route
     val navigator = remember { AppNavigator(initialRoute = AppRoute.LIBRARY) }
     var currentRoute by rememberSaveable { mutableStateOf(AppRoute.LIBRARY) }
+
+    // Re-sync the controller with the restored route after process death.
+    LaunchedEffect(Unit) {
+        navigator.restoreTo(currentRoute)
+    }
 
     LaunchedEffect(currentRoute) {
         delay(320)
@@ -356,6 +378,36 @@ fun StickHubApp(
         }
     }
 
+    // Throttled variant for slider drag ticks: the service path is now cheap
+    // (alpha-only, no grid rebuild), but binder + prefs writes every frame
+    // still jank. Live ticks update at most every 120ms; release always forces.
+    var lastOverlayUpdateMs by remember { mutableLongStateOf(0L) }
+    fun sendThrottledOverlayUpdate(force: Boolean = false) {
+        val now = SystemClock.elapsedRealtime()
+        if (force || now - lastOverlayUpdateMs >= 120L) {
+            lastOverlayUpdateMs = now
+            sendLightweightOverlayUpdate()
+        }
+    }
+
+    fun sendShadowOverlayUpdate() {
+        if (OverlayService.isRunning) {
+            context.startService(
+                Intent(context, OverlayService::class.java).setAction(OverlayService.ACTION_UPDATE_SHADOW)
+            )
+        }
+    }
+
+    /** Shows a snackbar, dismissing any currently-visible one first so rapid
+     * actions never pile up a queue. */
+    suspend fun flashSnackbar(
+        message: String,
+        duration: SnackbarDuration = SnackbarDuration.Short
+    ) {
+        snackbarHostState.currentSnackbarData?.dismiss()
+        snackbarHostState.showSnackbar(message = message, duration = duration)
+    }
+
     fun revealOverlayControls() {
         if (OverlayService.isRunning) {
             context.startService(
@@ -403,19 +455,19 @@ fun StickHubApp(
             when (importResult) {
                 is ClipboardImportResult.Saved -> {
                     haptics.performConfirm()
-                    snackbarHostState.showSnackbar("Sticker saved to library!")
+                    flashSnackbar("Sticker saved to library!")
                 }
                 is ClipboardImportResult.Duplicate -> {
                     haptics.performTap()
-                    snackbarHostState.showSnackbar("This sticker is already in your library.")
+                    flashSnackbar("This sticker is already in your library.")
                 }
                 is ClipboardImportResult.InvalidSource -> {
                     haptics.performReject()
-                    snackbarHostState.showSnackbar(importResult.reason)
+                    flashSnackbar(importResult.reason)
                 }
                 is ClipboardImportResult.Failed -> {
                     haptics.performReject()
-                    snackbarHostState.showSnackbar(importResult.reason)
+                    flashSnackbar(importResult.reason)
                 }
                 is ClipboardImportResult.OwnSource -> {
                     // Ignore own source
@@ -433,10 +485,10 @@ fun StickHubApp(
                 val success = BackupHelper.exportBackup(context, uri, allStickers, categories)
                 if (success) {
                     haptics.performConfirm()
-                    snackbarHostState.showSnackbar("Backup exported successfully!")
+                    flashSnackbar("Backup exported successfully!")
                 } else {
                     haptics.performReject()
-                    snackbarHostState.showSnackbar("Failed to export backup!")
+                    flashSnackbar("Failed to export backup!")
                 }
             }
         }
@@ -451,10 +503,10 @@ fun StickHubApp(
                 val count = BackupHelper.importBackup(context, uri, repository)
                 if (count > 0) {
                     haptics.performConfirm()
-                    snackbarHostState.showSnackbar("Merged $count stickers from backup!")
+                    flashSnackbar("Merged $count stickers from backup!")
                 } else {
                     haptics.performReject()
-                    snackbarHostState.showSnackbar("No valid stickers found in backup!")
+                    flashSnackbar("No valid stickers found in backup!")
                 }
             }
         }
@@ -502,7 +554,7 @@ fun StickHubApp(
             reorderPreview = null
         }
     }
-    LaunchedEffect(selectedCategory) {
+    LaunchedEffect(selectedCategory, searchQuery) {
         gridFilterAlpha.snapTo(0.90f)
         gridFilterAlpha.animateTo(
             targetValue = 1f,
@@ -520,7 +572,7 @@ fun StickHubApp(
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
             scope.launch {
-                snackbarHostState.showSnackbar("Please grant 'Display over other apps' permission")
+                flashSnackbar("Please grant 'Display over other apps' permission")
             }
         } else {
             val serviceIntent = Intent(context, OverlayService::class.java)
@@ -528,7 +580,7 @@ fun StickHubApp(
                 context.stopService(serviceIntent)
                 isOverlayRunning = false
                 haptics.performCopyAck()
-                scope.launch { snackbarHostState.showSnackbar("Floating overlay disabled") }
+                scope.launch { flashSnackbar("Floating overlay disabled") }
             } else {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     context.startForegroundService(serviceIntent)
@@ -537,7 +589,7 @@ fun StickHubApp(
                 }
                 isOverlayRunning = true
                 haptics.performCopyAck()
-                scope.launch { snackbarHostState.showSnackbar("Floating overlay active") }
+                scope.launch { flashSnackbar("Floating overlay active") }
             }
         }
     }
@@ -558,8 +610,7 @@ fun StickHubApp(
                 scope.launch {
                     repository.recordUsage(item.id)
                     if (ClipboardHelper.shouldShowCopiedConfirmation()) {
-                        snackbarHostState.currentSnackbarData?.dismiss()
-                        snackbarHostState.showSnackbar(
+                        flashSnackbar(
                             message = "Copied to clipboard!",
                             duration = SnackbarDuration.Short
                         )
@@ -579,7 +630,7 @@ fun StickHubApp(
         if (isSelectionMode) {
             selectedStickerForDetail = item
         } else {
-            haptics.performSelection()
+            haptics.performLongPress()
             isSelectionMode = true
             selectedStickerIds = setOf(item.id)
         }
@@ -593,18 +644,9 @@ fun StickHubApp(
             modifier = Modifier
                 .fillMaxSize()
                 .zIndex(0f)
-                .then(
-                    when (visualTheme) {
-                        AppVisualTheme.HERBARIUM -> Modifier.parchmentWash(
-                            enabled = true,
-                            isDark = ThemePreferences.resolveIsDark(context, themeMode)
-                        )
-                        AppVisualTheme.SKETCHBOOK -> Modifier.notebookPaperLines(
-                            enabled = true,
-                            isDark = ThemePreferences.resolveIsDark(context, themeMode)
-                        )
-                        AppVisualTheme.DEFAULT -> Modifier
-                    }
+                .specimenDecor(
+                    visualTheme = visualTheme,
+                    isDark = ThemePreferences.resolveIsDark(context, themeMode)
                 ),
             color = MaterialTheme.colorScheme.background
         ) {
@@ -697,7 +739,7 @@ fun StickHubApp(
                                                     scope.launch {
                                                         repository.batchToggleFavorite(selectedStickerIds.toList(), true)
                                                         haptics.performConfirm()
-                                                        snackbarHostState.showSnackbar("Added to favorites")
+                                                        flashSnackbar("Added to favorites")
                                                         isSelectionMode = false
                                                         selectedStickerIds = emptySet()
                                                     }
@@ -709,7 +751,7 @@ fun StickHubApp(
                                                     scope.launch {
                                                         repository.batchSetCategory(selectedStickerIds.toList(), catName)
                                                         haptics.performConfirm()
-                                                        snackbarHostState.showSnackbar("Moved to $catName")
+                                                        flashSnackbar("Moved to $catName")
                                                         isSelectionMode = false
                                                         selectedStickerIds = emptySet()
                                                     }
@@ -748,7 +790,7 @@ fun StickHubApp(
                                                         ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
                                                         context.startActivity(intent)
                                                         scope.launch {
-                                                            snackbarHostState.showSnackbar("Please grant 'Display over other apps' to activate Quick Stickers")
+                                                            flashSnackbar("Please grant 'Display over other apps' to activate Quick Stickers")
                                                         }
                                                     } else {
                                                         val serviceIntent = Intent(context, OverlayService::class.java)
@@ -760,7 +802,7 @@ fun StickHubApp(
                                                         isOverlayRunning = true
                                                         haptics.performConfirm()
                                                         scope.launch {
-                                                            snackbarHostState.showSnackbar("Quick Stickers activated!")
+                                                            flashSnackbar("Quick Stickers activated!")
                                                         }
                                                     }
                                                 },
@@ -832,7 +874,7 @@ fun StickHubApp(
                                                     scope.launch {
                                                         repository.batchToggleFavorite(selectedStickerIds.toList(), true)
                                                         haptics.performConfirm()
-                                                        snackbarHostState.showSnackbar("Added to favorites")
+                                                        flashSnackbar("Added to favorites")
                                                         isSelectionMode = false
                                                         selectedStickerIds = emptySet()
                                                     }
@@ -844,7 +886,7 @@ fun StickHubApp(
                                                     scope.launch {
                                                         repository.batchSetCategory(selectedStickerIds.toList(), catName)
                                                         haptics.performConfirm()
-                                                        snackbarHostState.showSnackbar("Moved to $catName")
+                                                        flashSnackbar("Moved to $catName")
                                                         isSelectionMode = false
                                                         selectedStickerIds = emptySet()
                                                     }
@@ -883,7 +925,7 @@ fun StickHubApp(
                                                         ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
                                                         context.startActivity(intent)
                                                         scope.launch {
-                                                            snackbarHostState.showSnackbar("Please grant 'Display over other apps' to activate Quick Stickers")
+                                                            flashSnackbar("Please grant 'Display over other apps' to activate Quick Stickers")
                                                         }
                                                     } else {
                                                         val serviceIntent = Intent(context, OverlayService::class.java)
@@ -895,7 +937,7 @@ fun StickHubApp(
                                                         isOverlayRunning = true
                                                         haptics.performConfirm()
                                                         scope.launch {
-                                                            snackbarHostState.showSnackbar("Quick Stickers activated!")
+                                                            flashSnackbar("Quick Stickers activated!")
                                                         }
                                                     }
                                                 },
@@ -1000,7 +1042,7 @@ fun StickHubApp(
                                                             scope.launch {
                                                                 if (!repository.persistStickerOrder(finalOrder.map { it.id })) {
                                                                     reorderPreview = null
-                                                                    snackbarHostState.showSnackbar("Couldn’t save sticker order")
+                                                                    flashSnackbar("Couldn’t save sticker order")
                                                                 }
                                                             }
                                                         } else {
@@ -1046,7 +1088,7 @@ fun StickHubApp(
                                                     scope.launch {
                                                         repository.batchToggleFavorite(selectedStickerIds.toList(), true)
                                                         haptics.performConfirm()
-                                                        snackbarHostState.showSnackbar("Added to favorites")
+                                                        flashSnackbar("Added to favorites")
                                                         isSelectionMode = false
                                                         selectedStickerIds = emptySet()
                                                     }
@@ -1058,7 +1100,7 @@ fun StickHubApp(
                                                     scope.launch {
                                                         repository.batchSetCategory(selectedStickerIds.toList(), catName)
                                                         haptics.performConfirm()
-                                                        snackbarHostState.showSnackbar("Moved to $catName")
+                                                        flashSnackbar("Moved to $catName")
                                                         isSelectionMode = false
                                                         selectedStickerIds = emptySet()
                                                     }
@@ -1097,7 +1139,7 @@ fun StickHubApp(
                                                         ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
                                                         context.startActivity(intent)
                                                         scope.launch {
-                                                            snackbarHostState.showSnackbar("Please grant 'Display over other apps' to activate Quick Stickers")
+                                                            flashSnackbar("Please grant 'Display over other apps' to activate Quick Stickers")
                                                         }
                                                     } else {
                                                         val serviceIntent = Intent(context, OverlayService::class.java)
@@ -1109,7 +1151,7 @@ fun StickHubApp(
                                                         isOverlayRunning = true
                                                         haptics.performConfirm()
                                                         scope.launch {
-                                                            snackbarHostState.showSnackbar("Quick Stickers activated!")
+                                                            flashSnackbar("Quick Stickers activated!")
                                                         }
                                                     }
                                                 },
@@ -1178,7 +1220,7 @@ fun StickHubApp(
                                                     scope.launch {
                                                         repository.batchToggleFavorite(selectedStickerIds.toList(), true)
                                                         haptics.performConfirm()
-                                                        snackbarHostState.showSnackbar("Added to favorites")
+                                                        flashSnackbar("Added to favorites")
                                                         isSelectionMode = false
                                                         selectedStickerIds = emptySet()
                                                     }
@@ -1190,7 +1232,7 @@ fun StickHubApp(
                                                     scope.launch {
                                                         repository.batchSetCategory(selectedStickerIds.toList(), catName)
                                                         haptics.performConfirm()
-                                                        snackbarHostState.showSnackbar("Moved to $catName")
+                                                        flashSnackbar("Moved to $catName")
                                                         isSelectionMode = false
                                                         selectedStickerIds = emptySet()
                                                     }
@@ -1229,7 +1271,7 @@ fun StickHubApp(
                                                         ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
                                                         context.startActivity(intent)
                                                         scope.launch {
-                                                            snackbarHostState.showSnackbar("Please grant 'Display over other apps' to activate Quick Stickers")
+                                                            flashSnackbar("Please grant 'Display over other apps' to activate Quick Stickers")
                                                         }
                                                     } else {
                                                         val serviceIntent = Intent(context, OverlayService::class.java)
@@ -1241,7 +1283,7 @@ fun StickHubApp(
                                                         isOverlayRunning = true
                                                         haptics.performConfirm()
                                                         scope.launch {
-                                                            snackbarHostState.showSnackbar("Quick Stickers activated!")
+                                                            flashSnackbar("Quick Stickers activated!")
                                                         }
                                                     }
                                                 },
@@ -1343,90 +1385,59 @@ fun StickHubApp(
                 onOverlayBubbleOpacityChange = { opacity ->
                     overlayBubbleOpacity = opacity
                     OverlayPreferences.setBubbleOpacity(context, opacity)
-                    sendLightweightOverlayUpdate()
+                    sendThrottledOverlayUpdate(force = true)
                 },
-                onLivePreviewBubbleOpacity = { opacity ->
-                    overlayBubbleOpacity = opacity
-                    OverlayPreferences.setBubbleOpacity(context, opacity)
-                    sendLightweightOverlayUpdate()
-                },
+                onLivePreviewBubbleOpacity = { },
                 popupMasterOpacity = popupMasterOpacity,
                 onPopupMasterOpacityChange = { opacity ->
                     popupMasterOpacity = opacity
                     OverlayPreferences.setPopupMasterOpacity(context, opacity)
-                    sendLightweightOverlayUpdate()
+                    sendThrottledOverlayUpdate(force = true)
                 },
-                onLivePreviewMasterOpacity = { opacity ->
-                    popupMasterOpacity = opacity
-                    OverlayPreferences.setPopupMasterOpacity(context, opacity)
-                    sendLightweightOverlayUpdate()
-                },
+                onLivePreviewMasterOpacity = { },
                 popupSurfaceOpacity = popupSurfaceOpacity,
                 onPopupSurfaceOpacityChange = { opacity ->
                     popupSurfaceOpacity = opacity
                     OverlayPreferences.setPopupSurfaceOpacity(context, opacity)
-                    sendLightweightOverlayUpdate()
+                    sendThrottledOverlayUpdate(force = true)
                 },
-                onLivePreviewSurfaceOpacity = { opacity ->
-                    popupSurfaceOpacity = opacity
-                    OverlayPreferences.setPopupSurfaceOpacity(context, opacity)
-                    sendLightweightOverlayUpdate()
-                },
+                onLivePreviewSurfaceOpacity = { },
                 popupStickersOpacity = popupStickersOpacity,
                 onPopupStickersOpacityChange = { opacity ->
                     popupStickersOpacity = opacity
                     OverlayPreferences.setPopupStickersOpacity(context, opacity)
-                    sendLightweightOverlayUpdate()
+                    sendThrottledOverlayUpdate(force = true)
                 },
-                onLivePreviewStickersOpacity = { opacity ->
-                    popupStickersOpacity = opacity
-                    OverlayPreferences.setPopupStickersOpacity(context, opacity)
-                    sendLightweightOverlayUpdate()
-                },
+                onLivePreviewStickersOpacity = { },
                 popupChromeOpacity = popupChromeOpacity,
                 onPopupChromeOpacityChange = { opacity ->
                     popupChromeOpacity = opacity
                     OverlayPreferences.setPopupChromeOpacity(context, opacity)
-                    sendLightweightOverlayUpdate()
+                    sendThrottledOverlayUpdate(force = true)
                 },
-                onLivePreviewChromeOpacity = { opacity ->
-                    popupChromeOpacity = opacity
-                    OverlayPreferences.setPopupChromeOpacity(context, opacity)
-                    sendLightweightOverlayUpdate()
-                },
+                onLivePreviewChromeOpacity = { },
                 popupCloseOpacity = popupCloseOpacity,
                 onPopupCloseOpacityChange = { opacity ->
                     popupCloseOpacity = opacity
                     OverlayPreferences.setPopupCloseOpacity(context, opacity)
-                    sendLightweightOverlayUpdate()
+                    sendThrottledOverlayUpdate(force = true)
                 },
-                onLivePreviewCloseOpacity = { opacity ->
-                    popupCloseOpacity = opacity
-                    OverlayPreferences.setPopupCloseOpacity(context, opacity)
-                    sendLightweightOverlayUpdate()
-                },
+                onLivePreviewCloseOpacity = { },
                 popupResizeOpacity = popupResizeOpacity,
                 onPopupResizeOpacityChange = { opacity ->
                     popupResizeOpacity = opacity
                     OverlayPreferences.setPopupResizeOpacity(context, opacity)
-                    sendLightweightOverlayUpdate()
+                    sendThrottledOverlayUpdate(force = true)
                 },
-                onLivePreviewResizeOpacity = { opacity ->
-                    popupResizeOpacity = opacity
-                    OverlayPreferences.setPopupResizeOpacity(context, opacity)
-                    sendLightweightOverlayUpdate()
-                },
+                onLivePreviewResizeOpacity = { },
                 stickerShadowStrength = stickerShadowStrength,
                 onStickerShadowStrengthChange = { strength ->
+                    // Heavy op: re-renders every cached thumbnail. Only on release.
                     stickerShadowStrength = strength
                     OverlayPreferences.setStickerShadowStrength(context, strength)
-                    sendLightweightOverlayUpdate()
+                    sendShadowOverlayUpdate()
                 },
-                onLivePreviewShadowStrength = { strength ->
-                    stickerShadowStrength = strength
-                    OverlayPreferences.setStickerShadowStrength(context, strength)
-                    sendLightweightOverlayUpdate()
-                },
+                onLivePreviewShadowStrength = { },
                 onRevealOverlayControls = { revealOverlayControls() },
                 onResetOverlayAppearance = {
                     OverlayPreferences.resetAppearance(context)
@@ -1539,10 +1550,10 @@ fun StickHubApp(
                     scope.launch {
                         if (repository.addCategory(name)) {
                             haptics.performConfirm()
-                            snackbarHostState.showSnackbar("Category '' created")
+                            flashSnackbar("Category '' created")
                         } else {
                             haptics.performReject()
-                            snackbarHostState.showSnackbar("Failed to create category")
+                            flashSnackbar("Failed to create category")
                         }
                     }
                 },
@@ -1553,10 +1564,10 @@ fun StickHubApp(
                             if (selectedCategory.equals(oldName, ignoreCase = true)) {
                                 selectedCategory = newName
                             }
-                            snackbarHostState.showSnackbar("Renamed to ''")
+                            flashSnackbar("Renamed to ''")
                         } else {
                             haptics.performReject()
-                            snackbarHostState.showSnackbar("Failed to rename category")
+                            flashSnackbar("Failed to rename category")
                         }
                     }
                 },
@@ -1567,10 +1578,10 @@ fun StickHubApp(
                             if (selectedCategory.equals(name, ignoreCase = true)) {
                                 selectedCategory = "All"
                             }
-                            snackbarHostState.showSnackbar("Category '' deleted")
+                            flashSnackbar("Category '' deleted")
                         } else {
                             haptics.performReject()
-                            snackbarHostState.showSnackbar("Failed to delete category")
+                            flashSnackbar("Failed to delete category")
                         }
                     }
                 },
@@ -1683,10 +1694,10 @@ fun StickHubApp(
                     activeCutoutUri = null
                     if (saved != null) {
                         haptics.performConfirm()
-                        snackbarHostState.showSnackbar("Sticker created successfully!")
+                        flashSnackbar("Sticker created successfully!")
                     } else {
                         haptics.performReject()
-                        snackbarHostState.showSnackbar("Failed to create sticker")
+                        flashSnackbar("Failed to create sticker")
                     }
                 }
             },
@@ -1713,7 +1724,7 @@ fun StickHubApp(
                 haptics.performConfirm()
                 scope.launch {
                     repository.recordUsage(it.id)
-                    snackbarHostState.showSnackbar("Copied to clipboard!")
+                    flashSnackbar("Copied to clipboard!")
                 }
             },
             onToggleFavorite = { id ->
@@ -1727,14 +1738,14 @@ fun StickHubApp(
                     repository.deleteSticker(id)
                     selectedStickerForDetail = null
                     haptics.performConfirm()
-                    snackbarHostState.showSnackbar("Sticker deleted")
+                    flashSnackbar("Sticker deleted")
                 }
             },
             onUpdateDetails = { id, title, category, tags ->
                 scope.launch {
                     repository.updateSticker(id, title, category, tags)
                     haptics.performConfirm()
-                    snackbarHostState.showSnackbar("Updated successfully")
+                    flashSnackbar("Updated successfully")
                 }
             },
             onOpenStudio = {
@@ -1761,7 +1772,7 @@ fun StickHubApp(
                     )
                     selectedStickerForStudio = null
                     if (saved != null) {
-                        snackbarHostState.showSnackbar("Sticker saved to studio copy!")
+                        flashSnackbar("Sticker saved to studio copy!")
                     }
                 }
             },
@@ -1770,7 +1781,7 @@ fun StickHubApp(
                     val ok = repository.overwriteStickerBitmap(sticker.id, editedBitmap)
                     selectedStickerForStudio = null
                     if (ok) {
-                        snackbarHostState.showSnackbar("Sticker updated successfully!")
+                        flashSnackbar("Sticker updated successfully!")
                     }
                 }
             }
@@ -1789,10 +1800,10 @@ fun StickHubApp(
                     if (repository.addCategory(catName)) {
                         selectedCategory = catName
                         haptics.performConfirm()
-                        snackbarHostState.showSnackbar("Category '$catName' created")
+                        flashSnackbar("Category '$catName' created")
                     } else {
                         haptics.performReject()
-                        snackbarHostState.showSnackbar("Failed to create category")
+                        flashSnackbar("Failed to create category")
                     }
                 }
             }
@@ -1815,7 +1826,7 @@ fun StickHubApp(
                             }
                             categoryToDelete = null
                             haptics.performConfirm()
-                            snackbarHostState.showSnackbar("Category deleted, stickers moved to General")
+                            flashSnackbar("Category deleted, stickers moved to General")
                         }
                     }
                 ) {
@@ -1845,7 +1856,7 @@ fun StickHubApp(
                             selectedStickerIds = emptySet()
                             showBatchDeleteConfirm = false
                             haptics.performConfirm()
-                            snackbarHostState.showSnackbar("Deleted $count stickers")
+                            flashSnackbar("Deleted $count stickers")
                         }
                     }
                 ) {
@@ -2275,7 +2286,7 @@ private fun LibraryLoadFailureView(onRetry: () -> Unit) {
         ) {
             Icon(
                 painter = painterResource(LucideR.drawable.lucide_ic_database_zap),
-                contentDescription = null,
+                contentDescription = "Library load failed",
                 modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.error
             )
@@ -2322,6 +2333,162 @@ private fun EmptyLibraryView(
         ) {
             if (searchQuery.isEmpty()) {
                 when (visualTheme) {
+                    AppVisualTheme.AURORA -> {
+                        AuroraRibbonMotif(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .padding(bottom = 12.dp),
+                            bandA = MaterialTheme.colorScheme.primary,
+                            bandB = MaterialTheme.colorScheme.secondary,
+                            bandC = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
+                    AppVisualTheme.SYNTHWAVE -> {
+                        SynthSunMotif(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .padding(bottom = 12.dp),
+                            sun = MaterialTheme.colorScheme.secondary,
+                            sunLow = MaterialTheme.colorScheme.tertiary,
+                            grid = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    AppVisualTheme.GATSBY -> {
+                        DecoSunMotif(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .padding(bottom = 12.dp),
+                            gold = MaterialTheme.colorScheme.primary,
+                            ink = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                    AppVisualTheme.UKIYO -> {
+                        WaveMotif(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .padding(bottom = 12.dp),
+                            sun = MaterialTheme.colorScheme.secondary,
+                            wave = MaterialTheme.colorScheme.primary,
+                            foam = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                    AppVisualTheme.PIXEL -> {
+                        PixelInvaderMotif(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .padding(bottom = 12.dp),
+                            pixel = MaterialTheme.colorScheme.primary,
+                            accent = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                    AppVisualTheme.KAWAII -> {
+                        KawaiiCloudMotif(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .padding(bottom = 12.dp),
+                            cloud = MaterialTheme.colorScheme.surface,
+                            outline = MaterialTheme.colorScheme.primary,
+                            blush = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                    AppVisualTheme.SOLARPUNK -> {
+                        SolarLeafMotif(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .padding(bottom = 12.dp),
+                            sun = MaterialTheme.colorScheme.secondary,
+                            leaf = MaterialTheme.colorScheme.primary,
+                            stem = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
+                    AppVisualTheme.NOIR -> {
+                        NoirLampMotif(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .padding(bottom = 12.dp),
+                            lamp = MaterialTheme.colorScheme.secondary,
+                            ink = MaterialTheme.colorScheme.primary,
+                            rain = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    AppVisualTheme.GLASS -> {
+                        GlassDropletMotif(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .padding(bottom = 12.dp),
+                            glass = MaterialTheme.colorScheme.primary,
+                            shine = androidx.compose.ui.graphics.Color.White
+                        )
+                    }
+                    AppVisualTheme.NOUVEAU -> {
+                        NouveauBloomMotif(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .padding(bottom = 12.dp),
+                            gold = MaterialTheme.colorScheme.secondary,
+                            teal = MaterialTheme.colorScheme.primary,
+                            wine = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
+                    AppVisualTheme.COTTAGE -> {
+                        CottageRoseMotif(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .padding(bottom = 12.dp),
+                            bloom = MaterialTheme.colorScheme.primaryContainer,
+                            ink = MaterialTheme.colorScheme.primary,
+                            leaf = MaterialTheme.colorScheme.secondaryContainer
+                        )
+                    }
+                    AppVisualTheme.STARBASE -> {
+                        StarbasePlanetMotif(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .padding(bottom = 12.dp),
+                            planet = MaterialTheme.colorScheme.primaryContainer,
+                            ring = MaterialTheme.colorScheme.primary,
+                            signal = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
+                    AppVisualTheme.ATELIER -> {
+                        AtelierFrameMotif(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .padding(bottom = 12.dp),
+                            frame = MaterialTheme.colorScheme.primary,
+                            sun = MaterialTheme.colorScheme.primaryContainer,
+                            paper = MaterialTheme.colorScheme.surface
+                        )
+                    }
+                    AppVisualTheme.PRESSROOM -> {
+                        PressFrontPageMotif(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .padding(bottom = 12.dp),
+                            paper = MaterialTheme.colorScheme.surface,
+                            ink = MaterialTheme.colorScheme.primary,
+                            accent = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    }
+                    AppVisualTheme.OLD_MONEY -> {
+                        OldMoneySealMotif(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .padding(bottom = 12.dp),
+                            ring = MaterialTheme.colorScheme.outline,
+                            initial = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    AppVisualTheme.NEUBRUTALISM -> {
+                        NeoStickerMotif(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .padding(bottom = 12.dp),
+                            fill = MaterialTheme.colorScheme.primaryContainer,
+                            ink = MaterialTheme.colorScheme.outline,
+                            accent = MaterialTheme.colorScheme.secondary
+                        )
+                    }
                     AppVisualTheme.HERBARIUM -> {
                         BotanicalLeafMotif(
                             modifier = Modifier
