@@ -416,16 +416,9 @@ fun SettingsScreen(
                 }
 
                 // Remaining themes hide behind an expander so the section
-                // stays compact: 4 tiles + one toggle button. Auto-expands
-                // when the active theme lives outside the first four.
-                var themesExpanded by rememberSaveable {
-                    mutableStateOf(
-                        visualTheme != AppVisualTheme.DEFAULT &&
-                            visualTheme != AppVisualTheme.HERBARIUM &&
-                            visualTheme != AppVisualTheme.SKETCHBOOK &&
-                            visualTheme != AppVisualTheme.NEUBRUTALISM
-                    )
-                }
+                // stays compact: 4 tiles + one toggle button. Always starts
+                // collapsed; the user opens it deliberately.
+                var themesExpanded by rememberSaveable { mutableStateOf(false) }
                 androidx.compose.animation.AnimatedVisibility(visible = themesExpanded) {
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
@@ -846,7 +839,7 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = if (themesExpanded) "Show fewer themes"
-                        else "Show all ${AppVisualTheme.entries.size} themes",
+                        else "Show all ${AppVisualTheme.entries.size} themes • ${visualTheme.title}",
                         style = MaterialTheme.typography.labelLarge
                     )
                 }

@@ -568,8 +568,6 @@ fun StickHubApp(
     val canReorderStickers = !isSelectionMode && selectedCategory == "All" && searchQuery.isBlank()
     val libraryGridState = rememberLazyGridState()
     val autoScrollEdgePx = with(LocalDensity.current) { 64.dp.toPx() }
-    val gridFilterAlpha = remember { Animatable(1f) }
-    val gridFilterScale = remember { Animatable(1f) }
     var reorderPreview by remember { mutableStateOf<List<StickerItem>?>(null) }
     var draggedStickerId by remember { mutableStateOf<Long?>(null) }
     var draggedIndex by remember { mutableStateOf(-1) }
@@ -580,29 +578,6 @@ fun StickHubApp(
         if (!canReorderStickers || draggedStickerId == null) {
             reorderPreview = null
         }
-    }
-    LaunchedEffect(selectedCategory) {
-        // Visible filter transition: fade + settle (scale) + gentle rise.
-        gridFilterAlpha.snapTo(0f)
-        gridFilterScale.snapTo(0.96f)
-        launch {
-            gridFilterAlpha.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(StickHubMotion.DurationMedium, easing = StickHubMotion.EasingEmphasizedDecelerate)
-            )
-        }
-        gridFilterScale.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(StickHubMotion.DurationMedium, easing = StickHubMotion.EasingEmphasizedDecelerate)
-        )
-    }
-    LaunchedEffect(searchQuery) {
-        // Keystrokes get a whisper of the same motion — never a full flash.
-        gridFilterAlpha.snapTo(0.7f)
-        gridFilterAlpha.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(StickHubMotion.DurationMicro, easing = StickHubMotion.EasingEmphasizedDecelerate)
-        )
     }
     val displayedStickers = if (canReorderStickers) reorderPreview ?: filteredStickers else filteredStickers
 
@@ -762,13 +737,6 @@ fun StickHubApp(
                                         verticalArrangement = Arrangement.spacedBy(8.dp),
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .graphicsLayer {
-                                                alpha = gridFilterAlpha.value
-                                                val filterScale = gridFilterScale.value
-                                                scaleX = filterScale
-                                                scaleY = filterScale
-                                                translationY = (1f - gridFilterAlpha.value) * 28f
-                                            }
                                     ) {
                                         item(key = "library_headers", span = { GridItemSpan(maxLineSpan) }) {
                                             LibraryHeadersContent(
@@ -822,6 +790,18 @@ fun StickHubApp(
                                                 onSelectCategory = { selectedCategory = it },
                                                 onAddCategoryClick = { showAddCategoryDialog = true },
                                                 onCategoryLongClick = { cat -> categoryToDelete = cat },
+                                                onReorderCustomCategories = { customsInNewOrder ->
+                                                    scope.launch {
+                                                        val generalFirst = categories
+                                                            .filter { it.name.equals("General", ignoreCase = true) }
+                                                            .map { it.name }
+                                                        val rest = categories.map { it.name }.filter { name ->
+                                                            customsInNewOrder.none { it.equals(name, ignoreCase = true) } &&
+                                                                !name.equals("General", ignoreCase = true)
+                                                        }
+                                                        repository.reorderCategories(generalFirst + customsInNewOrder + rest)
+                                                    }
+                                                },
                                                 clipboardImageUris = clipboardImageUris,
                                                 onImportClipboard = { showClipboardPicker = true },
                                                 onDismissClipboard = { consumeClipboardOffer() },
@@ -877,14 +857,16 @@ fun StickHubApp(
                                             }
                                         } else {
                                             items(displayedStickers, key = { it.id }) { sticker ->
-                                                CompactStickerCard(
-                                                    sticker = sticker,
-                                                    isSelectionMode = isSelectionMode,
-                                                    isSelected = selectedStickerIds.contains(sticker.id),
-                                                    showCopiedBadge = recentlyCopiedId == sticker.id,
-                                                    onClick = onItemClick,
-                                                    onLongClick = onItemLongClick
-                                                )
+                                                Box(modifier = Modifier.animateItem()) {
+                                                    CompactStickerCard(
+                                                        sticker = sticker,
+                                                        isSelectionMode = isSelectionMode,
+                                                        isSelected = selectedStickerIds.contains(sticker.id),
+                                                        showCopiedBadge = recentlyCopiedId == sticker.id,
+                                                        onClick = onItemClick,
+                                                        onLongClick = onItemLongClick
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -899,13 +881,6 @@ fun StickHubApp(
                                         verticalArrangement = Arrangement.spacedBy(10.dp),
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .graphicsLayer {
-                                                alpha = gridFilterAlpha.value
-                                                val filterScale = gridFilterScale.value
-                                                scaleX = filterScale
-                                                scaleY = filterScale
-                                                translationY = (1f - gridFilterAlpha.value) * 28f
-                                            }
                                     ) {
                                         item(key = "library_headers", span = { GridItemSpan(maxLineSpan) }) {
                                             LibraryHeadersContent(
@@ -959,6 +934,18 @@ fun StickHubApp(
                                                 onSelectCategory = { selectedCategory = it },
                                                 onAddCategoryClick = { showAddCategoryDialog = true },
                                                 onCategoryLongClick = { cat -> categoryToDelete = cat },
+                                                onReorderCustomCategories = { customsInNewOrder ->
+                                                    scope.launch {
+                                                        val generalFirst = categories
+                                                            .filter { it.name.equals("General", ignoreCase = true) }
+                                                            .map { it.name }
+                                                        val rest = categories.map { it.name }.filter { name ->
+                                                            customsInNewOrder.none { it.equals(name, ignoreCase = true) } &&
+                                                                !name.equals("General", ignoreCase = true)
+                                                        }
+                                                        repository.reorderCategories(generalFirst + customsInNewOrder + rest)
+                                                    }
+                                                },
                                                 clipboardImageUris = clipboardImageUris,
                                                 onImportClipboard = { showClipboardPicker = true },
                                                 onDismissClipboard = { consumeClipboardOffer() },
@@ -1014,94 +1001,96 @@ fun StickHubApp(
                                             }
                                         } else {
                                             items(displayedStickers, key = { it.id }) { sticker ->
-                                                StickerCard(
-                                                    sticker = sticker,
-                                                    onClick = onItemClick,
-                                                    onLongClick = onItemLongClick,
-                                                    onReorderStart = if (canReorderStickers) {
-                                                        { heldSticker: StickerItem ->
-                                                            val activeStickers = reorderPreview ?: allStickers
-                                                            val sourceIndex = activeStickers.indexOfFirst { it.id == heldSticker.id }
-                                                            if (sourceIndex >= 0) {
-                                                                haptics.performLongPress()
-                                                                reorderPreview = activeStickers
-                                                                draggedStickerId = heldSticker.id
-                                                                draggedIndex = sourceIndex
-                                                                draggedOffset = Offset.Zero
-                                                                didReorderStickers = false
-                                                            }
-                                                        }
-                                                    } else null,
-                                                    onReorderDrag = if (canReorderStickers) {
-                                                        { dragAmount: Offset ->
-                                                            if (draggedStickerId == sticker.id && draggedIndex in displayedStickers.indices) {
-                                                                draggedOffset += dragAmount
+                                                Box(modifier = Modifier.animateItem()) {
+                                                    StickerCard(
+                                                        sticker = sticker,
+                                                        onClick = onItemClick,
+                                                        onLongClick = onItemLongClick,
+                                                        onReorderStart = if (canReorderStickers) {
+                                                            { heldSticker: StickerItem ->
                                                                 val activeStickers = reorderPreview ?: allStickers
-                                                                val currentInfo = libraryGridState.layoutInfo.visibleItemsInfo
-                                                                    .firstOrNull { it.index == draggedIndex + 1 }
+                                                                val sourceIndex = activeStickers.indexOfFirst { it.id == heldSticker.id }
+                                                                if (sourceIndex >= 0) {
+                                                                    haptics.performLongPress()
+                                                                    reorderPreview = activeStickers
+                                                                    draggedStickerId = heldSticker.id
+                                                                    draggedIndex = sourceIndex
+                                                                    draggedOffset = Offset.Zero
+                                                                    didReorderStickers = false
+                                                                }
+                                                            }
+                                                        } else null,
+                                                        onReorderDrag = if (canReorderStickers) {
+                                                            { dragAmount: Offset ->
+                                                                if (draggedStickerId == sticker.id && draggedIndex in displayedStickers.indices) {
+                                                                    draggedOffset += dragAmount
+                                                                    val activeStickers = reorderPreview ?: allStickers
+                                                                    val currentInfo = libraryGridState.layoutInfo.visibleItemsInfo
+                                                                        .firstOrNull { it.index == draggedIndex + 1 }
 
-                                                                if (currentInfo != null) {
-                                                                    val draggedCenterX = currentInfo.offset.x + (currentInfo.size.width / 2f) + draggedOffset.x
-                                                                    val draggedCenterY = currentInfo.offset.y + (currentInfo.size.height / 2f) + draggedOffset.y
-                                                                    val target = libraryGridState.layoutInfo.visibleItemsInfo.firstOrNull { itemInfo ->
-                                                                        itemInfo.index >= 1 &&
-                                                                            draggedCenterX >= itemInfo.offset.x &&
-                                                                            draggedCenterX <= itemInfo.offset.x + itemInfo.size.width &&
-                                                                            draggedCenterY >= itemInfo.offset.y &&
-                                                                            draggedCenterY <= itemInfo.offset.y + itemInfo.size.height
-                                                                    }
+                                                                    if (currentInfo != null) {
+                                                                        val draggedCenterX = currentInfo.offset.x + (currentInfo.size.width / 2f) + draggedOffset.x
+                                                                        val draggedCenterY = currentInfo.offset.y + (currentInfo.size.height / 2f) + draggedOffset.y
+                                                                        val target = libraryGridState.layoutInfo.visibleItemsInfo.firstOrNull { itemInfo ->
+                                                                            itemInfo.index >= 1 &&
+                                                                                draggedCenterX >= itemInfo.offset.x &&
+                                                                                draggedCenterX <= itemInfo.offset.x + itemInfo.size.width &&
+                                                                                draggedCenterY >= itemInfo.offset.y &&
+                                                                                draggedCenterY <= itemInfo.offset.y + itemInfo.size.height
+                                                                        }
 
-                                                                    if (target != null && target.index >= 1) {
-                                                                        val targetStickerIndex = target.index - 1
-                                                                        if (targetStickerIndex in activeStickers.indices && targetStickerIndex != draggedIndex) {
-                                                                            draggedOffset += Offset(
-                                                                                (currentInfo.offset.x - target.offset.x).toFloat(),
-                                                                                (currentInfo.offset.y - target.offset.y).toFloat()
-                                                                            )
-                                                                            reorderPreview = StickerOrderPolicy.move(activeStickers, draggedIndex, targetStickerIndex)
-                                                                            draggedIndex = targetStickerIndex
-                                                                            didReorderStickers = true
+                                                                        if (target != null && target.index >= 1) {
+                                                                            val targetStickerIndex = target.index - 1
+                                                                            if (targetStickerIndex in activeStickers.indices && targetStickerIndex != draggedIndex) {
+                                                                                draggedOffset += Offset(
+                                                                                    (currentInfo.offset.x - target.offset.x).toFloat(),
+                                                                                    (currentInfo.offset.y - target.offset.y).toFloat()
+                                                                                )
+                                                                                reorderPreview = StickerOrderPolicy.move(activeStickers, draggedIndex, targetStickerIndex)
+                                                                                draggedIndex = targetStickerIndex
+                                                                                didReorderStickers = true
+                                                                            }
+                                                                        }
+
+                                                                        val viewportEnd = libraryGridState.layoutInfo.viewportEndOffset.toFloat()
+                                                                        when {
+                                                                            draggedCenterY < autoScrollEdgePx -> libraryGridState.dispatchRawDelta(-14f)
+                                                                            draggedCenterY > viewportEnd - autoScrollEdgePx -> libraryGridState.dispatchRawDelta(14f)
                                                                         }
                                                                     }
-
-                                                                    val viewportEnd = libraryGridState.layoutInfo.viewportEndOffset.toFloat()
-                                                                    when {
-                                                                        draggedCenterY < autoScrollEdgePx -> libraryGridState.dispatchRawDelta(-14f)
-                                                                        draggedCenterY > viewportEnd - autoScrollEdgePx -> libraryGridState.dispatchRawDelta(14f)
+                                                                }
+                                                            }
+                                                        } else null,
+                                                        onReorderCancel = {
+                                                            reorderPreview = null
+                                                            draggedStickerId = null
+                                                            draggedIndex = -1
+                                                            draggedOffset = Offset.Zero
+                                                            didReorderStickers = false
+                                                        },
+                                                        onReorderEnd = {
+                                                            val finalOrder = reorderPreview
+                                                            val shouldPersist = didReorderStickers && finalOrder != null
+                                                            draggedStickerId = null
+                                                            draggedIndex = -1
+                                                            draggedOffset = Offset.Zero
+                                                            didReorderStickers = false
+                                                            if (shouldPersist) {
+                                                                scope.launch {
+                                                                    if (!repository.persistStickerOrder(finalOrder.map { it.id })) {
+                                                                        reorderPreview = null
+                                                                        flashSnackbar("Couldn’t save sticker order")
                                                                     }
                                                                 }
+                                                            } else {
+                                                                reorderPreview = null
                                                             }
-                                                        }
-                                                    } else null,
-                                                    onReorderCancel = {
-                                                        reorderPreview = null
-                                                        draggedStickerId = null
-                                                        draggedIndex = -1
-                                                        draggedOffset = Offset.Zero
-                                                        didReorderStickers = false
-                                                    },
-                                                    onReorderEnd = {
-                                                        val finalOrder = reorderPreview
-                                                        val shouldPersist = didReorderStickers && finalOrder != null
-                                                        draggedStickerId = null
-                                                        draggedIndex = -1
-                                                        draggedOffset = Offset.Zero
-                                                        didReorderStickers = false
-                                                        if (shouldPersist) {
-                                                            scope.launch {
-                                                                if (!repository.persistStickerOrder(finalOrder.map { it.id })) {
-                                                                    reorderPreview = null
-                                                                    flashSnackbar("Couldn’t save sticker order")
-                                                                }
-                                                            }
-                                                        } else {
-                                                            reorderPreview = null
-                                                        }
-                                                    },
-                                                    isSelectionMode = isSelectionMode,
-                                                    isSelected = selectedStickerIds.contains(sticker.id),
-                                                    showCopiedBadge = recentlyCopiedId == sticker.id
-                                                )
+                                                        },
+                                                        isSelectionMode = isSelectionMode,
+                                                        isSelected = selectedStickerIds.contains(sticker.id),
+                                                        showCopiedBadge = recentlyCopiedId == sticker.id
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -1115,13 +1104,6 @@ fun StickHubApp(
                                         verticalArrangement = Arrangement.spacedBy(12.dp),
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .graphicsLayer {
-                                                alpha = gridFilterAlpha.value
-                                                val filterScale = gridFilterScale.value
-                                                scaleX = filterScale
-                                                scaleY = filterScale
-                                                translationY = (1f - gridFilterAlpha.value) * 28f
-                                            }
                                     ) {
                                         item(key = "library_headers", span = { GridItemSpan(maxLineSpan) }) {
                                             LibraryHeadersContent(
@@ -1175,6 +1157,18 @@ fun StickHubApp(
                                                 onSelectCategory = { selectedCategory = it },
                                                 onAddCategoryClick = { showAddCategoryDialog = true },
                                                 onCategoryLongClick = { cat -> categoryToDelete = cat },
+                                                onReorderCustomCategories = { customsInNewOrder ->
+                                                    scope.launch {
+                                                        val generalFirst = categories
+                                                            .filter { it.name.equals("General", ignoreCase = true) }
+                                                            .map { it.name }
+                                                        val rest = categories.map { it.name }.filter { name ->
+                                                            customsInNewOrder.none { it.equals(name, ignoreCase = true) } &&
+                                                                !name.equals("General", ignoreCase = true)
+                                                        }
+                                                        repository.reorderCategories(generalFirst + customsInNewOrder + rest)
+                                                    }
+                                                },
                                                 clipboardImageUris = clipboardImageUris,
                                                 onImportClipboard = { showClipboardPicker = true },
                                                 onDismissClipboard = { consumeClipboardOffer() },
@@ -1230,14 +1224,16 @@ fun StickHubApp(
                                             }
                                         } else {
                                             items(displayedStickers, key = { it.id }) { sticker ->
-                                                LargeStickerCard(
-                                                    sticker = sticker,
-                                                    isSelectionMode = isSelectionMode,
-                                                    isSelected = selectedStickerIds.contains(sticker.id),
-                                                    showCopiedBadge = recentlyCopiedId == sticker.id,
-                                                    onClick = onItemClick,
-                                                    onLongClick = onItemLongClick
-                                                )
+                                                Box(modifier = Modifier.animateItem()) {
+                                                    LargeStickerCard(
+                                                        sticker = sticker,
+                                                        isSelectionMode = isSelectionMode,
+                                                        isSelected = selectedStickerIds.contains(sticker.id),
+                                                        showCopiedBadge = recentlyCopiedId == sticker.id,
+                                                        onClick = onItemClick,
+                                                        onLongClick = onItemLongClick
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -1249,13 +1245,6 @@ fun StickHubApp(
                                         verticalArrangement = Arrangement.spacedBy(8.dp),
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .graphicsLayer {
-                                                alpha = gridFilterAlpha.value
-                                                val filterScale = gridFilterScale.value
-                                                scaleX = filterScale
-                                                scaleY = filterScale
-                                                translationY = (1f - gridFilterAlpha.value) * 28f
-                                            }
                                     ) {
                                         item(key = "library_headers") {
                                             LibraryHeadersContent(
@@ -1309,6 +1298,18 @@ fun StickHubApp(
                                                 onSelectCategory = { selectedCategory = it },
                                                 onAddCategoryClick = { showAddCategoryDialog = true },
                                                 onCategoryLongClick = { cat -> categoryToDelete = cat },
+                                                onReorderCustomCategories = { customsInNewOrder ->
+                                                    scope.launch {
+                                                        val generalFirst = categories
+                                                            .filter { it.name.equals("General", ignoreCase = true) }
+                                                            .map { it.name }
+                                                        val rest = categories.map { it.name }.filter { name ->
+                                                            customsInNewOrder.none { it.equals(name, ignoreCase = true) } &&
+                                                                !name.equals("General", ignoreCase = true)
+                                                        }
+                                                        repository.reorderCategories(generalFirst + customsInNewOrder + rest)
+                                                    }
+                                                },
                                                 clipboardImageUris = clipboardImageUris,
                                                 onImportClipboard = { showClipboardPicker = true },
                                                 onDismissClipboard = { consumeClipboardOffer() },
@@ -1364,14 +1365,16 @@ fun StickHubApp(
                                             }
                                         } else {
                                             items(displayedStickers, key = { it.id }) { sticker ->
-                                                StickerListItem(
-                                                    sticker = sticker,
-                                                    isSelectionMode = isSelectionMode,
-                                                    isSelected = selectedStickerIds.contains(sticker.id),
-                                                    showCopiedBadge = recentlyCopiedId == sticker.id,
-                                                    onClick = onItemClick,
-                                                    onLongClick = onItemLongClick
-                                                )
+                                                Box(modifier = Modifier.animateItem()) {
+                                                    StickerListItem(
+                                                        sticker = sticker,
+                                                        isSelectionMode = isSelectionMode,
+                                                        isSelected = selectedStickerIds.contains(sticker.id),
+                                                        showCopiedBadge = recentlyCopiedId == sticker.id,
+                                                        onClick = onItemClick,
+                                                        onLongClick = onItemLongClick
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -1963,6 +1966,7 @@ private fun LibraryHeadersContent(
     onSelectCategory: (String) -> Unit,
     onAddCategoryClick: () -> Unit,
     onCategoryLongClick: (CategoryItem) -> Unit,
+    onReorderCustomCategories: (List<String>) -> Unit,
     clipboardImageUris: List<Uri>,
     onImportClipboard: () -> Unit,
     onDismissClipboard: () -> Unit,
@@ -2181,6 +2185,7 @@ private fun LibraryHeadersContent(
                 onSelectCategory = onSelectCategory,
                 onAddCategoryClick = onAddCategoryClick,
                 onCategoryLongClick = onCategoryLongClick,
+                onReorderCustomCategories = onReorderCustomCategories,
                 contentPadding = PaddingValues(horizontal = 0.dp, vertical = 6.dp)
             )
         }
