@@ -67,11 +67,14 @@ fun StickerCard(
     val isPressed by interactionSource.collectIsPressedAsState()
     var dragStarted by remember(sticker.id) { mutableStateOf(false) }
     var reorderDragDistance by remember(sticker.id) { mutableStateOf(0f) }
+    // Whether selection mode was already on when the finger landed. A stationary
+    // release opens details only in that case: from normal mode the select already
+    // fired at timeout, so releasing must not pop details right after selecting.
+    var holdStartedInSelection by remember(sticker.id) { mutableStateOf(false) }
 
-    // Reorder owns the long-press only while armed (standard grid, All tab, no
-    // search). A stationary hold still selects: it is reported on release once
-    // the gesture proves it never became a drag.
-    val reorderArmed = !isSelectionMode && onReorderStart != null && onReorderDrag != null
+    // Armed whenever the parent supplies reorder callbacks, in any mode. The
+    // detector therefore survives the select flip and a hold can still drag.
+    val reorderArmed = onReorderStart != null && onReorderDrag != null
     // Drag ownership lives on the exact sticker being held. Keeping this out of the
     // LazyVerticalGrid avoids a parent detector racing this card's tap-to-copy handler.
     val reorderGestureModifier = if (reorderArmed) {
@@ -80,6 +83,7 @@ fun StickerCard(
                 onDragStart = {
                     dragStarted = true
                     reorderDragDistance = 0f
+                    holdStartedInSelection = isSelectionMode
                     onReorderStart(sticker)
                 },
                 onDrag = { change, dragAmount ->
@@ -94,7 +98,7 @@ fun StickerCard(
                     if (dragStarted) onReorderEnd?.invoke()
                     dragStarted = false
                     reorderDragDistance = 0f
-                    if (stationary) onLongClick?.invoke(sticker)
+                    if (stationary && holdStartedInSelection) onLongClick?.invoke(sticker)
                 },
                 onDragCancel = {
                     if (dragStarted) onReorderCancel?.invoke()
@@ -132,13 +136,15 @@ fun StickerCard(
             )
             .then(reorderGestureModifier)
             .then(
-                // Armed cards report a stationary hold through the reorder detector
-                // (see above), so the click handler stays silent to avoid double-select.
+                // Select/detail fires at timeout everywhere except an armed card in
+                // selection mode, where a stationary hold reports on release so a
+                // reorder drag is never ambushed by the detail sheet.
                 Modifier.combinedClickable(
                     interactionSource = interactionSource,
                     indication = null,
                     onClick = { onClick(sticker) },
-                    onLongClick = if (reorderArmed) null else ({ onLongClick?.invoke(sticker) })
+                    onLongClick = if (reorderArmed && isSelectionMode) null
+                    else ({ onLongClick?.invoke(sticker) })
                 )
             )
             .padding(6.dp),

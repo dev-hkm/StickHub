@@ -686,7 +686,11 @@ fun StickHubApp(
         }
     }
 
-    val canReorderStickers = !isSelectionMode && selectedCategory == "All" && searchQuery.isBlank()
+    // Reorder is a layout capability (standard grid, All tab, no search), deliberately
+    // not tied to selection mode: the card detector must survive the normal-to-selection
+    // flip so one continuous hold can select at timeout and still become a reorder
+    // drag if the finger keeps moving.
+    val canReorderStickers = selectedCategory == "All" && searchQuery.isBlank()
     val libraryGridState = rememberLazyGridState()
     val autoScrollEdgePx = with(LocalDensity.current) { 64.dp.toPx() }
     var reorderPreview by remember { mutableStateOf<List<StickerItem>?>(null) }

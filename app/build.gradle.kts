@@ -45,9 +45,9 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version 5.0.1: long-press select on all cards, clipboard uri-list import.
-        versionCode = 46
-        versionName = "5.0.1"
+        // Version 5.0.2: select fires at long-press timeout, reorder survives select.
+        versionCode = 47
+        versionName = "5.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
