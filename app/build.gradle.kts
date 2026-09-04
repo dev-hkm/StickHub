@@ -45,9 +45,9 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version bump for full audit polish pass (DB/migration/nav/overlay/haptics/themes).
-        versionCode = 40
-        versionName = "3.0.2"
+        // Version bump for deletable categories, theme grid+expand, search defocus, clipboard multi-import.
+        versionCode = 41
+        versionName = "3.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -16,9 +16,12 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -35,8 +38,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,7 +65,9 @@ import com.hkm.stickhub.ui.theme.StickHubMotion
 import com.hkm.stickhub.ui.theme.UbuntuFontFamily
 import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
 import com.hkm.stickhub.ui.library.StickerLibraryViewMode
+import kotlinx.coroutines.delay
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TopSearchBar(
     query: String,
@@ -78,6 +86,20 @@ fun TopSearchBar(
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
     val focusRequester = remember { FocusRequester() }
+
+    // When the keyboard is dismissed while the field still holds focus, drop
+    // the hover/focus glow 1s later so the bar settles back to idle.
+    // (Restarting the effect on key change cancels a pending clear if the
+    // keyboard comes back within the second.)
+    val imeVisible = WindowInsets.isImeVisible
+    var wasImeVisible by remember { mutableStateOf(imeVisible) }
+    LaunchedEffect(imeVisible, isFocused) {
+        if (wasImeVisible && !imeVisible && isFocused) {
+            delay(1000)
+            focusManager.clearFocus()
+        }
+        wasImeVisible = imeVisible
+    }
 
     val elevation by animateDpAsState(
         targetValue = if (isFocused || query.isNotEmpty()) 4.dp else 1.dp,

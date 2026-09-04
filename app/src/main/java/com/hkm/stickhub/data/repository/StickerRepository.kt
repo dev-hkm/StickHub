@@ -618,9 +618,7 @@ class StickerRepository(private val context: Context) {
     suspend fun renameCategory(oldName: String, newName: String): Boolean = withContext(Dispatchers.IO) {
         val trimmedOld = oldName.trim()
         val trimmedNew = newName.trim()
-        if (trimmedOld.equals("General", ignoreCase = true)) {
-            return@withContext false
-        }
+        // Every category is renamable, including General.
         val currentCategories = _categoriesFlow.value
         val validation = CategoryValidator.validate(trimmedNew, currentCategories, currentName = trimmedOld)
         if (validation !is CategoryValidator.Result.Valid) {
@@ -658,20 +656,32 @@ class StickerRepository(private val context: Context) {
         true
     }
 
+    /**
+     * Fallback home for stickers orphaned by a category delete: "General"
+     * when it survives, otherwise the first remaining category by display
+     * order. Never null — the library always keeps at least one category.
+     */
+    fun resolveDeleteFallback(excludeName: String): String {
+        val remaining = _categoriesFlow.value
+            .filter { !it.name.equals(excludeName, ignoreCase = true) }
+            .sortedBy { it.displayOrder }
+        remaining.firstOrNull { it.name.equals("General", ignoreCase = true) }?.let { return it.name }
+        return remaining.firstOrNull()?.name ?: "General"
+    }
+
     suspend fun deleteCategory(name: String): Boolean = withContext(Dispatchers.IO) {
         val trimmed = name.trim()
-        if (trimmed.equals("General", ignoreCase = true)) {
-            return@withContext false
-        }
+        if (trimmed.isEmpty()) return@withContext false
         val category = _categoriesFlow.value.find { it.name.equals(trimmed, ignoreCase = true) }
-        if (category == null || category.isDefault) return@withContext false
+            ?: return@withContext false
 
         val db = dbHelper.writableDatabase
         db.beginTransaction()
         try {
-            // Move stickers to General in transaction first
+            // Move stickers to the fallback home first.
+            val fallback = resolveDeleteFallback(category.name)
             val updateCv = ContentValues().apply {
-                put(StickHubDbHelper.COL_CATEGORY, "General")
+                put(StickHubDbHelper.COL_CATEGORY, fallback)
             }
             db.update(
                 StickHubDbHelper.TABLE_STICKERS,
@@ -680,12 +690,31 @@ class StickerRepository(private val context: Context) {
                 arrayOf(category.name)
             )
 
-            // Delete the custom category
+            // Delete the category — every category is deletable now.
             db.delete(
                 StickHubDbHelper.TABLE_CATEGORIES,
-                "${StickHubDbHelper.COL_CAT_NAME} = ? AND ${StickHubDbHelper.COL_CAT_IS_DEFAULT} = 0",
+                "${StickHubDbHelper.COL_CAT_NAME} = ?",
                 arrayOf(category.name)
             )
+
+            // Invariant: never leave the library category-less. Recreate a
+            // fresh empty General when the user deleted the very last one.
+            val remaining = db.rawQuery(
+                "SELECT COUNT(*) FROM ${StickHubDbHelper.TABLE_CATEGORIES}", null
+            ).use { if (it.moveToFirst()) it.getInt(0) else 0 }
+            if (remaining == 0) {
+                val cv = ContentValues().apply {
+                    put(StickHubDbHelper.COL_CAT_NAME, "General")
+                    put(StickHubDbHelper.COL_CAT_IS_DEFAULT, 1)
+                    put(StickHubDbHelper.COL_CAT_DISPLAY_ORDER, 0)
+                }
+                db.insertWithOnConflict(
+                    StickHubDbHelper.TABLE_CATEGORIES,
+                    null,
+                    cv,
+                    android.database.sqlite.SQLiteDatabase.CONFLICT_IGNORE
+                )
+            }
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()
@@ -699,9 +728,9 @@ class StickerRepository(private val context: Context) {
         val db = dbHelper.writableDatabase
         db.beginTransaction()
         try {
-            var orderIndex = 1
+            // Every category participates in ordering now (General included).
+            var orderIndex = 0
             for (name in orderedNames) {
-                if (name.equals("General", ignoreCase = true)) continue
                 val cv = ContentValues().apply {
                     put(StickHubDbHelper.COL_CAT_DISPLAY_ORDER, orderIndex++)
                 }

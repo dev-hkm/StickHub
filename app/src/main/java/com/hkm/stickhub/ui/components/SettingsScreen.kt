@@ -35,7 +35,6 @@ import com.hkm.stickhub.ui.theme.NoirColors
 import com.hkm.stickhub.ui.theme.GlassColors
 import com.hkm.stickhub.ui.theme.NouveauColors
 import com.hkm.stickhub.ui.theme.SketchbookColors
-import com.hkm.stickhub.ui.theme.specimenDecor
 import com.hkm.stickhub.ui.theme.ThemePreferences
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -77,6 +76,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -413,7 +413,26 @@ fun SettingsScreen(
                             }
                         }
                     )
+                }
 
+                // Remaining themes hide behind an expander so the section
+                // stays compact: 4 tiles + one toggle button. Auto-expands
+                // when the active theme lives outside the first four.
+                var themesExpanded by rememberSaveable {
+                    mutableStateOf(
+                        visualTheme != AppVisualTheme.DEFAULT &&
+                            visualTheme != AppVisualTheme.HERBARIUM &&
+                            visualTheme != AppVisualTheme.SKETCHBOOK &&
+                            visualTheme != AppVisualTheme.NEUBRUTALISM
+                    )
+                }
+                androidx.compose.animation.AnimatedVisibility(visible = themesExpanded) {
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        maxItemsInEachRow = 2
+                    ) {
                     ColorThemeCard(
                         theme = AppVisualTheme.OLD_MONEY,
                         selected = visualTheme == AppVisualTheme.OLD_MONEY,
@@ -803,6 +822,33 @@ fun SettingsScreen(
                             }
                         }
                     )
+                    }
+                }
+
+                TextButton(
+                    onClick = {
+                        haptics.performTap()
+                        themesExpanded = !themesExpanded
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 2.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(
+                            if (themesExpanded) LucideR.drawable.lucide_ic_chevron_up
+                            else LucideR.drawable.lucide_ic_chevron_down
+                        ),
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (themesExpanded) "Show fewer themes"
+                        else "Show all ${AppVisualTheme.entries.size} themes",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -824,15 +870,6 @@ fun SettingsScreen(
                     },
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
-
-                Text(
-                    text = "Live preview",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                SpecimenPreviewSurface(visualTheme = visualTheme)
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -1883,156 +1920,6 @@ private fun ColorThemeCard(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-        }
-    }
-}
-
-@Composable
-private fun SpecimenPreviewSurface(visualTheme: AppVisualTheme) {
-    val context = LocalContext.current
-    val isDark = ThemePreferences.resolveIsDark(context, ThemePreferences.getThemeMode(context))
-
-    val headerTitle = when (visualTheme) {
-        AppVisualTheme.DEFAULT -> "SYSTEM PALETTE"
-        AppVisualTheme.HERBARIUM -> "BOTANICAL SPECIMEN"
-        AppVisualTheme.SKETCHBOOK -> "SKETCH-NOTE SPECIMEN"
-        AppVisualTheme.NEUBRUTALISM -> "NEUBRUTALIST SPECIMEN"
-        AppVisualTheme.OLD_MONEY -> "OLD MONEY SPECIMEN"
-        AppVisualTheme.PRESSROOM -> "PRESSROOM SPECIMEN"
-        AppVisualTheme.ATELIER -> "ATELIER SPECIMEN"
-        AppVisualTheme.STARBASE -> "STARBASE SPECIMEN"
-        AppVisualTheme.COTTAGE -> "COTTAGE SPECIMEN"
-        AppVisualTheme.AURORA -> "AURORA SPECIMEN"
-        AppVisualTheme.SYNTHWAVE -> "SYNTHWAVE SPECIMEN"
-        AppVisualTheme.GATSBY -> "GATSBY SPECIMEN"
-        AppVisualTheme.UKIYO -> "UKIYO SPECIMEN"
-        AppVisualTheme.PIXEL -> "PIXEL SPECIMEN"
-        AppVisualTheme.KAWAII -> "KAWAII SPECIMEN"
-        AppVisualTheme.SOLARPUNK -> "SOLARPUNK SPECIMEN"
-        AppVisualTheme.NOIR -> "NOIR SPECIMEN"
-        AppVisualTheme.GLASS -> "GLASS SPECIMEN"
-        AppVisualTheme.NOUVEAU -> "NOUVEAU SPECIMEN"
-    }
-
-    val sampleCardText = when (visualTheme) {
-        AppVisualTheme.DEFAULT -> "Material 3 card"
-        AppVisualTheme.HERBARIUM -> "Warm parchment paper"
-        AppVisualTheme.SKETCHBOOK -> "Ruled notebook paper"
-        AppVisualTheme.NEUBRUTALISM -> "Bold borders, hard shadows"
-        AppVisualTheme.OLD_MONEY -> "Heritage serif and brass"
-        AppVisualTheme.PRESSROOM -> "Warm newsprint and cocoa"
-        AppVisualTheme.ATELIER -> "Gallery white and terracotta"
-        AppVisualTheme.STARBASE -> "Peach glow on oxblood"
-        AppVisualTheme.COTTAGE -> "Faded rose and sage"
-        AppVisualTheme.AURORA -> "Northern mesh gradients"
-        AppVisualTheme.SYNTHWAVE -> "Neon grids and chrome suns"
-        AppVisualTheme.GATSBY -> "Black tie and gold leaf"
-        AppVisualTheme.UKIYO -> "Waves, ink and vermilion"
-        AppVisualTheme.PIXEL -> "Phosphor terminal arcade"
-        AppVisualTheme.KAWAII -> "Pastel pop and sparkles"
-        AppVisualTheme.SOLARPUNK -> "Sun through leaves"
-        AppVisualTheme.NOIR -> "Blinds and streetlamps"
-        AppVisualTheme.GLASS -> "Liquid light on color"
-        AppVisualTheme.NOUVEAU -> "Curves and gold leaf"
-    }
-
-    val iconRes = when (visualTheme) {
-        AppVisualTheme.DEFAULT -> LucideR.drawable.lucide_ic_sparkles
-        AppVisualTheme.HERBARIUM -> LucideR.drawable.lucide_ic_leaf
-        AppVisualTheme.SKETCHBOOK -> LucideR.drawable.lucide_ic_pen_tool
-        AppVisualTheme.NEUBRUTALISM -> LucideR.drawable.lucide_ic_shapes
-        AppVisualTheme.OLD_MONEY -> LucideR.drawable.lucide_ic_gem
-        AppVisualTheme.PRESSROOM -> LucideR.drawable.lucide_ic_newspaper
-        AppVisualTheme.ATELIER -> LucideR.drawable.lucide_ic_frame
-        AppVisualTheme.STARBASE -> LucideR.drawable.lucide_ic_orbit
-        AppVisualTheme.COTTAGE -> LucideR.drawable.lucide_ic_flower_2
-        AppVisualTheme.AURORA -> LucideR.drawable.lucide_ic_rainbow
-        AppVisualTheme.SYNTHWAVE -> LucideR.drawable.lucide_ic_zap
-        AppVisualTheme.GATSBY -> LucideR.drawable.lucide_ic_crown
-        AppVisualTheme.UKIYO -> LucideR.drawable.lucide_ic_waves
-        AppVisualTheme.PIXEL -> LucideR.drawable.lucide_ic_gamepad_2
-        AppVisualTheme.KAWAII -> LucideR.drawable.lucide_ic_sparkle
-        AppVisualTheme.SOLARPUNK -> LucideR.drawable.lucide_ic_sprout
-        AppVisualTheme.NOIR -> LucideR.drawable.lucide_ic_venetian_mask
-        AppVisualTheme.GLASS -> LucideR.drawable.lucide_ic_droplets
-        AppVisualTheme.NOUVEAU -> LucideR.drawable.lucide_ic_flower
-    }
-
-    Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-        modifier = Modifier
-            .fillMaxWidth()
-            .specimenDecor(visualTheme = visualTheme, isDark = isDark)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = headerTitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    letterSpacing = 0.5.sp
-                )
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer
-                ) {
-                    Text(
-                        text = visualTheme.title,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = sampleCardText,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
-                    )
-                }
-
-                FilledTonalButton(
-                    onClick = { /* Interactive preview */ },
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(iconRes),
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Sample",
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-            }
         }
     }
 }

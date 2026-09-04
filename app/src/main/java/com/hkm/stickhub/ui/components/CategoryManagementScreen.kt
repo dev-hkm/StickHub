@@ -3,8 +3,10 @@
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,6 +62,7 @@ import com.hkm.stickhub.data.model.StickerItem
 import com.hkm.stickhub.data.repository.StickerOrderPolicy
 import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun CategoryManagementScreen(
     categories: List<CategoryItem>,
@@ -76,12 +79,19 @@ fun CategoryManagementScreen(
     var categoryToRename by remember { mutableStateOf<CategoryItem?>(null) }
     var categoryToDelete by remember { mutableStateOf<CategoryItem?>(null) }
 
-    val defaultCategory = categories.firstOrNull { it.isDefault || it.name.equals("General", ignoreCase = true) }
-        ?: CategoryItem(name = "General", isDefault = true)
-    val customCategories = categories.filter { !it.isDefault && !it.name.equals("General", ignoreCase = true) }
+    // Unified list: every category is renamable, reorderable and deletable.
+    val allCategories = categories.sortedBy { it.displayOrder }
 
     fun getCount(catName: String): Int {
         return stickers.count { it.category.equals(catName, ignoreCase = true) }
+    }
+
+    /** Where stickers land when [target] is deleted (mirrors repository rule). */
+    fun deleteFallbackFor(target: String): String {
+        val remaining = allCategories
+            .filter { !it.name.equals(target, ignoreCase = true) }
+        remaining.firstOrNull { it.name.equals("General", ignoreCase = true) }?.let { return it.name }
+        return remaining.firstOrNull()?.name ?: "General"
     }
 
     Surface(
@@ -164,97 +174,30 @@ fun CategoryManagementScreen(
                 }
             }
 
-            // Default Category Section
-            item(key = "default_section_title") {
-                Text(
-                    text = "DEFAULT CATEGORY",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
-                )
-            }
-
-            item(key = "cat_default_${defaultCategory.name}") {
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.50f),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            painter = painterResource(LucideR.drawable.lucide_ic_folder),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(22.dp)
-                        )
-
-                        Spacer(modifier = Modifier.width(14.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = defaultCategory.name,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.8f)
-                                ) {
-                                    Text(
-                                        text = "Default",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
-                            }
-
-                            Text(
-                                text = "${getCount(defaultCategory.name)} stickers",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Custom Categories Section
-            item(key = "custom_section_title") {
+            // All Categories Section (unified: rename, reorder and delete everything)
+            item(key = "all_section_title") {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 20.dp, bottom = 8.dp),
+                        .padding(top = 12.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "CUSTOM CATEGORIES",
+                        text = "ALL CATEGORIES",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "${customCategories.size} total",
+                        text = "${allCategories.size} total",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            if (customCategories.isEmpty()) {
+            if (allCategories.isEmpty()) {
                 item(key = "empty_custom") {
                     Surface(
                         shape = RoundedCornerShape(16.dp),
@@ -277,7 +220,7 @@ fun CategoryManagementScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "No custom categories yet",
+                                text = "No categories yet",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -291,7 +234,7 @@ fun CategoryManagementScreen(
                     }
                 }
             } else {
-                itemsIndexed(customCategories, key = { _, cat -> cat.id }) { index, cat ->
+                itemsIndexed(allCategories, key = { _, cat -> cat.id }) { index, cat ->
                     val stickerCount = getCount(cat.name)
                     Surface(
                         shape = RoundedCornerShape(16.dp),
@@ -299,6 +242,13 @@ fun CategoryManagementScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
+                            .combinedClickable(
+                                onClick = {},
+                                onLongClick = {
+                                    haptics.performLongPress()
+                                    categoryToRename = cat
+                                }
+                            )
                     ) {
                         Row(
                             modifier = Modifier
@@ -351,7 +301,7 @@ fun CategoryManagementScreen(
                                 onClick = {
                                     if (index > 0) {
                                         haptics.performSelection()
-                                        val moved = StickerOrderPolicy.move(customCategories, index, index - 1)
+                                        val moved = StickerOrderPolicy.move(allCategories, index, index - 1)
                                         onReorderCategories(moved.map { it.name })
                                     }
                                 },
@@ -369,19 +319,19 @@ fun CategoryManagementScreen(
                             // Move Down Button
                             IconButton(
                                 onClick = {
-                                    if (index < customCategories.size - 1) {
+                                    if (index < allCategories.size - 1) {
                                         haptics.performSelection()
-                                        val moved = StickerOrderPolicy.move(customCategories, index, index + 1)
+                                        val moved = StickerOrderPolicy.move(allCategories, index, index + 1)
                                         onReorderCategories(moved.map { it.name })
                                     }
                                 },
-                                enabled = index < customCategories.size - 1,
+                                enabled = index < allCategories.size - 1,
                                 modifier = Modifier.size(36.dp)
                             ) {
                                 Icon(
                                     painter = painterResource(LucideR.drawable.lucide_ic_arrow_down),
                                     contentDescription = "Move down",
-                                    tint = if (index < customCategories.size - 1) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f),
+                                    tint = if (index < allCategories.size - 1) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f),
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -588,6 +538,8 @@ fun CategoryManagementScreen(
     // Delete Category Dialog
     categoryToDelete?.let { targetCat ->
         val affectedCount = getCount(targetCat.name)
+        val fallbackName = deleteFallbackFor(targetCat.name)
+        val isLastOne = allCategories.size <= 1
 
         AlertDialog(
             onDismissRequest = { categoryToDelete = null },
@@ -601,8 +553,10 @@ fun CategoryManagementScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = if (affectedCount > 0) {
-                            "All $affectedCount stickers in '${targetCat.name}' will be safely moved to 'General'. No sticker images or tags will be deleted."
+                        text = if (isLastOne) {
+                            "This is your last category. A fresh empty 'General' will be created so your library always has a home."
+                        } else if (affectedCount > 0) {
+                            "All $affectedCount stickers in '${targetCat.name}' will be safely moved to '$fallbackName'. No sticker images or tags will be deleted."
                         } else {
                             "This category is currently empty. Deleting it will remove it from your categories list."
                         },

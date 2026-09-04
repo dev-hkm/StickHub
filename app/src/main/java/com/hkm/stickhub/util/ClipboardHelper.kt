@@ -44,49 +44,81 @@ object ClipboardHelper {
     }
 
     fun getClipboardImageUri(context: Context): Uri? {
+        return getClipboardImageUris(context).firstOrNull()
+    }
+
+    /**
+     * All eligible image URIs on the clipboard (multi-item ClipData supported).
+     * Own stickers copied out of StickHub are filtered so they are never
+     * offered back for import.
+     */
+    fun getClipboardImageUris(context: Context): List<Uri> {
+        return getClipboardImagesStamped(context).first
+    }
+
+    /**
+     * Image URIs plus the clip timestamp. The timestamp changes on every
+     * copy event — even when the URI itself is identical — so callers can
+     * tell a fresh copy apart from the one they already handled.
+     */
+    fun getClipboardImagesStamped(context: Context): Pair<List<Uri>, Long> {
         try {
-            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return null
-            val clip = clipboard.primaryClip ?: return null
-            if (clip.itemCount > 0) {
-                val item = clip.getItemAt(0)
-                val uri = item.uri
-                if (uri != null) {
-                    // A StickerContentProvider URI is a sticker copied *out* of StickHub. Never
-                    // surface it as a candidate to import back into the library.
-                    if (ClipboardImportPolicy.isOwnStickerSource(uri.scheme, uri.authority)) {
-                        return null
-                    }
-                    val mimeType = context.contentResolver.getType(uri) ?: ""
-                    val declaredMimeTypes = listOf(
-                        ClipDescription.MIMETYPE_TEXT_URILIST,
-                        "image/*",
-                        "image/png",
-                        "image/jpeg",
-                        "image/webp",
-                        "image/gif",
-                        "image/heic"
-                    ).filter(clip.description::hasMimeType)
-                    if (
-                        ClipboardImportPolicy.isEligibleImage(
-                            scheme = uri.scheme,
-                            authority = uri.authority,
-                            resolvedMimeType = mimeType,
-                            declaredMimeTypes = declaredMimeTypes
-                        )
-                    ) {
-                        return uri
-                    }
-                    // Some clipboard producers expose only text/uri-list. Verify the actual
-                    // stream headers instead of accepting arbitrary content:// data.
-                    if (isDecodableImage(context, uri)) {
-                        return uri
-                    }
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                ?: return emptyList<Uri>() to 0L
+            val clip = clipboard.primaryClip ?: return emptyList<Uri>() to 0L
+            val stamp = try {
+                clipboard.primaryClipDescription?.timestamp ?: 0L
+            } catch (_: Exception) {
+                0L
+            }
+            val out = mutableListOf<Uri>()
+            for (i in 0 until clip.itemCount) {
+                val uri = clip.getItemAt(i)?.uri ?: continue
+                if (uri in out) continue
+                if (isEligibleClipboardImageUri(context, clip.description, uri)) {
+                    out.add(uri)
                 }
             }
+            return out to stamp
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        return null
+        return emptyList<Uri>() to 0L
+    }
+
+    private fun isEligibleClipboardImageUri(
+        context: Context,
+        description: ClipDescription,
+        uri: Uri
+    ): Boolean {
+        // A StickerContentProvider URI is a sticker copied *out* of StickHub. Never
+        // surface it as a candidate to import back into the library.
+        if (ClipboardImportPolicy.isOwnStickerSource(uri.scheme, uri.authority)) {
+            return false
+        }
+        val mimeType = context.contentResolver.getType(uri) ?: ""
+        val declaredMimeTypes = listOf(
+            ClipDescription.MIMETYPE_TEXT_URILIST,
+            "image/*",
+            "image/png",
+            "image/jpeg",
+            "image/webp",
+            "image/gif",
+            "image/heic"
+        ).filter(description::hasMimeType)
+        if (
+            ClipboardImportPolicy.isEligibleImage(
+                scheme = uri.scheme,
+                authority = uri.authority,
+                resolvedMimeType = mimeType,
+                declaredMimeTypes = declaredMimeTypes
+            )
+        ) {
+            return true
+        }
+        // Some clipboard producers expose only text/uri-list. Verify the actual
+        // stream headers instead of accepting arbitrary content:// data.
+        return isDecodableImage(context, uri)
     }
 
     fun hasImageInClipboard(context: Context): Boolean {

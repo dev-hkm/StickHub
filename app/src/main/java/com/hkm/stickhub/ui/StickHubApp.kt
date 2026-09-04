@@ -117,6 +117,7 @@ import com.hkm.stickhub.ui.components.AddCategoryDialog
 import com.hkm.stickhub.ui.components.CategoryChips
 import com.hkm.stickhub.ui.components.CategoryManagementScreen
 import com.hkm.stickhub.ui.components.CheckerboardBackground
+import com.hkm.stickhub.ui.components.ClipboardImportSheet
 import com.hkm.stickhub.ui.components.CompactStickerCard
 import com.hkm.stickhub.ui.components.LargeStickerCard
 import com.hkm.stickhub.ui.components.SettingsScreen
@@ -415,7 +416,9 @@ fun StickHubApp(
             )
         }
     }
-    var clipboardImageUri by remember { mutableStateOf<Uri?>(null) }
+    var clipboardImageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var lastClipboardStamp by remember { mutableLongStateOf(0L) }
+    var showClipboardPicker by remember { mutableStateOf(false) }
     var recentlyCopiedId by remember { mutableStateOf<Long?>(null) }
 
     // Photo Picker Launcher
@@ -435,42 +438,65 @@ fun StickHubApp(
         }
     }
 
-    // Periodic check for clipboard image changes
+    // Periodic check for clipboard image changes. The clip timestamp tells a
+    // fresh copy apart from the one already handled — even when the URI is
+    // identical — so a saved/dismissed image never pops back up on its own.
     LaunchedEffect(Unit) {
         while (true) {
-            val uri = withContext(Dispatchers.IO) {
-                ClipboardHelper.getClipboardImageUri(context)
+            val (uris, stamp) = withContext(Dispatchers.IO) {
+                ClipboardHelper.getClipboardImagesStamped(context)
             }
-            if (uri != clipboardImageUri) {
-                clipboardImageUri = uri
+            if (stamp != lastClipboardStamp) {
+                lastClipboardStamp = stamp
+                // Freeze the offer while the picker sheet is open.
+                if (!showClipboardPicker) {
+                    clipboardImageUris = uris
+                }
             }
             delay(2000)
         }
     }
 
-    fun importClipboardSticker(uri: Uri) {
+    /** Clears the current clipboard offer (after import or dismiss). */
+    fun consumeClipboardOffer() {
+        clipboardImageUris = emptyList()
+        showClipboardPicker = false
+    }
+
+    fun importClipboardStickers(uris: List<Uri>) {
+        if (uris.isEmpty()) return
         scope.launch {
-            val importResult = repository.importClipboardSticker(uri)
-            clipboardImageUri = null
-            when (importResult) {
-                is ClipboardImportResult.Saved -> {
+            var saved = 0
+            var duplicates = 0
+            var failed = 0
+            uris.forEach { uri ->
+                when (repository.importClipboardSticker(uri)) {
+                    is ClipboardImportResult.Saved -> saved++
+                    is ClipboardImportResult.Duplicate -> duplicates++
+                    is ClipboardImportResult.OwnSource -> { /* filtered upstream */ }
+                    else -> failed++
+                }
+            }
+            consumeClipboardOffer()
+            when {
+                saved > 0 -> {
                     haptics.performConfirm()
-                    flashSnackbar("Sticker saved to library!")
+                    val extra = buildList {
+                        if (duplicates > 0) add("$duplicates duplicate${if (duplicates > 1) "s" else ""} skipped")
+                        if (failed > 0) add("$failed failed")
+                    }.joinToString(" • ")
+                    flashSnackbar(
+                        (if (saved == 1) "Sticker saved to library!" else "$saved stickers saved to library!") +
+                            (if (extra.isNotEmpty()) " ($extra)" else "")
+                    )
                 }
-                is ClipboardImportResult.Duplicate -> {
+                duplicates > 0 -> {
                     haptics.performTap()
-                    flashSnackbar("This sticker is already in your library.")
+                    flashSnackbar("Already in your library.")
                 }
-                is ClipboardImportResult.InvalidSource -> {
+                else -> {
                     haptics.performReject()
-                    flashSnackbar(importResult.reason)
-                }
-                is ClipboardImportResult.Failed -> {
-                    haptics.performReject()
-                    flashSnackbar(importResult.reason)
-                }
-                is ClipboardImportResult.OwnSource -> {
-                    // Ignore own source
+                    flashSnackbar("Couldn't import clipboard images.")
                 }
             }
         }
@@ -677,9 +703,11 @@ fun StickHubApp(
                                         onClick = {
                                             haptics.performTap()
                                             scope.launch {
-                                                clipboardImageUri = withContext(Dispatchers.IO) {
-                                                    ClipboardHelper.getClipboardImageUri(context)
+                                                val (uris, stamp) = withContext(Dispatchers.IO) {
+                                                    ClipboardHelper.getClipboardImagesStamped(context)
                                                 }
+                                                lastClipboardStamp = stamp
+                                                clipboardImageUris = uris
                                                 showCreateSourceDialog = true
                                             }
                                         },
@@ -771,13 +799,15 @@ fun StickHubApp(
                                                 onSelectCategory = { selectedCategory = it },
                                                 onAddCategoryClick = { showAddCategoryDialog = true },
                                                 onCategoryLongClick = { cat -> categoryToDelete = cat },
-                                                clipboardImageUri = clipboardImageUri,
-                                                onSaveClipboardDirectly = { uri -> importClipboardSticker(uri) },
-                                                onDismissClipboard = { clipboardImageUri = null },
-                                                onLaunchCutout = { uri ->
-                                                    activeCutoutUri = uri
-                                                    clipboardImageUri = null
+                                                clipboardImageUris = clipboardImageUris,
+                                                onImportClipboard = {
+                                                    if (clipboardImageUris.size == 1) {
+                                                        importClipboardStickers(clipboardImageUris)
+                                                    } else {
+                                                        showClipboardPicker = true
+                                                    }
                                                 },
+                                                onDismissClipboard = { consumeClipboardOffer() },
                                                 appFocusManager = appFocusManager,
                                                 showQuickStickersOnboarding = showOnboarding,
                                                 onEnableQuickStickers = {
@@ -906,13 +936,15 @@ fun StickHubApp(
                                                 onSelectCategory = { selectedCategory = it },
                                                 onAddCategoryClick = { showAddCategoryDialog = true },
                                                 onCategoryLongClick = { cat -> categoryToDelete = cat },
-                                                clipboardImageUri = clipboardImageUri,
-                                                onSaveClipboardDirectly = { uri -> importClipboardSticker(uri) },
-                                                onDismissClipboard = { clipboardImageUri = null },
-                                                onLaunchCutout = { uri ->
-                                                    activeCutoutUri = uri
-                                                    clipboardImageUri = null
+                                                clipboardImageUris = clipboardImageUris,
+                                                onImportClipboard = {
+                                                    if (clipboardImageUris.size == 1) {
+                                                        importClipboardStickers(clipboardImageUris)
+                                                    } else {
+                                                        showClipboardPicker = true
+                                                    }
                                                 },
+                                                onDismissClipboard = { consumeClipboardOffer() },
                                                 appFocusManager = appFocusManager,
                                                 showQuickStickersOnboarding = showOnboarding,
                                                 onEnableQuickStickers = {
@@ -1120,13 +1152,15 @@ fun StickHubApp(
                                                 onSelectCategory = { selectedCategory = it },
                                                 onAddCategoryClick = { showAddCategoryDialog = true },
                                                 onCategoryLongClick = { cat -> categoryToDelete = cat },
-                                                clipboardImageUri = clipboardImageUri,
-                                                onSaveClipboardDirectly = { uri -> importClipboardSticker(uri) },
-                                                onDismissClipboard = { clipboardImageUri = null },
-                                                onLaunchCutout = { uri ->
-                                                    activeCutoutUri = uri
-                                                    clipboardImageUri = null
+                                                clipboardImageUris = clipboardImageUris,
+                                                onImportClipboard = {
+                                                    if (clipboardImageUris.size == 1) {
+                                                        importClipboardStickers(clipboardImageUris)
+                                                    } else {
+                                                        showClipboardPicker = true
+                                                    }
                                                 },
+                                                onDismissClipboard = { consumeClipboardOffer() },
                                                 appFocusManager = appFocusManager,
                                                 showQuickStickersOnboarding = showOnboarding,
                                                 onEnableQuickStickers = {
@@ -1252,13 +1286,15 @@ fun StickHubApp(
                                                 onSelectCategory = { selectedCategory = it },
                                                 onAddCategoryClick = { showAddCategoryDialog = true },
                                                 onCategoryLongClick = { cat -> categoryToDelete = cat },
-                                                clipboardImageUri = clipboardImageUri,
-                                                onSaveClipboardDirectly = { uri -> importClipboardSticker(uri) },
-                                                onDismissClipboard = { clipboardImageUri = null },
-                                                onLaunchCutout = { uri ->
-                                                    activeCutoutUri = uri
-                                                    clipboardImageUri = null
+                                                clipboardImageUris = clipboardImageUris,
+                                                onImportClipboard = {
+                                                    if (clipboardImageUris.size == 1) {
+                                                        importClipboardStickers(clipboardImageUris)
+                                                    } else {
+                                                        showClipboardPicker = true
+                                                    }
                                                 },
+                                                onDismissClipboard = { consumeClipboardOffer() },
                                                 appFocusManager = appFocusManager,
                                                 showQuickStickersOnboarding = showOnboarding,
                                                 onEnableQuickStickers = {
@@ -1550,7 +1586,7 @@ fun StickHubApp(
                     scope.launch {
                         if (repository.addCategory(name)) {
                             haptics.performConfirm()
-                            flashSnackbar("Category '' created")
+                            flashSnackbar("Category '$name' created")
                         } else {
                             haptics.performReject()
                             flashSnackbar("Failed to create category")
@@ -1564,7 +1600,7 @@ fun StickHubApp(
                             if (selectedCategory.equals(oldName, ignoreCase = true)) {
                                 selectedCategory = newName
                             }
-                            flashSnackbar("Renamed to ''")
+                            flashSnackbar("Renamed to '$newName'")
                         } else {
                             haptics.performReject()
                             flashSnackbar("Failed to rename category")
@@ -1578,7 +1614,7 @@ fun StickHubApp(
                             if (selectedCategory.equals(name, ignoreCase = true)) {
                                 selectedCategory = "All"
                             }
-                            flashSnackbar("Category '' deleted")
+                            flashSnackbar("Category '$name' deleted")
                         } else {
                             haptics.performReject()
                             flashSnackbar("Failed to delete category")
@@ -1613,11 +1649,15 @@ fun StickHubApp(
                     )
                     Button(
                         onClick = {
-                            val uri = clipboardImageUri ?: return@Button
+                            if (clipboardImageUris.isEmpty()) return@Button
                             showCreateSourceDialog = false
-                            importClipboardSticker(uri)
+                            if (clipboardImageUris.size == 1) {
+                                importClipboardStickers(clipboardImageUris)
+                            } else {
+                                showClipboardPicker = true
+                            }
                         },
-                        enabled = clipboardImageUri != null,
+                        enabled = clipboardImageUris.isNotEmpty(),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp)
                     ) {
@@ -1628,27 +1668,12 @@ fun StickHubApp(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (clipboardImageUri != null) "Import copied image directly" else "No image currently on clipboard"
+                            text = when (clipboardImageUris.size) {
+                                0 -> "No image currently on clipboard"
+                                1 -> "Import copied image directly"
+                                else -> "Import ${clipboardImageUris.size} copied images"
+                            }
                         )
-                    }
-                    Button(
-                        onClick = {
-                            val uri = clipboardImageUri ?: return@Button
-                            showCreateSourceDialog = false
-                            activeCutoutUri = uri
-                            clipboardImageUri = null
-                        },
-                        enabled = clipboardImageUri != null,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(LucideR.drawable.lucide_ic_scissors),
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Cut out copied image (Google Photos)")
                     }
                     Button(
                         onClick = {
@@ -1681,9 +1706,17 @@ fun StickHubApp(
         )
     }
 
+    // Multi-image clipboard review sheet
+    if (showClipboardPicker && clipboardImageUris.isNotEmpty()) {
+        ClipboardImportSheet(
+            uris = clipboardImageUris,
+            onImportSelected = { importClipboardStickers(it) },
+            onDismiss = { consumeClipboardOffer() }
+        )
+    }
+
     // Subject Cutout Sheet
-    activeCutoutUri?.let { uri ->
-        SubjectCutoutSheet(
+    activeCutoutUri?.let { uri ->        SubjectCutoutSheet(
             imageUri = uri,
             sheetState = cutoutSheetState,
             categories = categories,
@@ -1812,10 +1845,25 @@ fun StickHubApp(
 
     // Delete Category Confirmation Dialog (from long click on CategoryChips)
     categoryToDelete?.let { cat ->
+        val fallbackHome = categories
+            .filter { !it.name.equals(cat.name, ignoreCase = true) }
+            .sortedBy { it.displayOrder }
+            .let { remaining ->
+                remaining.firstOrNull { it.name.equals("General", ignoreCase = true) }?.name
+                    ?: remaining.firstOrNull()?.name
+            }
         AlertDialog(
             onDismissRequest = { categoryToDelete = null },
             title = { Text("Delete Category") },
-            text = { Text("Are you sure you want to delete '${cat.name}'? Stickers in this category will be moved to 'General'.") },
+            text = {
+                Text(
+                    if (fallbackHome != null) {
+                        "Are you sure you want to delete '${cat.name}'? Stickers in this category will be moved to '$fallbackHome'."
+                    } else {
+                        "Are you sure you want to delete '${cat.name}'? This is your last category, so a fresh empty 'General' will be created."
+                    }
+                )
+            },
             confirmButton = {
                 Button(
                     onClick = {
@@ -1826,7 +1874,10 @@ fun StickHubApp(
                             }
                             categoryToDelete = null
                             haptics.performConfirm()
-                            flashSnackbar("Category deleted, stickers moved to General")
+                            flashSnackbar(
+                                if (fallbackHome != null) "Category deleted, stickers moved to $fallbackHome"
+                                else "Category deleted"
+                            )
                         }
                     }
                 ) {
@@ -1899,10 +1950,9 @@ private fun LibraryHeadersContent(
     onSelectCategory: (String) -> Unit,
     onAddCategoryClick: () -> Unit,
     onCategoryLongClick: (CategoryItem) -> Unit,
-    clipboardImageUri: Uri?,
-    onSaveClipboardDirectly: (Uri) -> Unit,
+    clipboardImageUris: List<Uri>,
+    onImportClipboard: () -> Unit,
     onDismissClipboard: () -> Unit,
-    onLaunchCutout: (Uri) -> Unit,
     appFocusManager: androidx.compose.ui.focus.FocusManager,
     showQuickStickersOnboarding: Boolean,
     onEnableQuickStickers: () -> Unit,
@@ -2124,12 +2174,14 @@ private fun LibraryHeadersContent(
 
         // 3. Detected Clipboard Banner
         AnimatedVisibility(
-            visible = clipboardImageUri != null && !isSelectionMode,
+            visible = clipboardImageUris.isNotEmpty() && !isSelectionMode,
             enter = StickHubMotion.BannerEnter,
             exit = StickHubMotion.BannerExit
         ) {
-            clipboardImageUri?.let { uri ->
+            if (clipboardImageUris.isNotEmpty()) {
                 val context = LocalContext.current
+                val previewUri = clipboardImageUris.first()
+                val extraCount = clipboardImageUris.size - 1
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2168,7 +2220,7 @@ private fun LibraryHeadersContent(
 
                                 AsyncImage(
                                     model = ImageRequest.Builder(context)
-                                        .data(uri)
+                                        .data(previewUri)
                                         .crossfade(true)
                                         .build(),
                                     contentDescription = "Clipboard preview",
@@ -2177,18 +2229,34 @@ private fun LibraryHeadersContent(
                                         .fillMaxSize()
                                         .padding(3.dp)
                                 )
+
+                                if (extraCount > 0) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Black.copy(alpha = 0.45f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "+$extraCount",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                    }
+                                }
                             }
 
                             Spacer(modifier = Modifier.width(12.dp))
 
                             Column {
                                 Text(
-                                    text = "Ready to import",
+                                    text = if (extraCount > 0) "${clipboardImageUris.size} images ready" else "Ready to import",
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
-                                    text = "Save sticker or isolate subject",
+                                    text = if (extraCount > 0) "Review and import together" else "Save sticker to your library",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -2199,22 +2267,8 @@ private fun LibraryHeadersContent(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            OutlinedButton(
-                                onClick = { onLaunchCutout(uri) },
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Icon(
-                                    painter = painterResource(LucideR.drawable.lucide_ic_scissors),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Cut out", fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                            }
-
                             Button(
-                                onClick = { onSaveClipboardDirectly(uri) },
+                                onClick = onImportClipboard,
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
@@ -2224,7 +2278,11 @@ private fun LibraryHeadersContent(
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Save", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    if (extraCount > 0) "Review" else "Save",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
 
                             IconButton(
