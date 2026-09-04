@@ -88,10 +88,7 @@ fun CategoryManagementScreen(
 
     /** Where stickers land when [target] is deleted (mirrors repository rule). */
     fun deleteFallbackFor(target: String): String {
-        val remaining = allCategories
-            .filter { !it.name.equals(target, ignoreCase = true) }
-        remaining.firstOrNull { it.name.equals("General", ignoreCase = true) }?.let { return it.name }
-        return remaining.firstOrNull()?.name ?: "General"
+        return CategoryItem.pickDeleteFallback(allCategories, target)
     }
 
     Surface(

@@ -111,6 +111,41 @@ class CategoryManagementTest {
     }
 
     @Test
+    fun testDeleteFallbackPrefersGeneral() {
+        assertEquals("General", CategoryItem.pickDeleteFallback(sampleCategories, "Memes"))
+        assertEquals("General", CategoryItem.pickDeleteFallback(sampleCategories, "Cute"))
+    }
+
+    @Test
+    fun testDeleteFallbackFallsBackToFirstRemaining() {
+        val noGeneral = listOf(
+            CategoryItem(id = 2, name = "Memes", displayOrder = 1),
+            CategoryItem(id = 3, name = "Reactions", displayOrder = 2),
+            CategoryItem(id = 4, name = "Cute", displayOrder = 3)
+        )
+        assertEquals("Reactions", CategoryItem.pickDeleteFallback(noGeneral, "Memes"))
+    }
+
+    @Test
+    fun testDeleteFallbackRecreatesGeneralWhenLastOneDeleted() {
+        val onlyGeneral = listOf(CategoryItem(id = 1, name = "General", isDefault = true))
+        assertEquals("General", CategoryItem.pickDeleteFallback(onlyGeneral, "General"))
+        assertEquals("General", CategoryItem.pickDeleteFallback(emptyList(), "Anything"))
+    }
+
+    @Test
+    fun testEveryCategoryIsDeletable() {
+        // No name — including General — is special-cased out of deletion.
+        for (cat in sampleCategories) {
+            val fallback = CategoryItem.pickDeleteFallback(sampleCategories, cat.name)
+            assertFalse(
+                "fallback for '${cat.name}' must never be itself",
+                fallback.equals(cat.name, ignoreCase = true) && sampleCategories.size > 1
+            )
+        }
+    }
+
+    @Test
     fun testCategoryRenameSimulatedDataUpdate() {
         // Verify renaming updates all matching stickers without losing tags or metadata
         val oldName = "Memes"

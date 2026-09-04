@@ -45,9 +45,9 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version bump for full haptic overhaul (tiered semantics + throttle).
-        versionCode = 42
-        versionName = "3.2.0"
+        // Version bump for category fallback tests, always-show clipboard picker, filter transitions.
+        versionCode = 43
+        versionName = "3.2.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -662,11 +662,7 @@ class StickerRepository(private val context: Context) {
      * order. Never null — the library always keeps at least one category.
      */
     fun resolveDeleteFallback(excludeName: String): String {
-        val remaining = _categoriesFlow.value
-            .filter { !it.name.equals(excludeName, ignoreCase = true) }
-            .sortedBy { it.displayOrder }
-        remaining.firstOrNull { it.name.equals("General", ignoreCase = true) }?.let { return it.name }
-        return remaining.firstOrNull()?.name ?: "General"
+        return CategoryItem.pickDeleteFallback(_categoriesFlow.value, excludeName)
     }
 
     suspend fun deleteCategory(name: String): Boolean = withContext(Dispatchers.IO) {

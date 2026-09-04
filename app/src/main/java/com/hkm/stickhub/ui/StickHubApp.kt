@@ -569,6 +569,7 @@ fun StickHubApp(
     val libraryGridState = rememberLazyGridState()
     val autoScrollEdgePx = with(LocalDensity.current) { 64.dp.toPx() }
     val gridFilterAlpha = remember { Animatable(1f) }
+    val gridFilterScale = remember { Animatable(1f) }
     var reorderPreview by remember { mutableStateOf<List<StickerItem>?>(null) }
     var draggedStickerId by remember { mutableStateOf<Long?>(null) }
     var draggedIndex by remember { mutableStateOf(-1) }
@@ -580,11 +581,27 @@ fun StickHubApp(
             reorderPreview = null
         }
     }
-    LaunchedEffect(selectedCategory, searchQuery) {
-        gridFilterAlpha.snapTo(0.90f)
+    LaunchedEffect(selectedCategory) {
+        // Visible filter transition: fade + settle (scale) + gentle rise.
+        gridFilterAlpha.snapTo(0f)
+        gridFilterScale.snapTo(0.96f)
+        launch {
+            gridFilterAlpha.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(StickHubMotion.DurationMedium, easing = StickHubMotion.EasingEmphasizedDecelerate)
+            )
+        }
+        gridFilterScale.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(StickHubMotion.DurationMedium, easing = StickHubMotion.EasingEmphasizedDecelerate)
+        )
+    }
+    LaunchedEffect(searchQuery) {
+        // Keystrokes get a whisper of the same motion — never a full flash.
+        gridFilterAlpha.snapTo(0.7f)
         gridFilterAlpha.animateTo(
             targetValue = 1f,
-            animationSpec = tween(StickHubMotion.DurationShort, easing = StickHubMotion.EasingEmphasizedDecelerate)
+            animationSpec = tween(StickHubMotion.DurationMicro, easing = StickHubMotion.EasingEmphasizedDecelerate)
         )
     }
     val displayedStickers = if (canReorderStickers) reorderPreview ?: filteredStickers else filteredStickers
@@ -745,7 +762,13 @@ fun StickHubApp(
                                         verticalArrangement = Arrangement.spacedBy(8.dp),
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .graphicsLayer { alpha = gridFilterAlpha.value }
+                                            .graphicsLayer {
+                                                alpha = gridFilterAlpha.value
+                                                val filterScale = gridFilterScale.value
+                                                scaleX = filterScale
+                                                scaleY = filterScale
+                                                translationY = (1f - gridFilterAlpha.value) * 28f
+                                            }
                                     ) {
                                         item(key = "library_headers", span = { GridItemSpan(maxLineSpan) }) {
                                             LibraryHeadersContent(
@@ -800,13 +823,7 @@ fun StickHubApp(
                                                 onAddCategoryClick = { showAddCategoryDialog = true },
                                                 onCategoryLongClick = { cat -> categoryToDelete = cat },
                                                 clipboardImageUris = clipboardImageUris,
-                                                onImportClipboard = {
-                                                    if (clipboardImageUris.size == 1) {
-                                                        importClipboardStickers(clipboardImageUris)
-                                                    } else {
-                                                        showClipboardPicker = true
-                                                    }
-                                                },
+                                                onImportClipboard = { showClipboardPicker = true },
                                                 onDismissClipboard = { consumeClipboardOffer() },
                                                 appFocusManager = appFocusManager,
                                                 showQuickStickersOnboarding = showOnboarding,
@@ -882,7 +899,13 @@ fun StickHubApp(
                                         verticalArrangement = Arrangement.spacedBy(10.dp),
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .graphicsLayer { alpha = gridFilterAlpha.value }
+                                            .graphicsLayer {
+                                                alpha = gridFilterAlpha.value
+                                                val filterScale = gridFilterScale.value
+                                                scaleX = filterScale
+                                                scaleY = filterScale
+                                                translationY = (1f - gridFilterAlpha.value) * 28f
+                                            }
                                     ) {
                                         item(key = "library_headers", span = { GridItemSpan(maxLineSpan) }) {
                                             LibraryHeadersContent(
@@ -937,13 +960,7 @@ fun StickHubApp(
                                                 onAddCategoryClick = { showAddCategoryDialog = true },
                                                 onCategoryLongClick = { cat -> categoryToDelete = cat },
                                                 clipboardImageUris = clipboardImageUris,
-                                                onImportClipboard = {
-                                                    if (clipboardImageUris.size == 1) {
-                                                        importClipboardStickers(clipboardImageUris)
-                                                    } else {
-                                                        showClipboardPicker = true
-                                                    }
-                                                },
+                                                onImportClipboard = { showClipboardPicker = true },
                                                 onDismissClipboard = { consumeClipboardOffer() },
                                                 appFocusManager = appFocusManager,
                                                 showQuickStickersOnboarding = showOnboarding,
@@ -1098,7 +1115,13 @@ fun StickHubApp(
                                         verticalArrangement = Arrangement.spacedBy(12.dp),
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .graphicsLayer { alpha = gridFilterAlpha.value }
+                                            .graphicsLayer {
+                                                alpha = gridFilterAlpha.value
+                                                val filterScale = gridFilterScale.value
+                                                scaleX = filterScale
+                                                scaleY = filterScale
+                                                translationY = (1f - gridFilterAlpha.value) * 28f
+                                            }
                                     ) {
                                         item(key = "library_headers", span = { GridItemSpan(maxLineSpan) }) {
                                             LibraryHeadersContent(
@@ -1153,13 +1176,7 @@ fun StickHubApp(
                                                 onAddCategoryClick = { showAddCategoryDialog = true },
                                                 onCategoryLongClick = { cat -> categoryToDelete = cat },
                                                 clipboardImageUris = clipboardImageUris,
-                                                onImportClipboard = {
-                                                    if (clipboardImageUris.size == 1) {
-                                                        importClipboardStickers(clipboardImageUris)
-                                                    } else {
-                                                        showClipboardPicker = true
-                                                    }
-                                                },
+                                                onImportClipboard = { showClipboardPicker = true },
                                                 onDismissClipboard = { consumeClipboardOffer() },
                                                 appFocusManager = appFocusManager,
                                                 showQuickStickersOnboarding = showOnboarding,
@@ -1232,7 +1249,13 @@ fun StickHubApp(
                                         verticalArrangement = Arrangement.spacedBy(8.dp),
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .graphicsLayer { alpha = gridFilterAlpha.value }
+                                            .graphicsLayer {
+                                                alpha = gridFilterAlpha.value
+                                                val filterScale = gridFilterScale.value
+                                                scaleX = filterScale
+                                                scaleY = filterScale
+                                                translationY = (1f - gridFilterAlpha.value) * 28f
+                                            }
                                     ) {
                                         item(key = "library_headers") {
                                             LibraryHeadersContent(
@@ -1287,13 +1310,7 @@ fun StickHubApp(
                                                 onAddCategoryClick = { showAddCategoryDialog = true },
                                                 onCategoryLongClick = { cat -> categoryToDelete = cat },
                                                 clipboardImageUris = clipboardImageUris,
-                                                onImportClipboard = {
-                                                    if (clipboardImageUris.size == 1) {
-                                                        importClipboardStickers(clipboardImageUris)
-                                                    } else {
-                                                        showClipboardPicker = true
-                                                    }
-                                                },
+                                                onImportClipboard = { showClipboardPicker = true },
                                                 onDismissClipboard = { consumeClipboardOffer() },
                                                 appFocusManager = appFocusManager,
                                                 showQuickStickersOnboarding = showOnboarding,
@@ -1651,11 +1668,7 @@ fun StickHubApp(
                         onClick = {
                             if (clipboardImageUris.isEmpty()) return@Button
                             showCreateSourceDialog = false
-                            if (clipboardImageUris.size == 1) {
-                                importClipboardStickers(clipboardImageUris)
-                            } else {
-                                showClipboardPicker = true
-                            }
+                            showClipboardPicker = true
                         },
                         enabled = clipboardImageUris.isNotEmpty(),
                         modifier = Modifier.fillMaxWidth(),
@@ -1851,13 +1864,7 @@ fun StickHubApp(
 
     // Delete Category Confirmation Dialog (from long click on CategoryChips)
     categoryToDelete?.let { cat ->
-        val fallbackHome = categories
-            .filter { !it.name.equals(cat.name, ignoreCase = true) }
-            .sortedBy { it.displayOrder }
-            .let { remaining ->
-                remaining.firstOrNull { it.name.equals("General", ignoreCase = true) }?.name
-                    ?: remaining.firstOrNull()?.name
-            }
+        val fallbackHome = CategoryItem.pickDeleteFallback(categories, cat.name)
         AlertDialog(
             onDismissRequest = { categoryToDelete = null },
             title = { Text("Delete Category") },
