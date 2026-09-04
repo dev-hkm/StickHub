@@ -888,6 +888,9 @@ fun StickHubApp(
                         snackbarHost = { SnackbarHost(snackbarHostState) },
                         contentWindowInsets = WindowInsets(0, 0, 0, 0)
                     ) { innerPadding ->
+                        // Scaffold insets are zeroed above and the grids carry their own
+                        // navigation-bar + FAB padding; the (empty) scaffold padding is
+                        // still applied so the Scaffold contract holds by construction.
                         val navBarBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
                         val listBottomPadding = navBarBottomPadding + 96.dp
 
@@ -896,7 +899,8 @@ fun StickHubApp(
                             transitionSpec = {
                                 fadeIn(tween(StickHubMotion.DurationShort)) togetherWith fadeOut(tween(StickHubMotion.DurationShort))
                             },
-                            label = "library_view_mode"
+                            label = "library_view_mode",
+                            modifier = Modifier.padding(innerPadding)
                         ) { viewMode ->
                             when (viewMode) {
                                 StickerLibraryViewMode.COMPACT_GRID -> {

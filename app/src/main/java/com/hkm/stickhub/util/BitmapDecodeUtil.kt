@@ -1,5 +1,6 @@
 package com.hkm.stickhub.util
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -131,11 +132,15 @@ object BitmapDecodeUtil {
         return true
     }
 
+    // The 4-arg MediaStore overload needs R-extensions v15, which the TIRAMISU
+    // gate alone does not guarantee: any linkage failure (including Error)
+    // falls through to the generic descriptor, which works everywhere.
+    @SuppressLint("NewApi")
     private fun openReadableFileDescriptor(context: Context, uri: Uri): ParcelFileDescriptor? {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             try {
                 MediaStore.openFileDescriptor(context.contentResolver, uri, "r", null)?.let { return it }
-            } catch (error: Exception) {
+            } catch (error: Throwable) {
                 // Third-party providers are not owned by MediaStore; try the generic descriptor.
                 Log.d(TAG, "MediaStore descriptor unavailable for $uri", error)
             }
