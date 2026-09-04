@@ -71,6 +71,7 @@ android {
     }
     testOptions {
         unitTests.isReturnDefaultValues = true
+        unitTests.isIncludeAndroidResources = true
     }
 }
 
@@ -86,8 +87,10 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.mlkit.subject.segmentation)
     implementation(libs.icons.lucide)
+    implementation("androidx.recyclerview:recyclerview:1.4.0")
 
     testImplementation(libs.junit)
+    testImplementation("org.robolectric:robolectric:4.16.1")
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

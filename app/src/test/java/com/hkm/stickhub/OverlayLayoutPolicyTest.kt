@@ -8,6 +8,27 @@ import org.junit.Test
 class OverlayLayoutPolicyTest {
 
     @Test
+    fun smallViewportWinsOverNominalPanelMinimums() {
+        val bounds = OverlayLayoutPolicy.clampPanelBounds(
+            x = 800, y = 900, width = 700, height = 800,
+            screenWidth = 180, screenHeight = 220,
+            minWidth = 300, minHeight = 672, maxWidth = 169, maxHeight = 187
+        )
+        assertTrue(bounds.width in 1..180)
+        assertTrue(bounds.height in 1..220)
+        assertTrue(bounds.x + bounds.width <= 180)
+        assertTrue(bounds.y + bounds.height <= 220)
+    }
+
+    @Test
+    fun oversizedBubbleStillFitsSmallViewport() {
+        val bounds = OverlayLayoutPolicy.clampBubbleBounds(50, 50, 100, 40, 30)
+        assertEquals(30, bounds.size)
+        assertTrue(bounds.x + bounds.size <= 40)
+        assertTrue(bounds.y + bounds.size <= 30)
+    }
+
+    @Test
     fun testGridCellSizeNeverExceedsPanelWidthAcrossDimensions() {
         val density = 2.5f
         val horizontalPadding = (6 * density).toInt()

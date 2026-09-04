@@ -7,6 +7,13 @@ import org.junit.Test
 
 class OverlayOpacityPolicyTest {
 
+    @Test
+    fun corruptedNonFiniteOpacityRecoversToVisibleValue() {
+        assertEquals(1f, OverlayOpacityPolicy.clamp(Float.NaN), 0f)
+        assertEquals(1f, OverlayOpacityPolicy.clamp(Float.POSITIVE_INFINITY), 0f)
+        assertEquals(1f, OverlayOpacityPolicy.clamp(Float.NEGATIVE_INFINITY), 0f)
+    }
+
     data class MockOverlayConfig(
         val bubbleSizeDp: Float = 40f,
         val bubbleOpacity: Float = 1.0f,
