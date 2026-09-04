@@ -32,10 +32,13 @@ class DataSafetyRegressionTest {
     private lateinit var context: Context
     private lateinit var repository: StickerRepository
 
-    @Before fun setUp() = runBlocking {
-        context = RuntimeEnvironment.getApplication()
-        repository = StickerRepository(context)
-        repository.refresh()
+    @Before
+    fun setUp() {
+        runBlocking {
+            context = RuntimeEnvironment.getApplication()
+            repository = StickerRepository(context)
+            repository.refresh()
+        }
     }
 
     @Test fun cancelledStreamImportNeverLeavesRowsWithoutTheirFiles() = runBlocking {

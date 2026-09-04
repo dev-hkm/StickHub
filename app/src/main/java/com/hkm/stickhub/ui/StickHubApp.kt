@@ -18,7 +18,7 @@ import android.os.Build
 import android.provider.Settings
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -115,7 +115,6 @@ import coil.request.ImageRequest
 import com.composables.icons.lucide.R as LucideR
 import com.hkm.stickhub.data.model.CategoryItem
 import com.hkm.stickhub.data.model.StickerItem
-import com.hkm.stickhub.data.repository.ClipboardImportResult
 import com.hkm.stickhub.data.repository.StickerOrderPolicy
 import com.hkm.stickhub.data.repository.StickerRepository
 import com.hkm.stickhub.service.OverlayPreferences
@@ -168,10 +167,13 @@ import com.hkm.stickhub.util.BackupHelper
 import com.hkm.stickhub.util.BackupOperations
 import com.hkm.stickhub.util.BackupWorkState
 import com.hkm.stickhub.util.ClipboardHelper
-import kotlinx.coroutines.Dispatchers
+import com.hkm.stickhub.util.ClipboardBatchSnapshot
+import com.hkm.stickhub.util.ClipboardOfferReducer
+import com.hkm.stickhub.util.ClipboardStager
+import com.hkm.stickhub.util.IncomingShareBatch
+import com.hkm.stickhub.util.StagedClipboardItem
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -188,6 +190,8 @@ fun StickHubApp(
     repository: StickerRepository,
     incomingSharedUri: Uri? = null,
     onClearSharedUri: () -> Unit = {},
+    incomingSharedBatch: IncomingShareBatch? = null,
+    onClearSharedBatch: () -> Unit = {},
     foregroundTick: Int = 0,
     themeMode: AppThemeMode = AppThemeMode.SYSTEM,
     onThemeModeChange: (AppThemeMode) -> Unit = {},
@@ -459,83 +463,135 @@ fun StickHubApp(
     }
     var clipboardImageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var clipboardSkippedCount by remember { mutableIntStateOf(0) }
-    var lastClipboardEventId by remember { mutableLongStateOf(0L) }
-    var localClipboardRevision by remember { mutableLongStateOf(0L) }
-    var lastOfferedClipboardUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var clipboardOffer by remember { mutableStateOf<ClipboardBatchSnapshot?>(null) }
+    var clipboardOfferState by remember { mutableStateOf(ClipboardOfferReducer.State()) }
+    var clipboardGeneration by remember { mutableLongStateOf(0L) }
     var showClipboardPicker by remember { mutableStateOf(false) }
+    var stagedClipboardItems by remember { mutableStateOf<List<StagedClipboardItem>>(emptyList()) }
+    var isStagingClipboard by remember { mutableStateOf(false) }
+    var isImportingClipboard by remember { mutableStateOf(false) }
+    var clipboardStageProgress by remember { mutableStateOf(0 to 0) }
     var recentlyCopiedId by remember { mutableStateOf<Long?>(null) }
+    val clipboardOfferReducer = remember { ClipboardOfferReducer() }
+    val clipboardStager = remember(context) { ClipboardStager(context.applicationContext) }
 
     val backupOps = remember(context) { BackupOperations.getInstance(context) }
     val backupWorkState by backupOps.state.collectAsState()
 
-    // Clipboard observation follows the foreground lifecycle: an immediate
-    // check on every resume plus the system clip listener while resumed.
-    // No background polling. Copy events are told apart by clip timestamp on
-    // API 26+; below that a listener-driven revision counter fills in.
-    val lifecycleOwner = remember(context) { context as? LifecycleOwner }
-    fun checkClipboardOffer() {
-        scope.launch {
-            val scan = withContext(Dispatchers.IO) {
-                ClipboardHelper.scanClipboardImages(context)
-            }
-            val uris = scan.uris
-            val stamp = scan.stamp
-            val eventId = if (stamp != 0L) stamp else localClipboardRevision
-            val isNew = eventId != lastClipboardEventId ||
-                (stamp == 0L && uris != lastOfferedClipboardUris)
-            if (isNew) {
-                lastClipboardEventId = eventId
-                lastOfferedClipboardUris = uris
-                // Freeze the offer while the picker sheet is open.
-                if (!showClipboardPicker) {
-                    clipboardImageUris = uris
-                    clipboardSkippedCount = scan.skipped
-                }
-            }
-        }
+    fun showClipboardOffer(snapshot: ClipboardBatchSnapshot) {
+        clipboardOffer = snapshot
+        clipboardImageUris = snapshot.uris
+        clipboardSkippedCount = snapshot.rejected.size
     }
-    DisposableEffect(lifecycleOwner) {
-        val owner = lifecycleOwner
-        if (owner == null) {
-            checkClipboardOffer()
-            onDispose { }
-        } else {
-            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-            val clipListener = ClipboardManager.OnPrimaryClipChangedListener {
-                localClipboardRevision++
-                checkClipboardOffer()
-            }
-            val observer = LifecycleEventObserver { _, event ->
-                when (event) {
-                    Lifecycle.Event.ON_RESUME -> {
-                        try {
-                            clipboard?.addPrimaryClipChangedListener(clipListener)
-                        } catch (_: Exception) {
-                        }
-                        checkClipboardOffer()
-                    }
-                    Lifecycle.Event.ON_PAUSE -> {
-                        try {
-                            clipboard?.removePrimaryClipChangedListener(clipListener)
-                        } catch (_: Exception) {
-                        }
-                    }
-                    else -> {}
-                }
-            }
-            owner.lifecycle.addObserver(observer)
-            // The observer misses an already-resumed state: check immediately.
-            checkClipboardOffer()
-            onDispose {
-                owner.lifecycle.removeObserver(observer)
-                try {
-                    clipboard?.removePrimaryClipChangedListener(clipListener)
-                } catch (_: Exception) {
-                }
-            }
+
+    fun reduceClipboard(event: ClipboardOfferReducer.Event) {
+        val (next, effect) = clipboardOfferReducer.reduce(clipboardOfferState, event)
+        clipboardOfferState = next
+        if (effect is ClipboardOfferReducer.Effect.Show) {
+            showClipboardOffer(effect.snapshot)
         }
     }
 
+    // Capture only ClipData metadata on the main thread. The stream is never
+    // touched until Review, so an old scan cannot overwrite a newer batch.
+    fun checkClipboardOffer() {
+        val snapshot = ClipboardHelper.captureClipboardBatch(context, ++clipboardGeneration)
+        if (snapshot == null) {
+            if (!showClipboardPicker) {
+                clipboardOffer = null
+                clipboardImageUris = emptyList()
+                clipboardSkippedCount = 0
+            }
+        } else {
+            reduceClipboard(ClipboardOfferReducer.Event.ScanArrived(snapshot))
+        }
+    }
+
+    fun openClipboardReview() {
+        val offer = clipboardOffer ?: return
+        if (offer.candidates.isEmpty() || isStagingClipboard || isImportingClipboard) return
+        reduceClipboard(ClipboardOfferReducer.Event.ReviewOpened)
+        showClipboardPicker = true
+        stagedClipboardItems = emptyList()
+        clipboardStageProgress = 0 to offer.candidates.size
+        isStagingClipboard = true
+        scope.launch {
+            val staged = clipboardStager.stage(offer) { done, total ->
+                scope.launch { clipboardStageProgress = done to total }
+            }
+            // The sheet is intentionally frozen to its opening snapshot.
+            if (showClipboardPicker && clipboardOffer?.generation == offer.generation) {
+                stagedClipboardItems = staged
+            } else {
+                staged.filterIsInstance<StagedClipboardItem.Ready>().forEach { it.file.delete() }
+            }
+            isStagingClipboard = false
+        }
+    }
+
+    fun closeClipboardReview(consumeCurrent: Boolean) {
+        val (next, effect) = clipboardOfferReducer.reduce(
+            clipboardOfferState,
+            ClipboardOfferReducer.Event.ReviewClosed
+        )
+        clipboardOfferState = next
+        showClipboardPicker = false
+        isStagingClipboard = false
+        isImportingClipboard = false
+        clipboardStageProgress = 0 to 0
+        stagedClipboardItems.filterIsInstance<StagedClipboardItem.Ready>().forEach { it.file.delete() }
+        stagedClipboardItems = emptyList()
+        if (effect is ClipboardOfferReducer.Effect.Show) {
+            showClipboardOffer(effect.snapshot)
+        } else if (consumeCurrent) {
+            clipboardOfferState = next.copy(current = null)
+            clipboardOffer = null
+            clipboardImageUris = emptyList()
+            clipboardSkippedCount = 0
+        }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, context) {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        var listenerRegistered = false
+        val clipListener = ClipboardManager.OnPrimaryClipChangedListener { checkClipboardOffer() }
+        fun registerListener() {
+            if (listenerRegistered) return
+            try {
+                clipboard?.addPrimaryClipChangedListener(clipListener)
+                listenerRegistered = true
+            } catch (_: Exception) {
+            }
+        }
+        fun unregisterListener() {
+            if (!listenerRegistered) return
+            try {
+                clipboard?.removePrimaryClipChangedListener(clipListener)
+            } catch (_: Exception) {
+            }
+            listenerRegistered = false
+        }
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    registerListener()
+                    checkClipboardOffer()
+                }
+                Lifecycle.Event.ON_PAUSE -> unregisterListener()
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            registerListener()
+            checkClipboardOffer()
+        }
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            unregisterListener()
+        }
+    }
     // Photo Picker Launcher
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -553,29 +609,32 @@ fun StickHubApp(
         }
     }
 
-    /** Clears the current clipboard offer (after import or dismiss). */
-    fun consumeClipboardOffer() {
-        clipboardImageUris = emptyList()
-        clipboardSkippedCount = 0
-        lastOfferedClipboardUris = emptyList()
-        showClipboardPicker = false
+    // Multi-share is a ready-made-sticker batch. It deliberately does not run
+    // ML subject cutout N times; Review stages/imports the original images.
+    LaunchedEffect(incomingSharedBatch?.id) {
+        incomingSharedBatch?.let { event ->
+            val snapshot = event.snapshot
+            showClipboardOffer(snapshot)
+            clipboardOfferState = ClipboardOfferReducer.State(
+                lastGeneration = snapshot.generation,
+                current = snapshot
+            )
+            openClipboardReview()
+            onClearSharedBatch()
+        }
     }
 
-    fun importClipboardStickers(uris: List<Uri>) {
-        if (uris.isEmpty()) return
+    fun importClipboardStickers(items: List<StagedClipboardItem.Ready>) {
+        if (items.isEmpty() || isImportingClipboard) return
         scope.launch {
-            var saved = 0
-            var duplicates = 0
-            var failed = 0
-            uris.forEach { uri ->
-                when (repository.importClipboardSticker(uri)) {
-                    is ClipboardImportResult.Saved -> saved++
-                    is ClipboardImportResult.Duplicate -> duplicates++
-                    is ClipboardImportResult.OwnSource -> { /* filtered upstream */ }
-                    else -> failed++
-                }
-            }
-            consumeClipboardOffer()
+            isImportingClipboard = true
+            val result = repository.importStagedClipboardBatch(items)
+            isImportingClipboard = false
+            val saved = result.saved.size
+            val duplicates = result.duplicates.size
+            val failed = result.failed.size
+            // Retain only failed staged items in the open sheet for Retry.
+            stagedClipboardItems = result.failed.map { it.item }
             when {
                 saved > 0 -> {
                     haptics.performConfirm()
@@ -596,6 +655,9 @@ fun StickHubApp(
                     haptics.performReject()
                     flashSnackbar("Couldn't import clipboard images.")
                 }
+            }
+            if (failed == 0) {
+                closeClipboardReview(consumeCurrent = true)
             }
         }
     }
@@ -856,24 +918,8 @@ fun StickHubApp(
                                     FloatingActionButton(
                                         onClick = {
                                             haptics.performTap()
-                                            scope.launch {
-                                                val scan = withContext(Dispatchers.IO) {
-                                                    ClipboardHelper.scanClipboardImages(context)
-                                                }
-                                                val uris = scan.uris
-                                                val stamp = scan.stamp
-                                                // Explicit user action: adopt whatever is there now.
-                                                if (stamp != 0L) {
-                                                    lastClipboardEventId = stamp
-                                                } else {
-                                                    localClipboardRevision++
-                                                    lastClipboardEventId = localClipboardRevision
-                                                }
-                                                lastOfferedClipboardUris = uris
-                                                clipboardImageUris = uris
-                                                clipboardSkippedCount = scan.skipped
-                                                showCreateSourceDialog = true
-                                            }
+                                            checkClipboardOffer()
+                                            showCreateSourceDialog = true
                                         },
                                         containerColor = MaterialTheme.colorScheme.primary,
                                         contentColor = MaterialTheme.colorScheme.onPrimary
@@ -979,8 +1025,8 @@ fun StickHubApp(
                                                     }
                                                 },
                                                 clipboardImageUris = clipboardImageUris,
-                                                onImportClipboard = { showClipboardPicker = true },
-                                                onDismissClipboard = { consumeClipboardOffer() },
+                                                onImportClipboard = { openClipboardReview() },
+                                                onDismissClipboard = { closeClipboardReview(consumeCurrent = true) },
                                                 appFocusManager = appFocusManager,
                                                 showQuickStickersOnboarding = showOnboarding,
                                                 onEnableQuickStickers = {
@@ -1121,8 +1167,8 @@ fun StickHubApp(
                                                     }
                                                 },
                                                 clipboardImageUris = clipboardImageUris,
-                                                onImportClipboard = { showClipboardPicker = true },
-                                                onDismissClipboard = { consumeClipboardOffer() },
+                                                onImportClipboard = { openClipboardReview() },
+                                                onDismissClipboard = { closeClipboardReview(consumeCurrent = true) },
                                                 appFocusManager = appFocusManager,
                                                 showQuickStickersOnboarding = showOnboarding,
                                                 onEnableQuickStickers = {
@@ -1342,8 +1388,8 @@ fun StickHubApp(
                                                     }
                                                 },
                                                 clipboardImageUris = clipboardImageUris,
-                                                onImportClipboard = { showClipboardPicker = true },
-                                                onDismissClipboard = { consumeClipboardOffer() },
+                                                onImportClipboard = { openClipboardReview() },
+                                                onDismissClipboard = { closeClipboardReview(consumeCurrent = true) },
                                                 appFocusManager = appFocusManager,
                                                 showQuickStickersOnboarding = showOnboarding,
                                                 onEnableQuickStickers = {
@@ -1481,8 +1527,8 @@ fun StickHubApp(
                                                     }
                                                 },
                                                 clipboardImageUris = clipboardImageUris,
-                                                onImportClipboard = { showClipboardPicker = true },
-                                                onDismissClipboard = { consumeClipboardOffer() },
+                                                onImportClipboard = { openClipboardReview() },
+                                                onDismissClipboard = { closeClipboardReview(consumeCurrent = true) },
                                                 appFocusManager = appFocusManager,
                                                 showQuickStickersOnboarding = showOnboarding,
                                                 onEnableQuickStickers = {
@@ -1854,7 +1900,7 @@ fun StickHubApp(
                         onClick = {
                             if (clipboardImageUris.isEmpty()) return@Button
                             showCreateSourceDialog = false
-                            showClipboardPicker = true
+                            openClipboardReview()
                         },
                         enabled = clipboardImageUris.isNotEmpty(),
                         modifier = Modifier.fillMaxWidth(),
@@ -1906,12 +1952,15 @@ fun StickHubApp(
     }
 
     // Multi-image clipboard review sheet
-    if (showClipboardPicker && clipboardImageUris.isNotEmpty()) {
+    if (showClipboardPicker) {
         ClipboardImportSheet(
-            uris = clipboardImageUris,
+            stagedItems = stagedClipboardItems,
             skippedCount = clipboardSkippedCount,
+            isStaging = isStagingClipboard,
+            stageProgress = clipboardStageProgress,
+            isImporting = isImportingClipboard,
             onImportSelected = { importClipboardStickers(it) },
-            onDismiss = { consumeClipboardOffer() }
+            onDismiss = { closeClipboardReview(consumeCurrent = false) }
         )
     }
 

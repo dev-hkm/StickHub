@@ -1,6 +1,5 @@
 package com.hkm.stickhub.ui.components
 
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -41,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.composables.icons.lucide.R as LucideR
+import com.hkm.stickhub.util.StagedClipboardItem
 import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
 
 /**
@@ -49,16 +49,23 @@ import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
  */
 @Composable
 fun ClipboardImportSheet(
-    uris: List<Uri>,
+    stagedItems: List<StagedClipboardItem>,
     skippedCount: Int = 0,
-    onImportSelected: (List<Uri>) -> Unit,
+    isStaging: Boolean = false,
+    stageProgress: Pair<Int, Int> = 0 to 0,
+    isImporting: Boolean = false,
+    onImportSelected: (List<StagedClipboardItem.Ready>) -> Unit,
     onDismiss: () -> Unit
 ) {
     val haptics = rememberStickHubHaptics()
-    var selected by remember(uris) { mutableStateOf(uris.toSet()) }
+    val readyItems = stagedItems.filterIsInstance<StagedClipboardItem.Ready>()
+    val failedCount = stagedItems.count { it is StagedClipboardItem.Failed }
+    var selectedKeys by remember(stagedItems) {
+        mutableStateOf(readyItems.map { it.candidate.stableKey }.toSet())
+    }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isImporting) onDismiss() },
         title = {
             Text(
                 text = "Import from clipboard",
@@ -68,31 +75,50 @@ fun ClipboardImportSheet(
         },
         text = {
             Column {
-                Text(
-                    text = "${uris.size} images found — tap to select, then import once." +
-                        if (skippedCount > 0) " ($skippedCount couldn't be read.)" else "",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                val status = when {
+                    isStaging -> "Preparing ${stageProgress.first}/${stageProgress.second} copied images…"
+                    isImporting -> "Saving selected stickers…"
+                    readyItems.isNotEmpty() -> "${readyItems.size} images ready — tap to select, then import once."
+                    else -> "No copied images could be prepared."
+                }
+                Text(text = status, style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (skippedCount > 0 || failedCount > 0) {
+                    Text(
+                        text = buildString {
+                            if (skippedCount > 0) append("$skippedCount unsupported. ")
+                            if (failedCount > 0) append("$failedCount couldn't be read.")
+                        }.trim(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
                 Spacer(modifier = Modifier.height(12.dp))
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(300.dp),
-                    contentPadding = PaddingValues(2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(uris, key = { it.toString() }) { uri ->
-                        ClipboardPickThumb(
-                            uri = uri,
-                            selected = uri in selected,
-                            onToggle = {
-                                haptics.performTick()
-                                selected = if (uri in selected) selected - uri else selected + uri
-                            }
-                        )
+                if (isStaging) {
+                    Box(modifier = Modifier.fillMaxWidth().height(180.dp), contentAlignment = Alignment.Center) {
+                        androidx.compose.material3.CircularProgressIndicator()
+                    }
+                } else if (readyItems.isNotEmpty()) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        modifier = Modifier.fillMaxWidth().height(300.dp),
+                        contentPadding = PaddingValues(2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(readyItems, key = { it.candidate.stableKey }) { item ->
+                            ClipboardPickThumb(
+                                item = item,
+                                selected = item.candidate.stableKey in selectedKeys,
+                                onToggle = {
+                                    if (!isImporting) {
+                                        haptics.performTick()
+                                        val key = item.candidate.stableKey
+                                        selectedKeys = if (key in selectedKeys) selectedKeys - key else selectedKeys + key
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -101,12 +127,12 @@ fun ClipboardImportSheet(
             Button(
                 onClick = {
                     haptics.performTick()
-                    onImportSelected(uris.filter { it in selected })
+                    onImportSelected(readyItems.filter { it.candidate.stableKey in selectedKeys })
                 },
-                enabled = selected.isNotEmpty(),
+                enabled = !isStaging && !isImporting && selectedKeys.isNotEmpty(),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Import ${selected.size}")
+                Text(if (isImporting) "Importing…" else "Import ${selectedKeys.size}")
             }
         },
         dismissButton = {
@@ -114,14 +140,17 @@ fun ClipboardImportSheet(
                 TextButton(
                     onClick = {
                         haptics.performTick()
-                        selected = if (selected.size == uris.size) emptySet() else uris.toSet()
+                        selectedKeys = if (selectedKeys.size == readyItems.size) emptySet()
+                        else readyItems.map { it.candidate.stableKey }.toSet()
                     },
+                    enabled = !isStaging && !isImporting && readyItems.isNotEmpty(),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text(if (selected.size == uris.size) "Clear" else "Select all")
+                    Text(if (selectedKeys.size == readyItems.size) "Clear" else "Select all")
                 }
                 TextButton(
                     onClick = onDismiss,
+                    enabled = !isImporting,
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text("Cancel")
@@ -133,7 +162,7 @@ fun ClipboardImportSheet(
 
 @Composable
 private fun ClipboardPickThumb(
-    uri: Uri,
+    item: StagedClipboardItem.Ready,
     selected: Boolean,
     onToggle: () -> Unit
 ) {
@@ -157,7 +186,7 @@ private fun ClipboardPickThumb(
     ) {
         AsyncImage(
             model = ImageRequest.Builder(context)
-                .data(uri)
+                .data(item.file)
                 .crossfade(true)
                 .build(),
             contentDescription = "Clipboard image",

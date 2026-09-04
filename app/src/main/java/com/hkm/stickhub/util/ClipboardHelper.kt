@@ -4,11 +4,8 @@ import android.content.ClipData
 import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
-import android.util.Log
 import com.hkm.stickhub.data.model.StickerItem
 import com.hkm.stickhub.data.provider.StickerContentProvider
 import java.io.File
@@ -17,7 +14,7 @@ object ClipboardHelper {
 
     private const val TAG = "ClipboardImport"
 
-    /** What a clipboard scan found, plus how many candidates were unreadable. */
+    /** Compatibility result for older callers that only need URI/count data. */
     data class ClipboardScanResult(
         val uris: List<Uri>,
         val skipped: Int,
@@ -77,162 +74,58 @@ object ClipboardHelper {
     }
 
     /**
-     * Full multi-shape scan. Clipboard producers disagree wildly: direct item
-     * URIs, text/uri-list (or plain text) holding one URI per line, <img> tags
-     * in HTML payloads, and ACTION_SEND intents with EXTRA_STREAM(S). Every
-     * shape is harvested and every candidate is gated, so a producer using
-     * any of them yields the whole set instead of just the first image.
+     * Captures the current primary clip synchronously while the Activity is in
+     * the foreground. This deliberately performs no resolver I/O: provider
+     * streams are opened exactly once later by [ClipboardStager] after the
+     * user chooses to review/import the frozen batch.
      */
-    fun scanClipboardImages(context: Context): ClipboardScanResult {
-        try {
+    fun captureClipboardBatch(context: Context, generation: Long): ClipboardBatchSnapshot? {
+        return try {
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                ?: return ClipboardScanResult(emptyList(), 0, 0L)
-            val clip = clipboard.primaryClip ?: return ClipboardScanResult(emptyList(), 0, 0L)
-            val stamp = clipEventId(clipboard)
-            val out = mutableListOf<Uri>()
-            var skipped = 0
-            for (i in 0 until clip.itemCount) {
-                val item = clip.getItemAt(i) ?: continue
-                val candidates = collectItemUris(context, item)
-                for (uri in candidates) {
-                    if (uri in out) continue
-                    // One poisoned URI (dead provider, revoked grant, getType
-                    // throwing) must never truncate the URIs after it.
-                    val eligible = try {
-                        isEligibleClipboardImageUri(context, clip.description, uri)
-                    } catch (e: Exception) {
-                        Log.d(TAG, "Skipping ineligible clipboard uri $uri", e)
-                        false
-                    }
-                    if (eligible) {
-                        out.add(uri)
-                    } else if (!ClipboardImportPolicy.isOwnStickerSource(uri.scheme, uri.authority)) {
-                        skipped++
-                    }
-                }
+                ?: return null
+            val clip = clipboard.primaryClip ?: return null
+            val stamp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                try { clip.description.timestamp } catch (_: Exception) { 0L }
+            } else {
+                0L
             }
-            if (skipped > 0) Log.d(TAG, "Clipboard scan kept ${out.size}, skipped $skipped")
-            return ClipboardScanResult(out, skipped, stamp)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return ClipboardScanResult(emptyList(), 0, 0L)
-    }
-
-    /** Every URI shape a single clip item can carry. Never throws. */
-    private fun collectItemUris(context: Context, item: ClipData.Item): List<Uri> {
-        val candidates = mutableListOf<Uri>()
-        try {
-            // Intent-backed items surface a pseudo "intent:" URI here; the real
-            // streams come from extractIntentUris below.
-            item.uri?.takeUnless { it.scheme.equals("intent", ignoreCase = true) }
-                ?.let { candidates.add(it) }
-        } catch (_: Exception) {
-            Log.d(TAG, "Skipping unreadable clipboard item uri")
-        }
-        // Plain or uri-list text: one URI per line. Parsed regardless of the
-        // declared mime type — producers mix text/plain and text/uri-list freely.
-        extractUriListText(context, item)?.lineSequence()?.forEach { line ->
-            sanitizeUriLine(line)?.let { candidates.add(it) }
-        }
-        // HTML payloads (<img src="content://...">).
-        try {
-            item.htmlText?.toString()?.let { html ->
-                UriLinePattern.findAll(html).forEach { match ->
-                    sanitizeUriLine(match.value)?.let { candidates.add(it) }
-                }
-            }
-        } catch (_: Exception) {
-        }
-        // ACTION_SEND(_MULTIPLE) intents carrying EXTRA_STREAM(S).
-        candidates.addAll(extractIntentUris(item))
-        // Intent-backed items leak their pseudo "intent:#Intent;..." form through
-        // coerceToText above; that is an envelope, never an image.
-        return candidates.filterNot { it.scheme.equals("intent", ignoreCase = true) }
-    }
-
-    private fun sanitizeUriLine(raw: String): Uri? {
-        val trimmed = raw.trim().trimEnd(',', ';', '.', '!', '?', ')', '"', '\'')
-        if (trimmed.isEmpty()) return null
-        return try {
-            Uri.parse(trimmed)
-        } catch (_: Exception) {
-            null
-        }
-    }
-
-    @Suppress("DEPRECATION")
-    private fun extractIntentUris(item: ClipData.Item): List<Uri> {
-        return try {
-            val intent = item.intent ?: return emptyList()
-            val out = mutableListOf<Uri>()
-            try {
-                intent.data?.let { out.add(it) }
-            } catch (_: Exception) {
-            }
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)?.let { out.add(it) }
-                    intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)?.let { out.addAll(it) }
-                } else {
-                    intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)?.let { out.add(it) }
-                    intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)?.let { out.addAll(it) }
-                }
-            } catch (_: Exception) {
-            }
-            out
-        } catch (_: Exception) {
-            emptyList()
-        }
-    }
-
-    private val UriLinePattern = Regex("""(content|file)://[^\s"\'<>]+""")
-
-    /**
-     * Best-effort read of a clipboard item's textual payload. Plain text wins;
-     * coercion is only a fallback for producers that fill htmlText alone.
-     */
-    private fun extractUriListText(context: Context, item: ClipData.Item): String? {
-        return try {
-            item.text?.toString() ?: item.coerceToText(context)?.toString()
-        } catch (_: Exception) {
-            null
-        }
-    }
-
-    private fun isEligibleClipboardImageUri(
-        context: Context,
-        description: ClipDescription,
-        uri: Uri
-    ): Boolean {
-        // A StickerContentProvider URI is a sticker copied *out* of StickHub. Never
-        // surface it as a candidate to import back into the library.
-        if (ClipboardImportPolicy.isOwnStickerSource(uri.scheme, uri.authority)) {
-            return false
-        }
-        val mimeType = context.contentResolver.getType(uri) ?: ""
-        val declaredMimeTypes = listOf(
-            ClipDescription.MIMETYPE_TEXT_URILIST,
-            "image/*",
-            "image/png",
-            "image/jpeg",
-            "image/webp",
-            "image/gif",
-            "image/heic"
-        ).filter(description::hasMimeType)
-        if (
-            ClipboardImportPolicy.isEligibleImage(
-                scheme = uri.scheme,
-                authority = uri.authority,
-                resolvedMimeType = mimeType,
-                declaredMimeTypes = declaredMimeTypes
+            ClipboardBatchFactory.build(
+                generation = generation,
+                origin = BatchOrigin.CLIPBOARD,
+                sourceItemCount = clip.itemCount,
+                stamp = stamp,
+                harvested = ClipboardUriHarvester.harvestClipData(clip),
+                // MIME and bytes are intentionally checked only during staging.
+                // A null/octet-stream provider must not make a valid image vanish.
+                resolveMimeType = { null }
             )
-        ) {
-            return true
+        } catch (_: Exception) {
+            null
         }
-        // Some clipboard producers expose only text/uri-list. Verify the actual
-        // stream headers instead of accepting arbitrary content:// data.
-        return isDecodableImage(context, uri)
+    }
+
+    /** Creates the same immutable batch contract for an inbound share Intent. */
+    fun captureShareBatch(intent: android.content.Intent, generation: Long): ClipboardBatchSnapshot {
+        val itemCount = try { intent.clipData?.itemCount ?: 0 } catch (_: Exception) { 0 }
+        return ClipboardBatchFactory.build(
+            generation = generation,
+            origin = BatchOrigin.SHARE,
+            sourceItemCount = itemCount,
+            stamp = 0L,
+            harvested = ClipboardUriHarvester.harvestIntent(intent),
+            resolveMimeType = { null }
+        )
+    }
+
+    /** Legacy URI-only scan retained for existing callers and tests. */
+    fun scanClipboardImages(context: Context): ClipboardScanResult {
+        val batch = captureClipboardBatch(context, generation = 0L)
+            ?: return ClipboardScanResult(emptyList(), 0, 0L)
+        return ClipboardScanResult(
+            uris = batch.uris,
+            skipped = batch.rejected.size,
+            stamp = batch.stamp
+        )
     }
 
     fun hasImageInClipboard(context: Context): Boolean {
@@ -256,15 +149,4 @@ object ClipboardHelper {
         }
     }
 
-    private fun isDecodableImage(context: Context, uri: Uri): Boolean {
-        return try {
-            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            context.contentResolver.openInputStream(uri)?.use { stream ->
-                BitmapFactory.decodeStream(stream, null, options)
-            }
-            options.outWidth > 0 && options.outHeight > 0
-        } catch (_: Exception) {
-            false
-        }
-    }
 }

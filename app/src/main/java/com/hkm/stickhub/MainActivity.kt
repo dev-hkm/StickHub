@@ -13,6 +13,9 @@ import androidx.compose.runtime.setValue
 import com.hkm.stickhub.data.repository.StickerRepository
 import com.hkm.stickhub.service.OverlayService
 import com.hkm.stickhub.ui.StickHubApp
+import com.hkm.stickhub.util.ClipboardHelper
+import com.hkm.stickhub.util.ClipboardStager
+import com.hkm.stickhub.util.IncomingShareBatch
 import com.hkm.stickhub.ui.theme.AppThemeMode
 import com.hkm.stickhub.ui.theme.AppVisualTheme
 import com.hkm.stickhub.ui.theme.StickHubTheme
@@ -25,6 +28,8 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var repository: StickerRepository
     private var incomingSharedUri by mutableStateOf<Uri?>(null)
+    private var incomingSharedBatch by mutableStateOf<IncomingShareBatch?>(null)
+    private var incomingShareGeneration = 0L
     private var themeMode by mutableStateOf(AppThemeMode.SYSTEM)
     private var visualTheme by mutableStateOf(AppVisualTheme.DEFAULT)
     /** Bumped on every resume so the UI reconciles real permission/service state. */
@@ -50,6 +55,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         repository = StickerRepository.getInstance(this)
+        ClipboardStager.cleanupStale(applicationContext)
         themeMode = ThemePreferences.getThemeMode(this)
         visualTheme = ThemePreferences.getVisualTheme(this)
 
@@ -65,6 +71,8 @@ class MainActivity : ComponentActivity() {
                     repository = repository,
                     incomingSharedUri = incomingSharedUri,
                     onClearSharedUri = { incomingSharedUri = null },
+                    incomingSharedBatch = incomingSharedBatch,
+                    onClearSharedBatch = { incomingSharedBatch = null },
                     foregroundTick = foregroundTick,
                     themeMode = themeMode,
                     onThemeModeChange = { newMode ->
@@ -110,17 +118,19 @@ class MainActivity : ComponentActivity() {
 
     private fun handleIncomingIntent(intent: Intent?) {
         if (intent == null) return
-        if (intent.action == Intent.ACTION_SEND && intent.type?.startsWith("image/") == true) {
-            val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
-            } else {
-                @Suppress("DEPRECATION")
-                intent.getParcelableExtra(Intent.EXTRA_STREAM)
-            } ?: intent.data
+        val isShare = intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_SEND_MULTIPLE
+        if (!isShare) return
 
-            if (uri != null) {
-                incomingSharedUri = uri
-            }
+        // Harvest both framework-standard multi-share shapes: EXTRA_STREAM(S)
+        // and Intent.clipData. A repeated share with the same URIs still gets a
+        // fresh generation so Compose never swallows the event.
+        val batch = ClipboardHelper.captureShareBatch(intent, ++incomingShareGeneration)
+        if (batch.candidates.isEmpty()) return
+        if (intent.action == Intent.ACTION_SEND_MULTIPLE || batch.candidates.size > 1) {
+            incomingSharedBatch = IncomingShareBatch(incomingShareGeneration, batch)
+        } else {
+            // Preserve the existing one-image Share -> cut subject flow.
+            incomingSharedUri = batch.uris.firstOrNull()
         }
     }
 }

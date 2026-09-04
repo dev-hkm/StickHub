@@ -5,12 +5,14 @@ import android.content.Context
 import android.database.Cursor
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.annotation.VisibleForTesting
 import com.hkm.stickhub.data.db.StickHubDbHelper
 import com.hkm.stickhub.data.model.CategoryItem
 import com.hkm.stickhub.data.model.CategoryValidator
 import com.hkm.stickhub.data.model.StickerItem
 import com.hkm.stickhub.util.ClipboardContentHasher
 import com.hkm.stickhub.util.ClipboardImportPolicy
+import com.hkm.stickhub.util.StagedClipboardItem
 import com.hkm.stickhub.util.StickerMimeTypes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +29,19 @@ import java.io.InputStream
 import java.util.UUID
 
 class StickerRepository(private val context: Context) {
+
+    /** Per-item failure kept with its staged file so the UI can retry only it. */
+    data class ClipboardBatchFailure(
+        val item: StagedClipboardItem.Ready,
+        val reason: String
+    )
+
+    /** The durable result of committing one staged clipboard batch. */
+    data class ClipboardBatchImportResult(
+        val saved: List<StickerItem>,
+        val duplicates: List<StickerItem>,
+        val failed: List<ClipboardBatchFailure>
+    )
 
     /** One validated archive category waiting to be merged. */
     data class BackupRestoreCategory(
@@ -109,9 +124,14 @@ class StickerRepository(private val context: Context) {
     private val clipboardImportMutex = Mutex()
     private val backupMutex = Mutex()
 
+    /** Test-only observation seam for proving batch imports refresh once. */
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    internal var refreshListener: (() -> Unit)? = null
+
     suspend fun refresh() = withContext(Dispatchers.IO) {
         _stickersFlow.value = getAllStickersInternal()
         _categoriesFlow.value = getAllCategoriesInternal()
+        refreshListener?.invoke()
     }
 
     private fun getAllStickersInternal(): List<StickerItem> {
@@ -457,13 +477,84 @@ class StickerRepository(private val context: Context) {
         }
     }
 
+    /**
+     * Commits already-staged clipboard files. External content URIs are never
+     * reopened here: staging owns the one allowed provider read, which makes
+     * temporary clipboard grants and one-shot streams reliable.
+     */
+    suspend fun importStagedClipboardBatch(
+        stagedItems: List<StagedClipboardItem.Ready>,
+        title: String = "",
+        category: String = "General",
+        tags: String = ""
+    ): ClipboardBatchImportResult = clipboardImportMutex.withLock {
+        withContext(Dispatchers.IO) {
+            val saved = mutableListOf<StickerItem>()
+            val duplicates = mutableListOf<StickerItem>()
+            val failed = mutableListOf<ClipboardBatchFailure>()
+
+            for (item in stagedItems) {
+                val file = item.file
+                if (!file.isFile || file.length() <= 0L) {
+                    failed += ClipboardBatchFailure(item, "Prepared image is no longer available.")
+                    continue
+                }
+                val result = try {
+                    file.inputStream().use { stream ->
+                        saveStickerFromStreamInternal(
+                            inputStream = stream,
+                            title = title,
+                            category = category,
+                            tags = tags,
+                            fileExtension = item.extension,
+                            rejectDuplicates = true,
+                            refreshAfterSave = false
+                        )
+                    }
+                } catch (ce: CancellationException) {
+                    throw ce
+                } catch (error: Exception) {
+                    StreamSaveResult.Failed(error.localizedMessage ?: "Couldn't save the clipboard sticker.")
+                }
+
+                when (result) {
+                    is StreamSaveResult.Saved -> {
+                        saved += result.sticker
+                        file.delete()
+                    }
+                    is StreamSaveResult.Duplicate -> {
+                        duplicates += result.existingSticker
+                        file.delete()
+                    }
+                    is StreamSaveResult.Failed -> {
+                        // Keep a readable staged file so only this item can be retried.
+                        failed += ClipboardBatchFailure(item, result.reason)
+                    }
+                }
+            }
+
+            if (stagedItems.isNotEmpty()) {
+                try {
+                    refresh()
+                } catch (ce: CancellationException) {
+                    throw ce
+                } catch (_: Exception) {
+                    // The durable writes above remain valid even if the in-memory
+                    // snapshot cannot refresh immediately.
+                }
+            }
+            ClipboardBatchImportResult(saved, duplicates, failed)
+        }
+    }
+
     private suspend fun saveStickerFromStreamInternal(
         inputStream: InputStream,
         title: String,
         category: String,
         tags: String,
         fileExtension: String,
-        rejectDuplicates: Boolean
+        rejectDuplicates: Boolean,
+        refreshAfterSave: Boolean = true
     ): StreamSaveResult {
         val safeExtension = fileExtension.lowercase().removePrefix(".").ifBlank { "png" }
         val uniquePart = "${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(6)}"
@@ -519,11 +610,13 @@ class StickerRepository(private val context: Context) {
             }
             committed = true
 
-            try {
-                refresh()
-            } catch (ce: CancellationException) {
-                throw ce
-            } catch (_: Exception) {
+            if (refreshAfterSave) {
+                try {
+                    refresh()
+                } catch (ce: CancellationException) {
+                    throw ce
+                } catch (_: Exception) {
+                }
             }
             val saved = getStickerByIdInternal(id)
                 ?: return StreamSaveResult.Failed("Sticker was saved but could not be read back.")
