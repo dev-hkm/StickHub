@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import com.hkm.stickhub.util.ClipboardHelper
 import org.junit.Assert.assertEquals
@@ -78,5 +79,67 @@ class ClipboardMultiImportTest {
         clipboard.setPrimaryClip(imageClip(ClipData.Item(uri), ClipData.Item(uri)))
         val (uris, _) = ClipboardHelper.getClipboardImagesStamped(context)
         assertEquals(listOf(uri), uris)
+    }
+
+    @Test
+    fun plainTextLinesAreParsedWithoutUriListMime() {
+        val text = "file:///sdcard/a.png\nfile:///sdcard/b.png"
+        val clip = ClipData(
+            ClipDescription("images", arrayOf("text/plain", "image/*")),
+            ClipData.Item(text)
+        )
+        clipboard.setPrimaryClip(clip)
+        val (uris, _) = ClipboardHelper.getClipboardImagesStamped(context)
+        assertEquals(
+            listOf(Uri.parse("file:///sdcard/a.png"), Uri.parse("file:///sdcard/b.png")),
+            uris
+        )
+    }
+
+    @Test
+    fun htmlImgSourcesAreCollected() {
+        val html = "<p>pics</p><img src=\"file:///sdcard/a.png\"/><img src=\"file:///sdcard/b.png\">"
+        val clip = ClipData(
+            ClipDescription("images", arrayOf("text/html", "image/*")),
+            ClipData.Item("", html)
+        )
+        clipboard.setPrimaryClip(clip)
+        val (uris, _) = ClipboardHelper.getClipboardImagesStamped(context)
+        assertEquals(
+            listOf(Uri.parse("file:///sdcard/a.png"), Uri.parse("file:///sdcard/b.png")),
+            uris
+        )
+    }
+
+    @Test
+    fun intentSingleStreamIsCollected() {
+        val uri = Uri.parse("file:///sdcard/a.png")
+        val intent = Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_STREAM, uri)
+        clipboard.setPrimaryClip(imageClip(ClipData.Item(intent)))
+        val (uris, _) = ClipboardHelper.getClipboardImagesStamped(context)
+        assertEquals(listOf(uri), uris)
+    }
+
+    @Test
+    fun intentMultipleStreamsAreAllCollected() {
+        val a = Uri.parse("file:///sdcard/a.png")
+        val b = Uri.parse("file:///sdcard/b.png")
+        val intent = Intent(Intent.ACTION_SEND_MULTIPLE)
+            .putParcelableArrayListExtra(Intent.EXTRA_STREAM, arrayListOf(a, b))
+        clipboard.setPrimaryClip(imageClip(ClipData.Item(intent)))
+        val (uris, _) = ClipboardHelper.getClipboardImagesStamped(context)
+        assertEquals(listOf(a, b), uris)
+    }
+
+    @Test
+    fun scanReportsSkippedCount() {
+        val clip = ClipData(
+            ClipDescription("images", arrayOf("image/*")),
+            ClipData.Item(Uri.parse("file:///sdcard/a.png"))
+        )
+        clipboard.setPrimaryClip(clip)
+        val scan = ClipboardHelper.scanClipboardImages(context)
+        assertEquals(listOf(Uri.parse("file:///sdcard/a.png")), scan.uris)
+        assertEquals(0, scan.skipped)
     }
 }

@@ -95,12 +95,21 @@ class HapticPolicyTest {
     }
 
     @Test
-    fun testLongPressPolicyUsesPlatformLongPress() {
-        val result = StickHubHaptics.resolveFeedbackConstant(
-            StickHubHaptics.FeedbackType.LONG_PRESS,
-            sdkInt = 34
+    fun testLongPressPolicyIsASinglePulseNeverTheOemDoubleBeat() {
+        assertEquals(
+            HapticFeedbackConstants.TEXT_HANDLE_MOVE,
+            StickHubHaptics.resolveFeedbackConstant(
+                StickHubHaptics.FeedbackType.LONG_PRESS,
+                sdkInt = 34
+            )
         )
-        assertEquals(HapticFeedbackConstants.LONG_PRESS, result)
+        assertEquals(
+            HapticFeedbackConstants.VIRTUAL_KEY,
+            StickHubHaptics.resolveFeedbackConstant(
+                StickHubHaptics.FeedbackType.LONG_PRESS,
+                sdkInt = 24
+            )
+        )
     }
 
     @Test

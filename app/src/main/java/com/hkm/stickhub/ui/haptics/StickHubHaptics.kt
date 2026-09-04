@@ -13,7 +13,9 @@ import androidx.compose.ui.platform.LocalView
  *
  * Design goal: feel like a stock-quality app. Strength ladder (weak → strong):
  * TICK (selections, chips, releases) < NAVIGATION_TAP (moves between screens)
- * < TOGGLE (switch flips, direction-aware on API 34+) < LONG_PRESS (holds)
+ * < TOGGLE (switch flips, direction-aware on API 34+) < HOLD_ACK (a single
+ * crisp beat for holds — deliberately not the platform LONG_PRESS constant,
+ * which several OEMs render as a double pulse)
  * < COPY_ACK/CONFIRM (real successes only: copy, save, export, import)
  * < REJECT (errors).
  *
@@ -111,7 +113,13 @@ class StickHubHaptics(private val view: View) {
                     if (sdkInt >= 30) HapticFeedbackConstants.CONFIRM
                     else 6 // HapticFeedbackConstants.CONTEXT_CLICK (API 23+)
                 }
-                FeedbackType.LONG_PRESS -> HapticFeedbackConstants.LONG_PRESS
+                FeedbackType.LONG_PRESS -> {
+                    // Exactly one beat, always: HapticFeedbackConstants.LONG_PRESS
+                    // is a double pulse on several OEM skins and users read it
+                    // as two separate events.
+                    if (sdkInt >= 27) HapticFeedbackConstants.TEXT_HANDLE_MOVE
+                    else HapticFeedbackConstants.VIRTUAL_KEY
+                }
                 FeedbackType.REJECT -> {
                     if (sdkInt >= 30) HapticFeedbackConstants.REJECT
                     else null

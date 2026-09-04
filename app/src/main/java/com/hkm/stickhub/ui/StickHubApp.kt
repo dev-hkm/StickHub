@@ -1,6 +1,7 @@
 package com.hkm.stickhub.ui
 
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import android.os.SystemClock
 import androidx.compose.material3.ButtonDefaults
@@ -457,6 +458,7 @@ fun StickHubApp(
         }
     }
     var clipboardImageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var clipboardSkippedCount by remember { mutableIntStateOf(0) }
     var lastClipboardEventId by remember { mutableLongStateOf(0L) }
     var localClipboardRevision by remember { mutableLongStateOf(0L) }
     var lastOfferedClipboardUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
@@ -473,9 +475,11 @@ fun StickHubApp(
     val lifecycleOwner = remember(context) { context as? LifecycleOwner }
     fun checkClipboardOffer() {
         scope.launch {
-            val (uris, stamp) = withContext(Dispatchers.IO) {
-                ClipboardHelper.getClipboardImagesStamped(context)
+            val scan = withContext(Dispatchers.IO) {
+                ClipboardHelper.scanClipboardImages(context)
             }
+            val uris = scan.uris
+            val stamp = scan.stamp
             val eventId = if (stamp != 0L) stamp else localClipboardRevision
             val isNew = eventId != lastClipboardEventId ||
                 (stamp == 0L && uris != lastOfferedClipboardUris)
@@ -485,6 +489,7 @@ fun StickHubApp(
                 // Freeze the offer while the picker sheet is open.
                 if (!showClipboardPicker) {
                     clipboardImageUris = uris
+                    clipboardSkippedCount = scan.skipped
                 }
             }
         }
@@ -551,6 +556,7 @@ fun StickHubApp(
     /** Clears the current clipboard offer (after import or dismiss). */
     fun consumeClipboardOffer() {
         clipboardImageUris = emptyList()
+        clipboardSkippedCount = 0
         lastOfferedClipboardUris = emptyList()
         showClipboardPicker = false
     }
@@ -851,9 +857,11 @@ fun StickHubApp(
                                         onClick = {
                                             haptics.performTap()
                                             scope.launch {
-                                                val (uris, stamp) = withContext(Dispatchers.IO) {
-                                                    ClipboardHelper.getClipboardImagesStamped(context)
+                                                val scan = withContext(Dispatchers.IO) {
+                                                    ClipboardHelper.scanClipboardImages(context)
                                                 }
+                                                val uris = scan.uris
+                                                val stamp = scan.stamp
                                                 // Explicit user action: adopt whatever is there now.
                                                 if (stamp != 0L) {
                                                     lastClipboardEventId = stamp
@@ -863,6 +871,7 @@ fun StickHubApp(
                                                 }
                                                 lastOfferedClipboardUris = uris
                                                 clipboardImageUris = uris
+                                                clipboardSkippedCount = scan.skipped
                                                 showCreateSourceDialog = true
                                             }
                                         },
@@ -1900,6 +1909,7 @@ fun StickHubApp(
     if (showClipboardPicker && clipboardImageUris.isNotEmpty()) {
         ClipboardImportSheet(
             uris = clipboardImageUris,
+            skippedCount = clipboardSkippedCount,
             onImportSelected = { importClipboardStickers(it) },
             onDismiss = { consumeClipboardOffer() }
         )

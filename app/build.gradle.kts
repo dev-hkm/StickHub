@@ -45,9 +45,9 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version 5.0.3: single-buzz long-press, poisoned-URI-proof clipboard scan.
-        versionCode = 48
-        versionName = "5.0.3"
+        // Version 5.0.4: single-beat hold haptic, all-shape clipboard harvest.
+        versionCode = 49
+        versionName = "5.0.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

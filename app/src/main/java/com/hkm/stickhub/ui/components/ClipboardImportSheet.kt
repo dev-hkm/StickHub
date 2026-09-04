@@ -50,6 +50,7 @@ import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
 @Composable
 fun ClipboardImportSheet(
     uris: List<Uri>,
+    skippedCount: Int = 0,
     onImportSelected: (List<Uri>) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -68,7 +69,8 @@ fun ClipboardImportSheet(
         text = {
             Column {
                 Text(
-                    text = "${uris.size} images found — tap to select, then import once.",
+                    text = "${uris.size} images found — tap to select, then import once." +
+                        if (skippedCount > 0) " ($skippedCount couldn't be read.)" else "",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

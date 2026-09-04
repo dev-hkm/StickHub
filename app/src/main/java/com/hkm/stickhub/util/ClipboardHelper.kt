@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
@@ -15,6 +16,13 @@ import java.io.File
 object ClipboardHelper {
 
     private const val TAG = "ClipboardImport"
+
+    /** What a clipboard scan found, plus how many candidates were unreadable. */
+    data class ClipboardScanResult(
+        val uris: List<Uri>,
+        val skipped: Int,
+        val stamp: Long
+    )
 
     fun copyStickerToClipboard(context: Context, sticker: StickerItem): Boolean {
         return try {
@@ -65,40 +73,27 @@ object ClipboardHelper {
      * counter driven by the primary-clip listener).
      */
     fun getClipboardImagesStamped(context: Context): Pair<List<Uri>, Long> {
+        return scanClipboardImages(context).let { it.uris to it.stamp }
+    }
+
+    /**
+     * Full multi-shape scan. Clipboard producers disagree wildly: direct item
+     * URIs, text/uri-list (or plain text) holding one URI per line, <img> tags
+     * in HTML payloads, and ACTION_SEND intents with EXTRA_STREAM(S). Every
+     * shape is harvested and every candidate is gated, so a producer using
+     * any of them yields the whole set instead of just the first image.
+     */
+    fun scanClipboardImages(context: Context): ClipboardScanResult {
         try {
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                ?: return emptyList<Uri>() to 0L
-            val clip = clipboard.primaryClip ?: return emptyList<Uri>() to 0L
+                ?: return ClipboardScanResult(emptyList(), 0, 0L)
+            val clip = clipboard.primaryClip ?: return ClipboardScanResult(emptyList(), 0, 0L)
             val stamp = clipEventId(clipboard)
             val out = mutableListOf<Uri>()
-            val hasUriList = try {
-                clip.description?.hasMimeType(ClipDescription.MIMETYPE_TEXT_URILIST) == true
-            } catch (_: Exception) {
-                false
-            }
+            var skipped = 0
             for (i in 0 until clip.itemCount) {
                 val item = clip.getItemAt(i) ?: continue
-                // Direct URI first, then every URI hidden inside a text/uri-list
-                // payload. Some gallery apps copy N photos as one item whose text
-                // holds N uri lines — reading item.uri alone kept only the first.
-                val candidates = mutableListOf<Uri>()
-                try {
-                    item.uri?.let { candidates.add(it) }
-                } catch (_: Exception) {
-                    Log.d(TAG, "Skipping unreadable clipboard item $i")
-                }
-                if (hasUriList) {
-                    extractUriListText(context, item)?.lineSequence()?.forEach { line ->
-                        val trimmed = line.trim()
-                        if (trimmed.isNotEmpty()) {
-                            try {
-                                Uri.parse(trimmed)?.let { candidates.add(it) }
-                            } catch (_: Exception) {
-                                // Not a URI line; ignore it.
-                            }
-                        }
-                    }
-                }
+                val candidates = collectItemUris(context, item)
                 for (uri in candidates) {
                     if (uri in out) continue
                     // One poisoned URI (dead provider, revoked grant, getType
@@ -111,15 +106,87 @@ object ClipboardHelper {
                     }
                     if (eligible) {
                         out.add(uri)
+                    } else if (!ClipboardImportPolicy.isOwnStickerSource(uri.scheme, uri.authority)) {
+                        skipped++
                     }
                 }
             }
-            return out to stamp
+            if (skipped > 0) Log.d(TAG, "Clipboard scan kept ${out.size}, skipped $skipped")
+            return ClipboardScanResult(out, skipped, stamp)
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        return emptyList<Uri>() to 0L
+        return ClipboardScanResult(emptyList(), 0, 0L)
     }
+
+    /** Every URI shape a single clip item can carry. Never throws. */
+    private fun collectItemUris(context: Context, item: ClipData.Item): List<Uri> {
+        val candidates = mutableListOf<Uri>()
+        try {
+            // Intent-backed items surface a pseudo "intent:" URI here; the real
+            // streams come from extractIntentUris below.
+            item.uri?.takeUnless { it.scheme.equals("intent", ignoreCase = true) }
+                ?.let { candidates.add(it) }
+        } catch (_: Exception) {
+            Log.d(TAG, "Skipping unreadable clipboard item uri")
+        }
+        // Plain or uri-list text: one URI per line. Parsed regardless of the
+        // declared mime type — producers mix text/plain and text/uri-list freely.
+        extractUriListText(context, item)?.lineSequence()?.forEach { line ->
+            sanitizeUriLine(line)?.let { candidates.add(it) }
+        }
+        // HTML payloads (<img src="content://...">).
+        try {
+            item.htmlText?.toString()?.let { html ->
+                UriLinePattern.findAll(html).forEach { match ->
+                    sanitizeUriLine(match.value)?.let { candidates.add(it) }
+                }
+            }
+        } catch (_: Exception) {
+        }
+        // ACTION_SEND(_MULTIPLE) intents carrying EXTRA_STREAM(S).
+        candidates.addAll(extractIntentUris(item))
+        // Intent-backed items leak their pseudo "intent:#Intent;..." form through
+        // coerceToText above; that is an envelope, never an image.
+        return candidates.filterNot { it.scheme.equals("intent", ignoreCase = true) }
+    }
+
+    private fun sanitizeUriLine(raw: String): Uri? {
+        val trimmed = raw.trim().trimEnd(',', ';', '.', '!', '?', ')', '"', '\'')
+        if (trimmed.isEmpty()) return null
+        return try {
+            Uri.parse(trimmed)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun extractIntentUris(item: ClipData.Item): List<Uri> {
+        return try {
+            val intent = item.intent ?: return emptyList()
+            val out = mutableListOf<Uri>()
+            try {
+                intent.data?.let { out.add(it) }
+            } catch (_: Exception) {
+            }
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)?.let { out.add(it) }
+                    intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)?.let { out.addAll(it) }
+                } else {
+                    intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)?.let { out.add(it) }
+                    intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)?.let { out.addAll(it) }
+                }
+            } catch (_: Exception) {
+            }
+            out
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    private val UriLinePattern = Regex("""(content|file)://[^\s"\'<>]+""")
 
     /**
      * Best-effort read of a clipboard item's textual payload. Plain text wins;
