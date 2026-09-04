@@ -17,6 +17,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -75,6 +78,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -84,6 +88,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.composables.icons.lucide.R as LucideR
 import com.hkm.stickhub.data.cutout.CutoutCandidate
+import com.hkm.stickhub.data.cutout.CutoutGesturePolicy
 import com.hkm.stickhub.data.cutout.CutoutInteractionMode
 import com.hkm.stickhub.data.cutout.CutoutSaveSession
 import com.hkm.stickhub.data.cutout.CutoutSaveState
@@ -579,7 +584,27 @@ private fun CutoutInteractionModeSelector(
                 selected = selectedMode == CutoutInteractionMode.Manual,
                 onClick = { onModeSelected(CutoutInteractionMode.Manual) },
                 enabled = enabled,
-                label = { Text("Choose subject") },
+                label = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Text("Choose subject")
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text(
+                                text = "BETA",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                            )
+                        }
+                    }
+                },
                 leadingIcon = {
                     Icon(
                         painter = painterResource(LucideR.drawable.lucide_ic_move_diagonal_2),
@@ -594,7 +619,7 @@ private fun CutoutInteractionModeSelector(
             text = if (selectedMode == CutoutInteractionMode.Auto) {
                 "Use the first clearly detected subject automatically."
             } else {
-                "Press and hold the subject you want in the full photo."
+                "Beta: press and hold the subject you want in the full photo."
             },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -787,45 +812,94 @@ private fun CandidatesSelectionView(
                     imageWidth = renderW,
                     imageHeight = renderH
                 ) ?: return null
-                return CutoutSelectionPolicy.selectAtNormalizedPoint(candidates, normalizedPoint)
+                return if (interactionMode == CutoutInteractionMode.Manual) {
+                    CutoutSelectionPolicy.selectForManualLongPress(candidates, normalizedPoint)
+                } else {
+                    CutoutSelectionPolicy.selectAtNormalizedPoint(candidates, normalizedPoint)
+                }
             }
 
             // Image and interactive overlay
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .pointerInput(candidates, interactionMode, renderW, renderH, offsetX, offsetY) {
-                        detectTapGestures(
-                            onPress = { touchOffset ->
-                                if (candidateAt(touchOffset) != null) {
-                                    isPressedOnCandidate = true
-                                    tryAwaitRelease()
+                    .pointerInput(
+                        candidates,
+                        interactionMode,
+                        selectionEnabled,
+                        renderW,
+                        renderH,
+                        offsetX,
+                        offsetY
+                    ) {
+                        if (interactionMode == CutoutInteractionMode.Manual) {
+                            awaitEachGesture {
+                                // ModalBottomSheet and its vertical scrollable
+                                // can consume the down event in Main pass. Read
+                                // Initial pass so manual selection remains
+                                // reliable without disabling sheet gestures.
+                                val down = awaitFirstDown(
+                                    requireUnconsumed = false,
+                                    pass = PointerEventPass.Initial
+                                )
+                                val pressedCandidate = candidateAt(down.position)
+                                isPressedOnCandidate = pressedCandidate != null
+                                try {
+                                    val longPress = awaitLongPressOrCancellation(down.id)
+                                    if (longPress != null && selectionEnabled &&
+                                        CutoutGesturePolicy.shouldSelectOnLongPress(interactionMode)
+                                    ) {
+                                        longPress.consume()
+                                        // Resolve from the original down position
+                                        // first. A finger can drift a few pixels
+                                        // while the long-press timeout elapses;
+                                        // using the down candidate preserves the
+                                        // user's intended subject instead of
+                                        // reclassifying the release edge.
+                                        val matched = pressedCandidate ?: candidateAt(longPress.position)
+                                        if (matched != null) {
+                                            onSelectCandidate(matched)
+                                        } else {
+                                            onWrongTap()
+                                        }
+                                    }
+                                } finally {
                                     isPressedOnCandidate = false
                                 }
-                            },
-                            onLongPress = { touchOffset ->
-                                if (!selectionEnabled) return@detectTapGestures
-                                val matched = candidateAt(touchOffset)
-                                if (matched != null) {
-                                    onSelectCandidate(matched)
-                                } else {
-                                    onWrongTap()
-                                }
-                            },
-                            onTap = { touchOffset ->
-                                if (!selectionEnabled) return@detectTapGestures
-                                // Manual mode intentionally requires the full
-                                // long-press gesture; a short tap should not
-                                // unexpectedly turn a chat photo into a sticker.
-                                if (interactionMode == CutoutInteractionMode.Manual) return@detectTapGestures
-                                val matched = candidateAt(touchOffset)
-                                if (matched != null) {
-                                    onSelectCandidate(matched)
-                                } else {
-                                    onWrongTap()
-                                }
                             }
-                        )
+                        } else {
+                            detectTapGestures(
+                                onPress = { touchOffset ->
+                                    if (candidateAt(touchOffset) != null) {
+                                        isPressedOnCandidate = true
+                                        tryAwaitRelease()
+                                        isPressedOnCandidate = false
+                                    }
+                                },
+                                onLongPress = { touchOffset ->
+                                    if (!selectionEnabled ||
+                                        !CutoutGesturePolicy.shouldSelectOnLongPress(interactionMode)
+                                    ) return@detectTapGestures
+                                    val matched = candidateAt(touchOffset)
+                                    if (matched != null) {
+                                        onSelectCandidate(matched)
+                                    } else {
+                                        onWrongTap()
+                                    }
+                                },
+                                onTap = { touchOffset ->
+                                    if (!selectionEnabled ||
+                                        !CutoutGesturePolicy.shouldSelectOnTap(interactionMode)
+                                    ) return@detectTapGestures
+                                    val matched = candidateAt(touchOffset)
+                                    if (matched != null) {
+                                        onSelectCandidate(matched)
+                                    } else {
+                                        onWrongTap()
+                                    }
+                                }
+                            )
+                        }
                     }
             ) {
                 // Background source image

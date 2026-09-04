@@ -45,9 +45,9 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version 5.2.0: auto and long-press subject selection for device photos.
-        versionCode = 52
-        versionName = "5.2.0"
+        // Version 5.2.2: stabilized Beta long-press subject selection.
+        versionCode = 54
+        versionName = "5.2.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

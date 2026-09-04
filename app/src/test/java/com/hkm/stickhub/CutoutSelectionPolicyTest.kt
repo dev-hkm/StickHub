@@ -110,6 +110,31 @@ class CutoutSelectionPolicyTest {
         )
     }
 
+    @Test
+    fun manualLongPressUsesRelaxedConfidenceAtSubjectEdge() {
+        val subject = candidate(
+            id = 4,
+            bounds = ComposeRect(0.20f, 0.20f, 0.80f, 0.80f),
+            maskWidth = 2,
+            maskHeight = 1,
+            confidenceMask = floatArrayOf(0.20f, 0.02f)
+        )
+
+        assertEquals(
+            subject,
+            CutoutSelectionPolicy.selectForManualLongPress(
+                listOf(subject),
+                Offset(0.30f, 0.50f)
+            )
+        )
+        assertNull(
+            CutoutSelectionPolicy.selectForManualLongPress(
+                listOf(subject),
+                Offset(0.70f, 0.50f)
+            )
+        )
+    }
+
     private fun candidate(
         id: Int,
         bounds: ComposeRect,

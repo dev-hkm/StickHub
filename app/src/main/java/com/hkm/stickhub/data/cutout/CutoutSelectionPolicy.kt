@@ -7,6 +7,7 @@ import kotlin.math.max
 object CutoutSelectionPolicy {
     /** Confidence below this value is treated as background for a manual press. */
     const val MIN_CONFIDENCE = 0.4f
+    private const val MANUAL_FALLBACK_MIN_CONFIDENCE = 0.12f
 
     /**
      * Returns the candidate whose confidence is strongest at [point]. If masks
@@ -33,6 +34,41 @@ object CutoutSelectionPolicy {
                 val confidence = candidate.confidenceAtNormalizedPoint(normalizedX, normalizedY)
                     ?: return@mapNotNull null
                 if (!confidence.isFinite() || confidence < MIN_CONFIDENCE) return@mapNotNull null
+                val bounds = candidate.normalizedBounds
+                val area = max(0f, bounds.width) * max(0f, bounds.height)
+                Hit(candidate, confidence, area)
+            }
+            .sortedWith(
+                compareByDescending<Hit> { it.confidence }
+                    .thenBy { it.area }
+                    .thenBy { it.candidate.id }
+            )
+            .firstOrNull()
+            ?.candidate
+    }
+
+    /**
+     * Resolves a deliberate manual long press. The strict confidence path is
+     * preferred; the relaxed path only helps when a finger lands on a thin or
+     * antialiased edge of a valid subject mask.
+     */
+    fun selectForManualLongPress(
+        candidates: List<CutoutCandidate>,
+        point: Offset
+    ): CutoutCandidate? {
+        selectAtNormalizedPoint(candidates, point)?.let { return it }
+        val normalizedX = point.x
+        val normalizedY = point.y
+        if (candidates.isEmpty() || !normalizedX.isFinite() || !normalizedY.isFinite()) return null
+        if (normalizedX !in 0f..1f || normalizedY !in 0f..1f) return null
+
+        return candidates.asSequence()
+            .mapNotNull { candidate ->
+                val confidence = candidate.confidenceAtNormalizedPoint(normalizedX, normalizedY)
+                    ?: return@mapNotNull null
+                if (!confidence.isFinite() || confidence < MANUAL_FALLBACK_MIN_CONFIDENCE) {
+                    return@mapNotNull null
+                }
                 val bounds = candidate.normalizedBounds
                 val area = max(0f, bounds.width) * max(0f, bounds.height)
                 Hit(candidate, confidence, area)
