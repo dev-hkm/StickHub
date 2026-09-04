@@ -188,7 +188,9 @@ class OverlayService : Service() {
         }
         isRunning = true
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        repository = StickerRepository(this)
+        // Shared process-wide repository: same StateFlows, DB owner and
+        // clipboard dedup mutex as the activity. Never closed here.
+        repository = StickerRepository.getInstance(this)
 
         startForegroundServiceNotification()
         try {

@@ -47,7 +47,7 @@ class MainActivity : ComponentActivity() {
                 window.isStatusBarContrastEnforced = false
             }
         }
-        repository = StickerRepository(applicationContext)
+        repository = StickerRepository.getInstance(this)
         themeMode = ThemePreferences.getThemeMode(this)
         visualTheme = ThemePreferences.getVisualTheme(this)
 

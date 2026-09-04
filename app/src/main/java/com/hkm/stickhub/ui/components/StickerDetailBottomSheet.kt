@@ -53,6 +53,7 @@ import com.composables.icons.lucide.R as LucideR
 import com.hkm.stickhub.data.model.CategoryItem
 import com.hkm.stickhub.data.model.StickerItem
 import com.hkm.stickhub.data.provider.StickerContentProvider
+import com.hkm.stickhub.util.StickerMimeTypes
 import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
 import java.io.File
 
@@ -325,7 +326,7 @@ private fun shareSticker(context: Context, sticker: StickerItem) {
         if (!file.exists()) return
         val uri = StickerContentProvider.getStickerUri(context, file)
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = if (file.name.endsWith(".webp", ignoreCase = true)) "image/webp" else "image/png"
+            type = StickerMimeTypes.fromFileName(file.name)
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }

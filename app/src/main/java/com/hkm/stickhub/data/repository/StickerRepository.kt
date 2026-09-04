@@ -11,6 +11,8 @@ import com.hkm.stickhub.data.model.CategoryValidator
 import com.hkm.stickhub.data.model.StickerItem
 import com.hkm.stickhub.util.ClipboardContentHasher
 import com.hkm.stickhub.util.ClipboardImportPolicy
+import com.hkm.stickhub.util.StickerMimeTypes
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,10 +22,73 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.io.InputStream
 import java.util.UUID
 
 class StickerRepository(private val context: Context) {
+
+    /** One validated archive category waiting to be merged. */
+    data class BackupRestoreCategory(
+        val name: String,
+        val isDefault: Boolean,
+        val displayOrder: Int
+    )
+
+    /** One validated archive sticker row with its staged bytes. */
+    data class BackupRestoreSticker(
+        val title: String,
+        val category: String,
+        val tags: String,
+        val isFavorite: Boolean,
+        val createdAt: Long,
+        val usageCount: Int,
+        val sortOrder: Long,
+        val stagedFile: File,
+        val format: String,
+        val contentHash: String
+    )
+
+    data class BackupRestoreOutcome(val imported: Int, val alreadyPresent: Int)
+
+    companion object {
+        @Volatile
+        private var sharedInstance: StickerRepository? = null
+
+        /**
+         * Process-wide repository sharing one DB owner, one StateFlow pair and
+         * one clipboard dedup mutex between MainActivity and OverlayService.
+         * Always pass an application context; the factory pins it.
+         */
+        fun getInstance(context: Context): StickerRepository =
+            sharedInstance ?: synchronized(this) {
+                sharedInstance ?: StickerRepository(context.applicationContext).also {
+                    sharedInstance = it
+                }
+            }
+
+        /**
+         * Test seam only. Never call while the app is running: it closes the
+         * shared database helper out from under live readers.
+         */
+        fun resetSharedInstanceForTests() {
+            synchronized(this) {
+                try {
+                    sharedInstance?.close()
+                } catch (_: Exception) {
+                }
+                sharedInstance = null
+            }
+        }
+    }
+
+    /** Closes the underlying database helper. See [resetSharedInstanceForTests]. */
+    fun close() {
+        try {
+            dbHelper.close()
+        } catch (_: Exception) {
+        }
+    }
 
     private sealed interface StreamSaveResult {
         data class Saved(val sticker: StickerItem) : StreamSaveResult
@@ -42,6 +107,7 @@ class StickerRepository(private val context: Context) {
     private val _categoriesFlow = MutableStateFlow<List<CategoryItem>>(emptyList())
     val categoriesFlow: StateFlow<List<CategoryItem>> = _categoriesFlow.asStateFlow()
     private val clipboardImportMutex = Mutex()
+    private val backupMutex = Mutex()
 
     suspend fun refresh() = withContext(Dispatchers.IO) {
         _stickersFlow.value = getAllStickersInternal()
@@ -99,14 +165,69 @@ class StickerRepository(private val context: Context) {
         return list
     }
 
+    private fun getStickerByIdInternal(id: Long): StickerItem? {
+        val cursor = dbHelper.readableDatabase.query(
+            StickHubDbHelper.TABLE_STICKERS,
+            null,
+            "${StickHubDbHelper.COL_ID} = ?",
+            arrayOf(id.toString()),
+            null,
+            null,
+            null,
+            "1"
+        )
+        cursor.use { return if (it.moveToFirst()) cursorToSticker(it) else null }
+    }
+
+    /**
+     * Category requested by a save, resolved against categories that actually
+     * exist right now: the requested (stored-cased) name wins, then the
+     * default-flagged category, then a freshly created canonical General.
+     * No save path can ever persist a ghost category again.
+     */
+    private fun resolveCategoryForSaveInternal(requested: String): String {
+        val fallback = requested.trim().ifBlank { CategoryItem.FALLBACK_NAME }
+        // A broken categories table must never take down a sticker save:
+        // degrade to the requested name and let the stickers table win.
+        return try {
+            val db = dbHelper.readableDatabase
+            db.rawQuery(
+                "SELECT ${StickHubDbHelper.COL_CAT_NAME} FROM ${StickHubDbHelper.TABLE_CATEGORIES} " +
+                    "WHERE ${StickHubDbHelper.COL_CAT_NAME} = ? COLLATE NOCASE LIMIT 1",
+                arrayOf(fallback)
+            ).use { if (it.moveToFirst()) return it.getString(0) }
+            db.rawQuery(
+                "SELECT ${StickHubDbHelper.COL_CAT_NAME} FROM ${StickHubDbHelper.TABLE_CATEGORIES} " +
+                    "WHERE ${StickHubDbHelper.COL_CAT_IS_DEFAULT} = 1 ORDER BY ${StickHubDbHelper.COL_CAT_ID} LIMIT 1",
+                null
+            ).use { if (it.moveToFirst()) return it.getString(0) }
+            val cv = ContentValues().apply {
+                put(StickHubDbHelper.COL_CAT_NAME, CategoryItem.FALLBACK_NAME)
+                put(StickHubDbHelper.COL_CAT_IS_DEFAULT, 1)
+                put(StickHubDbHelper.COL_CAT_DISPLAY_ORDER, 0)
+            }
+            dbHelper.writableDatabase.insertWithOnConflict(
+                StickHubDbHelper.TABLE_CATEGORIES,
+                null,
+                cv,
+                android.database.sqlite.SQLiteDatabase.CONFLICT_IGNORE
+            )
+            CategoryItem.FALLBACK_NAME
+        } catch (_: Exception) {
+            fallback
+        }
+    }
+
     suspend fun saveStickerBitmap(
         bitmap: Bitmap,
         title: String = "",
         category: String = "General",
         tags: String = ""
     ): StickerItem? = withContext(Dispatchers.IO) {
+        val resolvedCategory = resolveCategoryForSaveInternal(category)
         val tempFile = File(stickersDir, "tmp_${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(6)}.png")
         val finalFile = File(stickersDir, "sticker_${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(6)}.png")
+        var committed = false
 
         try {
             FileOutputStream(tempFile).use { out ->
@@ -125,15 +246,16 @@ class StickerRepository(private val context: Context) {
             }
 
             val contentHash = finalFile.inputStream().use(ClipboardContentHasher::sha256)
+            val now = System.currentTimeMillis()
 
             val cv = ContentValues().apply {
                 put(StickHubDbHelper.COL_FILE_PATH, finalFile.absolutePath)
-                put(StickHubDbHelper.COL_TITLE, title.ifBlank { "Sticker #${System.currentTimeMillis() % 10000}" })
-                put(StickHubDbHelper.COL_CATEGORY, category.ifBlank { "General" })
+                put(StickHubDbHelper.COL_TITLE, title.ifBlank { "Sticker #${now % 10000}" })
+                put(StickHubDbHelper.COL_CATEGORY, resolvedCategory)
                 put(StickHubDbHelper.COL_TAGS, tags)
                 put(StickHubDbHelper.COL_IS_FAVORITE, 0)
-                put(StickHubDbHelper.COL_CREATED_AT, System.currentTimeMillis())
-                put(StickHubDbHelper.COL_SORT_ORDER, System.currentTimeMillis())
+                put(StickHubDbHelper.COL_CREATED_AT, now)
+                put(StickHubDbHelper.COL_SORT_ORDER, now)
                 put(StickHubDbHelper.COL_USAGE_COUNT, 0)
                 put(StickHubDbHelper.COL_CONTENT_SHA256, contentHash)
             }
@@ -141,54 +263,91 @@ class StickerRepository(private val context: Context) {
             val db = dbHelper.writableDatabase
             val id = db.insert(StickHubDbHelper.TABLE_STICKERS, null, cv)
             if (id == -1L) {
-                finalFile.delete()
                 return@withContext null
             }
+            committed = true
 
-            refresh()
-            _stickersFlow.value.find { it.id == id }
+            // A snapshot failure must never destroy committed data: refresh in
+            // isolation and answer from the durable row itself, not the flow.
+            try {
+                refresh()
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (_: Exception) {
+            }
+            getStickerByIdInternal(id)
+        } catch (ce: CancellationException) {
+            if (!committed) {
+                tempFile.delete()
+                if (finalFile.exists()) finalFile.delete()
+            }
+            throw ce
         } catch (e: Exception) {
-            tempFile.delete()
-            finalFile.delete()
+            if (!committed) {
+                tempFile.delete()
+                if (finalFile.exists()) finalFile.delete()
+            }
             e.printStackTrace()
             null
+        } finally {
+            if (tempFile.exists()) tempFile.delete()
         }
     }
 
     suspend fun overwriteStickerBitmap(id: Long, bitmap: Bitmap): Boolean = withContext(Dispatchers.IO) {
-        val sticker = _stickersFlow.value.find { it.id == id } ?: return@withContext false
+        // Copy-on-write: the original bytes stay untouched until the new file
+        // is fully verified and the DB row points at it. Direct overwrites can
+        // truncate the original on ENOSPC, and writing PNG bytes into a .webp
+        // path corrupts the format contract.
+        val sticker = getStickerByIdInternal(id) ?: return@withContext false
         val originalFile = File(sticker.filePath)
-        val tempFile = File(stickersDir, "tmp_ow_${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(6)}.png")
+        if (!originalFile.isFile) return@withContext false
+        val newFile = File(stickersDir, "sticker_${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(6)}.png")
 
         try {
-            FileOutputStream(tempFile).use { out ->
+            FileOutputStream(newFile).use { out ->
                 val ok = bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
                 if (!ok) {
-                    tempFile.delete()
+                    newFile.delete()
                     return@withContext false
                 }
                 out.flush()
             }
 
-            if (!tempFile.renameTo(originalFile)) {
-                tempFile.copyTo(originalFile, overwrite = true)
-                tempFile.delete()
-            }
-
-            val contentHash = originalFile.inputStream().use(ClipboardContentHasher::sha256)
-            dbHelper.writableDatabase.update(
+            val contentHash = newFile.inputStream().use(ClipboardContentHasher::sha256)
+            val updated = dbHelper.writableDatabase.update(
                 StickHubDbHelper.TABLE_STICKERS,
                 ContentValues().apply {
+                    put(StickHubDbHelper.COL_FILE_PATH, newFile.absolutePath)
                     put(StickHubDbHelper.COL_CONTENT_SHA256, contentHash)
                 },
                 "${StickHubDbHelper.COL_ID} = ?",
                 arrayOf(id.toString())
             )
+            if (updated <= 0) {
+                newFile.delete()
+                return@withContext false
+            }
 
-            refresh()
+            // Commit won: retire the old file only now. External readers
+            // holding the old clipboard URI may 404 afterwards; clipboard
+            // lifetime is seconds, while a truncated original would be
+            // permanent data loss. Documented tradeoff.
+            if (newFile.absolutePath != originalFile.absolutePath && originalFile.exists()) {
+                originalFile.delete()
+            }
+            try {
+                refresh()
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (_: Exception) {
+            }
             true
+        } catch (ce: CancellationException) {
+            if (newFile.exists()) newFile.delete()
+            throw ce
         } catch (e: Exception) {
-            tempFile.delete()
+            if (newFile.exists()) newFile.delete()
             e.printStackTrace()
             false
         }
@@ -200,19 +359,25 @@ class StickerRepository(private val context: Context) {
         category: String = "General",
         tags: String = ""
     ): StickerItem? = withContext(Dispatchers.IO) {
-        when (
-            val result = saveStickerFromStreamInternal(
-                inputStream = inputStream,
-                title = title,
-                category = category,
-                tags = tags,
-                fileExtension = "png",
-                rejectDuplicates = false
-            )
-        ) {
-            is StreamSaveResult.Saved -> result.sticker
-            is StreamSaveResult.Duplicate,
-            is StreamSaveResult.Failed -> null
+        // Cancellation here must surface as a quiet null (the caller joins and
+        // then verifies consistency), never as a deleted committed file.
+        try {
+            when (
+                val result = saveStickerFromStreamInternal(
+                    inputStream = inputStream,
+                    title = title,
+                    category = category,
+                    tags = tags,
+                    fileExtension = "png",
+                    rejectDuplicates = false
+                )
+            ) {
+                is StreamSaveResult.Saved -> result.sticker
+                is StreamSaveResult.Duplicate,
+                is StreamSaveResult.Failed -> null
+            }
+        } catch (ce: CancellationException) {
+            null
         }
     }
 
@@ -274,6 +439,10 @@ class StickerRepository(private val context: Context) {
                         rejectDuplicates = true
                     )
                 }
+            } catch (ce: CancellationException) {
+                // A cancelled import is not a failure: propagate so callers
+                // don't report it (or worse, clean up committed data).
+                throw ce
             } catch (error: Exception) {
                 return@withContext ClipboardImportResult.Failed(
                     error.localizedMessage ?: "Couldn't import the clipboard sticker."
@@ -300,6 +469,7 @@ class StickerRepository(private val context: Context) {
         val uniquePart = "${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(6)}"
         val tempFile = File(stickersDir, "tmp_in_$uniquePart.$safeExtension")
         val finalFile = File(stickersDir, "sticker_$uniquePart.$safeExtension")
+        var committed = false
 
         try {
             FileOutputStream(tempFile).use { output ->
@@ -329,30 +499,46 @@ class StickerRepository(private val context: Context) {
                 tempFile.delete()
             }
 
+            val resolvedCategory = resolveCategoryForSaveInternal(category)
+            val now = System.currentTimeMillis()
             val values = ContentValues().apply {
                 put(StickHubDbHelper.COL_FILE_PATH, finalFile.absolutePath)
-                put(StickHubDbHelper.COL_TITLE, title.ifBlank { "Sticker #${System.currentTimeMillis() % 10000}" })
-                put(StickHubDbHelper.COL_CATEGORY, category.ifBlank { "General" })
+                put(StickHubDbHelper.COL_TITLE, title.ifBlank { "Sticker #${now % 10000}" })
+                put(StickHubDbHelper.COL_CATEGORY, resolvedCategory)
                 put(StickHubDbHelper.COL_TAGS, tags)
                 put(StickHubDbHelper.COL_IS_FAVORITE, 0)
-                put(StickHubDbHelper.COL_CREATED_AT, System.currentTimeMillis())
-                put(StickHubDbHelper.COL_SORT_ORDER, System.currentTimeMillis())
+                put(StickHubDbHelper.COL_CREATED_AT, now)
+                put(StickHubDbHelper.COL_SORT_ORDER, now)
                 put(StickHubDbHelper.COL_USAGE_COUNT, 0)
                 put(StickHubDbHelper.COL_CONTENT_SHA256, contentHash)
             }
 
             val id = dbHelper.writableDatabase.insert(StickHubDbHelper.TABLE_STICKERS, null, values)
             if (id == -1L) {
-                finalFile.delete()
                 return StreamSaveResult.Failed("Couldn't save the clipboard sticker.")
             }
+            committed = true
 
-            refresh()
-            val saved = _stickersFlow.value.find { it.id == id }
+            try {
+                refresh()
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (_: Exception) {
+            }
+            val saved = getStickerByIdInternal(id)
                 ?: return StreamSaveResult.Failed("Sticker was saved but could not be read back.")
             return StreamSaveResult.Saved(saved)
+        } catch (ce: CancellationException) {
+            if (!committed) {
+                tempFile.delete()
+                if (finalFile.exists()) finalFile.delete()
+            }
+            throw ce
         } catch (error: Exception) {
-            if (finalFile.exists()) finalFile.delete()
+            if (!committed) {
+                tempFile.delete()
+                if (finalFile.exists()) finalFile.delete()
+            }
             error.printStackTrace()
             return StreamSaveResult.Failed(
                 error.localizedMessage ?: "Couldn't save the clipboard sticker."
@@ -418,13 +604,7 @@ class StickerRepository(private val context: Context) {
     }
 
     private fun fileExtensionForMimeType(mimeType: String?): String {
-        return when (mimeType?.lowercase()) {
-            "image/webp" -> "webp"
-            "image/jpeg", "image/jpg" -> "jpg"
-            "image/gif" -> "gif"
-            "image/heic", "image/heif" -> "heic"
-            else -> "png"
-        }
+        return StickerMimeTypes.extensionForMime(mimeType)
     }
 
     /**
@@ -450,8 +630,12 @@ class StickerRepository(private val context: Context) {
             return@withContext null
         }
 
-        val finalFileName = "sticker_${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(6)}.png"
+        // Preserve the source container: bytes are never transcoded here.
+        val sourceExtension = sourceFile.extension.lowercase()
+            .takeIf { StickerMimeTypes.isSupportedExtension(it) } ?: "png"
+        val finalFileName = "sticker_${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(6)}.$sourceExtension"
         val finalFile = File(stickersDir, finalFileName)
+        val resolvedCategory = resolveCategoryForSaveInternal(category)
 
         try {
             sourceFile.copyTo(finalFile, overwrite = true)
@@ -460,7 +644,7 @@ class StickerRepository(private val context: Context) {
             val cv = ContentValues().apply {
                 put(StickHubDbHelper.COL_FILE_PATH, finalFile.absolutePath)
                 put(StickHubDbHelper.COL_TITLE, title)
-                put(StickHubDbHelper.COL_CATEGORY, category.ifBlank { "General" })
+                put(StickHubDbHelper.COL_CATEGORY, resolvedCategory)
                 put(StickHubDbHelper.COL_TAGS, tags)
                 put(StickHubDbHelper.COL_IS_FAVORITE, if (isFavorite) 1 else 0)
                 val stableCreatedAt = if (createdAt > 0) createdAt else System.currentTimeMillis()
@@ -482,7 +666,7 @@ class StickerRepository(private val context: Context) {
                 id = id,
                 filePath = finalFile.absolutePath,
                 title = title,
-                category = category.ifBlank { "General" },
+                category = resolvedCategory,
                 tags = tags,
                 isFavorite = isFavorite,
                 createdAt = if (createdAt > 0) createdAt else System.currentTimeMillis(),
@@ -492,6 +676,182 @@ class StickerRepository(private val context: Context) {
             finalFile.delete()
             e.printStackTrace()
             null
+        }
+    }
+
+    /**
+     * Validated bulk restore used exclusively by [com.hkm.stickhub.util.BackupHelper]
+     * after an archive passed full validation. Multiset matching preserves
+     * multiplicity: N identical archive rows against M identical library rows
+     * import exactly max(0, N-M) copies and report the rest as already present.
+     * Everything (new categories + new rows) commits in ONE transaction; created
+     * files are removed again if the database part fails.
+     */
+    suspend fun restoreBackupPlan(
+        categories: List<BackupRestoreCategory>,
+        stickers: List<BackupRestoreSticker>
+    ): BackupRestoreOutcome = backupMutex.withLock {
+        withContext(Dispatchers.IO) {
+            val createdFiles = mutableListOf<File>()
+            try {
+                // Snapshot current library once for matching.
+                data class LibraryRow(
+                    val hash: String,
+                    val title: String,
+                    val category: String,
+                    val tags: String,
+                    val isFavorite: Boolean,
+                    val createdAt: Long,
+                    val usageCount: Int,
+                    var matched: Boolean = false
+                )
+                val libraryIndex = mutableMapOf<String, MutableList<LibraryRow>>()
+                val cursor = dbHelper.readableDatabase.query(
+                    StickHubDbHelper.TABLE_STICKERS,
+                    arrayOf(
+                        StickHubDbHelper.COL_CONTENT_SHA256,
+                        StickHubDbHelper.COL_TITLE,
+                        StickHubDbHelper.COL_CATEGORY,
+                        StickHubDbHelper.COL_TAGS,
+                        StickHubDbHelper.COL_IS_FAVORITE,
+                        StickHubDbHelper.COL_CREATED_AT,
+                        StickHubDbHelper.COL_USAGE_COUNT
+                    ),
+                    null, null, null, null, null
+                )
+                cursor.use { rows ->
+                    while (rows.moveToNext()) {
+                        val hash = rows.getString(0) ?: ""
+                        if (hash.isBlank()) continue
+                        libraryIndex.getOrPut(hash) { mutableListOf() }.add(
+                            LibraryRow(
+                                hash = hash,
+                                title = rows.getString(1).orEmpty(),
+                                category = rows.getString(2).orEmpty(),
+                                tags = rows.getString(3).orEmpty(),
+                                isFavorite = rows.getInt(4) == 1,
+                                createdAt = rows.getLong(5),
+                                usageCount = rows.getInt(6)
+                            )
+                        )
+                    }
+                }
+
+                var alreadyPresent = 0
+                val toImport = mutableListOf<BackupRestoreSticker>()
+                for (row in stickers) {
+                    val candidates = libraryIndex[row.contentHash].orEmpty().filter { !it.matched }
+                    val full = candidates.firstOrNull {
+                        it.title == row.title &&
+                            it.category == row.category &&
+                            it.tags == row.tags &&
+                            it.isFavorite == row.isFavorite &&
+                            it.createdAt == row.createdAt &&
+                            it.usageCount == row.usageCount
+                    }
+                    val chosen = full ?: candidates.firstOrNull()
+                    if (chosen != null) {
+                        chosen.matched = true
+                        alreadyPresent++
+                    } else {
+                        toImport.add(row)
+                    }
+                }
+
+                val db = dbHelper.writableDatabase
+                db.beginTransaction()
+                try {
+                    // New categories only; existing order/names are never touched.
+                    var maxOrder = db.rawQuery(
+                        "SELECT MAX(${StickHubDbHelper.COL_CAT_DISPLAY_ORDER}) FROM ${StickHubDbHelper.TABLE_CATEGORIES}",
+                        null
+                    ).use { if (it.moveToFirst() && !it.isNull(0)) it.getInt(0) else -1 }
+                    for (cat in categories) {
+                        val exists = db.rawQuery(
+                            "SELECT 1 FROM ${StickHubDbHelper.TABLE_CATEGORIES} WHERE ${StickHubDbHelper.COL_CAT_NAME} = ? COLLATE NOCASE LIMIT 1",
+                            arrayOf(cat.name)
+                        ).use { it.moveToFirst() }
+                        if (!exists) {
+                            maxOrder++
+                            val order = if (cat.displayOrder >= 0) cat.displayOrder else maxOrder
+                            if (cat.displayOrder >= 0) maxOrder = maxOf(maxOrder, cat.displayOrder)
+                            val cv = ContentValues().apply {
+                                put(StickHubDbHelper.COL_CAT_NAME, cat.name)
+                                put(
+                                    StickHubDbHelper.COL_CAT_IS_DEFAULT,
+                                    if (cat.isDefault || cat.name.equals(CategoryItem.FALLBACK_NAME, ignoreCase = true)) 1 else 0
+                                )
+                                put(StickHubDbHelper.COL_CAT_DISPLAY_ORDER, order)
+                            }
+                            db.insertOrThrow(StickHubDbHelper.TABLE_CATEGORIES, null, cv)
+                        }
+                    }
+                    // Implicit homes for sticker rows whose category is absent.
+                    val knownNames = mutableSetOf<String>()
+                    db.rawQuery("SELECT ${StickHubDbHelper.COL_CAT_NAME} FROM ${StickHubDbHelper.TABLE_CATEGORIES}", null)
+                        .use { rows ->
+                            while (rows.moveToNext()) knownNames.add(rows.getString(0).lowercase())
+                        }
+                    for (row in toImport) {
+                        if (row.category.lowercase() !in knownNames) {
+                            maxOrder++
+                            val cv = ContentValues().apply {
+                                put(StickHubDbHelper.COL_CAT_NAME, row.category)
+                                put(
+                                    StickHubDbHelper.COL_CAT_IS_DEFAULT,
+                                    if (row.category.equals(CategoryItem.FALLBACK_NAME, ignoreCase = true)) 1 else 0
+                                )
+                                put(StickHubDbHelper.COL_CAT_DISPLAY_ORDER, maxOrder)
+                            }
+                            db.insertOrThrow(StickHubDbHelper.TABLE_CATEGORIES, null, cv)
+                            knownNames.add(row.category.lowercase())
+                        }
+                    }
+
+                    for (row in toImport) {
+                        val finalFile = File(
+                            stickersDir,
+                            "sticker_${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(6)}.${row.format}"
+                        )
+                        row.stagedFile.copyTo(finalFile, overwrite = false)
+                        createdFiles.add(finalFile)
+                        val fileHash = finalFile.inputStream().use(ClipboardContentHasher::sha256)
+                        if (!fileHash.equals(row.contentHash, ignoreCase = true)) {
+                            throw IOException("Staged image changed during restore.")
+                        }
+                        val cv = ContentValues().apply {
+                            put(StickHubDbHelper.COL_FILE_PATH, finalFile.absolutePath)
+                            put(StickHubDbHelper.COL_TITLE, row.title)
+                            put(StickHubDbHelper.COL_CATEGORY, row.category)
+                            put(StickHubDbHelper.COL_TAGS, row.tags)
+                            put(StickHubDbHelper.COL_IS_FAVORITE, if (row.isFavorite) 1 else 0)
+                            val stableCreatedAt = if (row.createdAt > 0) row.createdAt else System.currentTimeMillis()
+                            put(StickHubDbHelper.COL_CREATED_AT, stableCreatedAt)
+                            put(StickHubDbHelper.COL_SORT_ORDER, row.sortOrder)
+                            put(StickHubDbHelper.COL_USAGE_COUNT, row.usageCount.coerceAtLeast(0))
+                            put(StickHubDbHelper.COL_CONTENT_SHA256, fileHash)
+                        }
+                        db.insertOrThrow(StickHubDbHelper.TABLE_STICKERS, null, cv)
+                    }
+                    db.setTransactionSuccessful()
+                } finally {
+                    db.endTransaction()
+                }
+
+                try {
+                    refresh()
+                } catch (ce: CancellationException) {
+                    throw ce
+                } catch (_: Exception) {
+                }
+                BackupRestoreOutcome(imported = toImport.size, alreadyPresent = alreadyPresent)
+            } catch (ce: CancellationException) {
+                createdFiles.forEach { try { it.delete() } catch (_: Exception) { } }
+                throw ce
+            } catch (e: Exception) {
+                createdFiles.forEach { try { it.delete() } catch (_: Exception) { } }
+                throw e
+            }
         }
     }
 
@@ -524,7 +884,7 @@ class StickerRepository(private val context: Context) {
         val db = dbHelper.writableDatabase
         val cv = ContentValues().apply {
             put(StickHubDbHelper.COL_TITLE, title)
-            put(StickHubDbHelper.COL_CATEGORY, category)
+            put(StickHubDbHelper.COL_CATEGORY, resolveCategoryForSaveInternal(category))
             put(StickHubDbHelper.COL_TAGS, tags)
         }
         db.update(

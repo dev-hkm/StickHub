@@ -9,10 +9,22 @@ import android.database.MatrixCursor
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.provider.OpenableColumns
+import com.hkm.stickhub.util.StickerMimeTypes
 import java.io.File
 import java.io.FileNotFoundException
 import java.net.URLDecoder
 
+/**
+ * Read-only sticker file endpoint for clipboard paste and ACTION_SEND share targets.
+ *
+ * Security posture (audited, deliberate): exported=true is REQUIRED because
+ * clipboard readers (keyboards, chat apps) open these URIs without an Intent
+ * carrying FLAG_GRANT_READ_URI_PERMISSION, so exported=false would silently
+ * break paste everywhere. Containment instead of obscurity: strict
+ * basename whitelist under the stickers path, canonical boundary check
+ * into filesDir/stickers only, read-only mode, no DB or non-sticker
+ * file exposure.
+ */
 class StickerContentProvider : ContentProvider() {
 
     companion object {
@@ -93,12 +105,9 @@ class StickerContentProvider : ContentProvider() {
     }
 
     override fun getType(uri: Uri): String {
-        val fileName = uri.lastPathSegment.orEmpty()
-        return when {
-            fileName.endsWith(".webp", ignoreCase = true) -> "image/webp"
-            fileName.endsWith(".jpg", ignoreCase = true) || fileName.endsWith(".jpeg", ignoreCase = true) -> "image/jpeg"
-            else -> "image/png"
-        }
+        // Extension-driven mapping shared with clipboard/backup so MIME,
+        // bytes and filenames always agree (covers PNG/JPEG/WebP/GIF/HEIC).
+        return StickerMimeTypes.fromFileName(uri.lastPathSegment.orEmpty())
     }
 
     override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor {

@@ -7,6 +7,7 @@ data class CategoryItem(
     val displayOrder: Int = 0
 ) {
     companion object {
+        /** Canonical home category; always exists (recreated on demand). */
         const val FALLBACK_NAME = "General"
 
         /**

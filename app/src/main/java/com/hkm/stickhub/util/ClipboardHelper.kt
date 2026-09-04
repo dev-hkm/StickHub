@@ -19,7 +19,7 @@ object ClipboardHelper {
             if (!file.exists() || !file.isFile) return false
 
             val stickerUri = StickerContentProvider.getStickerUri(context, file)
-            val mimeType = if (file.name.endsWith(".webp", ignoreCase = true)) "image/webp" else "image/png"
+            val mimeType = StickerMimeTypes.fromFileName(file.name)
 
             val clipData = ClipData(
                 ClipDescription("Sticker", arrayOf(mimeType, "image/*")),
