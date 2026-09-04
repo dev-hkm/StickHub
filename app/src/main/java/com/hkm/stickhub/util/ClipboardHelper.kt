@@ -68,11 +68,35 @@ object ClipboardHelper {
             val clip = clipboard.primaryClip ?: return emptyList<Uri>() to 0L
             val stamp = clipEventId(clipboard)
             val out = mutableListOf<Uri>()
+            val hasUriList = try {
+                clip.description?.hasMimeType(ClipDescription.MIMETYPE_TEXT_URILIST) == true
+            } catch (_: Exception) {
+                false
+            }
             for (i in 0 until clip.itemCount) {
-                val uri = clip.getItemAt(i)?.uri ?: continue
-                if (uri in out) continue
-                if (isEligibleClipboardImageUri(context, clip.description, uri)) {
-                    out.add(uri)
+                val item = clip.getItemAt(i) ?: continue
+                // Direct URI first, then every URI hidden inside a text/uri-list
+                // payload. Some gallery apps copy N photos as one item whose text
+                // holds N uri lines — reading item.uri alone kept only the first.
+                val candidates = mutableListOf<Uri>()
+                item.uri?.let { candidates.add(it) }
+                if (hasUriList) {
+                    extractUriListText(context, item)?.lineSequence()?.forEach { line ->
+                        val trimmed = line.trim()
+                        if (trimmed.isNotEmpty()) {
+                            try {
+                                Uri.parse(trimmed)?.let { candidates.add(it) }
+                            } catch (_: Exception) {
+                                // Not a URI line; ignore it.
+                            }
+                        }
+                    }
+                }
+                for (uri in candidates) {
+                    if (uri in out) continue
+                    if (isEligibleClipboardImageUri(context, clip.description, uri)) {
+                        out.add(uri)
+                    }
                 }
             }
             return out to stamp
@@ -80,6 +104,18 @@ object ClipboardHelper {
             e.printStackTrace()
         }
         return emptyList<Uri>() to 0L
+    }
+
+    /**
+     * Best-effort read of a clipboard item's textual payload. Plain text wins;
+     * coercion is only a fallback for producers that fill htmlText alone.
+     */
+    private fun extractUriListText(context: Context, item: ClipData.Item): String? {
+        return try {
+            item.text?.toString() ?: item.coerceToText(context)?.toString()
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun isEligibleClipboardImageUri(

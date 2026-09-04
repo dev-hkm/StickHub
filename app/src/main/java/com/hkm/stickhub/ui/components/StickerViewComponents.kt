@@ -10,7 +10,6 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -96,20 +95,14 @@ fun CompactStickerCard(
                 else Modifier
             )
             .then(
-                if (isSelectionMode) {
-                    Modifier.combinedClickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = { onClick(sticker) },
-                        onLongClick = { onLongClick?.invoke(sticker) }
-                    )
-                } else {
-                    Modifier.clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = { onClick(sticker) }
-                    )
-                }
+                // Long-press always selects: outside selection mode it enters selection
+                // mode with this sticker, inside it opens details via the caller.
+                Modifier.combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = { onClick(sticker) },
+                    onLongClick = { onLongClick?.invoke(sticker) }
+                )
             )
             .padding(4.dp),
         contentAlignment = Alignment.Center
@@ -233,20 +226,14 @@ fun LargeStickerCard(
                 else Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f), RoundedCornerShape(18.dp))
             )
             .then(
-                if (isSelectionMode) {
-                    Modifier.combinedClickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = { onClick(sticker) },
-                        onLongClick = { onLongClick?.invoke(sticker) }
-                    )
-                } else {
-                    Modifier.clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = { onClick(sticker) }
-                    )
-                }
+                // Long-press always selects: outside selection mode it enters selection
+                // mode with this sticker, inside it opens details via the caller.
+                Modifier.combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = { onClick(sticker) },
+                    onLongClick = { onLongClick?.invoke(sticker) }
+                )
             ),
         shape = RoundedCornerShape(18.dp),
         color = if (isSelected) {
@@ -422,20 +409,14 @@ fun StickerListItem(
                 else Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
             )
             .then(
-                if (isSelectionMode) {
-                    Modifier.combinedClickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = { onClick(sticker) },
-                        onLongClick = { onLongClick?.invoke(sticker) }
-                    )
-                } else {
-                    Modifier.clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = { onClick(sticker) }
-                    )
-                }
+                // Long-press always selects: outside selection mode it enters selection
+                // mode with this sticker, inside it opens details via the caller.
+                Modifier.combinedClickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = { onClick(sticker) },
+                    onLongClick = { onLongClick?.invoke(sticker) }
+                )
             ),
         shape = RoundedCornerShape(16.dp),
         color = if (isSelected) {

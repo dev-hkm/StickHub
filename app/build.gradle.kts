@@ -45,10 +45,9 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version 5.0.0: reliability + interaction release (data safety, overlay,
-        // cutout save/gate, category drag session, clipboard lifecycle).
-        versionCode = 45
-        versionName = "5.0.0"
+        // Version 5.0.1: long-press select on all cards, clipboard uri-list import.
+        versionCode = 46
+        versionName = "5.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

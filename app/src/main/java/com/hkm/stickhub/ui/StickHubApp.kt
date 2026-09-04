@@ -840,20 +840,8 @@ fun StickHubApp(
                                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    FloatingActionButton(
-                                        onClick = {
-                                            isSelectionMode = true
-                                        },
-                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(LucideR.drawable.lucide_ic_list_checks),
-                                            contentDescription = "Select Mode",
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-
+                                    // Selection mode is entered by long-pressing a sticker,
+                                    // so no dedicated toggle button lives here.
                                     FloatingActionButton(
                                         onClick = {
                                             haptics.performTap()
