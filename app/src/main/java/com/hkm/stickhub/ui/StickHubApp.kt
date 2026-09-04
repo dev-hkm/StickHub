@@ -78,6 +78,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -133,6 +134,7 @@ import com.hkm.stickhub.ui.library.StickerLibraryPreferences
 import com.hkm.stickhub.ui.library.LibrarySnapshotState
 import com.hkm.stickhub.ui.library.LibraryStartupRefreshPolicy
 import com.hkm.stickhub.ui.library.StickerLibraryViewMode
+import com.hkm.stickhub.ui.settings.PreviewRateLimiter
 import com.hkm.stickhub.ui.theme.AppThemeMode
 import com.hkm.stickhub.ui.theme.AppVisualTheme
 import com.hkm.stickhub.ui.theme.specimenDecor
@@ -338,6 +340,19 @@ fun StickHubApp(
         selectedStickerIds = emptySet()
     }
 
+    // A stuck transient preview must never survive leaving Settings:
+    // restoring committed state is a single cheap intent.
+    DisposableEffect(currentRoute) {
+        onDispose {
+            if (OverlayService.isRunning) {
+                context.startService(
+                    Intent(context, OverlayService::class.java)
+                        .setAction(OverlayService.ACTION_UPDATE_APPEARANCE)
+                )
+            }
+        }
+    }
+
     // Dialogs
     var showAddCategoryDialog by remember { mutableStateOf(false) }
     var categoryToDelete by remember { mutableStateOf<CategoryItem?>(null) }
@@ -397,6 +412,21 @@ fun StickHubApp(
                 Intent(context, OverlayService::class.java).setAction(OverlayService.ACTION_UPDATE_SHADOW)
             )
         }
+    }
+
+    // Transient drag previews: layer + throttled value straight to the
+    // running service. Nothing is persisted until release, and the service
+    // clears previews on every committed update.
+    val previewLimiter = remember { PreviewRateLimiter() }
+    fun sendAppearancePreview(layer: String, value: Float) {
+        if (!OverlayService.isRunning) return
+        if (!previewLimiter.shouldDispatch(layer, SystemClock.uptimeMillis())) return
+        context.startService(
+            Intent(context, OverlayService::class.java)
+                .setAction(OverlayService.ACTION_PREVIEW_APPEARANCE)
+                .putExtra(OverlayService.EXTRA_APPEARANCE_LAYER, layer)
+                .putExtra(OverlayService.EXTRA_APPEARANCE_VALUE, value)
+        )
     }
 
     /** Shows a snackbar, dismissing any currently-visible one first so rapid
@@ -1443,49 +1473,49 @@ fun StickHubApp(
                     OverlayPreferences.setBubbleOpacity(context, opacity)
                     sendThrottledOverlayUpdate(force = true)
                 },
-                onLivePreviewBubbleOpacity = { },
+                onLivePreviewBubbleOpacity = { sendAppearancePreview("bubble", it) },
                 popupMasterOpacity = popupMasterOpacity,
                 onPopupMasterOpacityChange = { opacity ->
                     popupMasterOpacity = opacity
                     OverlayPreferences.setPopupMasterOpacity(context, opacity)
                     sendThrottledOverlayUpdate(force = true)
                 },
-                onLivePreviewMasterOpacity = { },
+                onLivePreviewMasterOpacity = { sendAppearancePreview("master", it) },
                 popupSurfaceOpacity = popupSurfaceOpacity,
                 onPopupSurfaceOpacityChange = { opacity ->
                     popupSurfaceOpacity = opacity
                     OverlayPreferences.setPopupSurfaceOpacity(context, opacity)
                     sendThrottledOverlayUpdate(force = true)
                 },
-                onLivePreviewSurfaceOpacity = { },
+                onLivePreviewSurfaceOpacity = { sendAppearancePreview("surface", it) },
                 popupStickersOpacity = popupStickersOpacity,
                 onPopupStickersOpacityChange = { opacity ->
                     popupStickersOpacity = opacity
                     OverlayPreferences.setPopupStickersOpacity(context, opacity)
                     sendThrottledOverlayUpdate(force = true)
                 },
-                onLivePreviewStickersOpacity = { },
+                onLivePreviewStickersOpacity = { sendAppearancePreview("stickers", it) },
                 popupChromeOpacity = popupChromeOpacity,
                 onPopupChromeOpacityChange = { opacity ->
                     popupChromeOpacity = opacity
                     OverlayPreferences.setPopupChromeOpacity(context, opacity)
                     sendThrottledOverlayUpdate(force = true)
                 },
-                onLivePreviewChromeOpacity = { },
+                onLivePreviewChromeOpacity = { sendAppearancePreview("chrome", it) },
                 popupCloseOpacity = popupCloseOpacity,
                 onPopupCloseOpacityChange = { opacity ->
                     popupCloseOpacity = opacity
                     OverlayPreferences.setPopupCloseOpacity(context, opacity)
                     sendThrottledOverlayUpdate(force = true)
                 },
-                onLivePreviewCloseOpacity = { },
+                onLivePreviewCloseOpacity = { sendAppearancePreview("close", it) },
                 popupResizeOpacity = popupResizeOpacity,
                 onPopupResizeOpacityChange = { opacity ->
                     popupResizeOpacity = opacity
                     OverlayPreferences.setPopupResizeOpacity(context, opacity)
                     sendThrottledOverlayUpdate(force = true)
                 },
-                onLivePreviewResizeOpacity = { },
+                onLivePreviewResizeOpacity = { sendAppearancePreview("resize", it) },
                 stickerShadowStrength = stickerShadowStrength,
                 onStickerShadowStrengthChange = { strength ->
                     // Heavy op: re-renders every cached thumbnail. Only on release.
@@ -1494,6 +1524,21 @@ fun StickHubApp(
                     sendShadowOverlayUpdate()
                 },
                 onLivePreviewShadowStrength = { },
+                onApplyAppearancePreset = { preset ->
+                    OverlayPreferences.applyAppearancePreset(context, preset)
+                    overlayBubbleOpacity = OverlayPreferences.bubbleOpacity(context)
+                    popupMasterOpacity = OverlayPreferences.popupMasterOpacity(context)
+                    popupSurfaceOpacity = OverlayPreferences.popupSurfaceOpacity(context)
+                    popupStickersOpacity = OverlayPreferences.popupStickersOpacity(context)
+                    popupChromeOpacity = OverlayPreferences.popupChromeOpacity(context)
+                    popupCloseOpacity = OverlayPreferences.popupCloseOpacity(context)
+                    popupResizeOpacity = OverlayPreferences.popupResizeOpacity(context)
+                    stickerShadowStrength = OverlayPreferences.stickerShadowStrength(context)
+                    // Committed update clears any transient preview, then the
+                    // heavy shadow re-render runs exactly once.
+                    sendLightweightOverlayUpdate()
+                    sendShadowOverlayUpdate()
+                },
                 onRevealOverlayControls = { revealOverlayControls() },
                 onResetOverlayAppearance = {
                     OverlayPreferences.resetAppearance(context)

@@ -10,6 +10,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.TextButton
 import com.hkm.stickhub.service.OverlayStartFilterMode
 import com.hkm.stickhub.service.OverlayAfterCopyAction
+import com.hkm.stickhub.service.OverlayAppearancePreset
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
@@ -83,6 +84,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.hkm.stickhub.ui.settings.SliderInteractionState
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -141,6 +145,7 @@ fun SettingsScreen(
     onLivePreviewShadowStrength: (Float) -> Unit,
     onRevealOverlayControls: () -> Unit,
     onResetOverlayAppearance: () -> Unit,
+    onApplyAppearancePreset: (OverlayAppearancePreset) -> Unit,
     startFilterMode: OverlayStartFilterMode,
     startCustomCategory: String,
     onStartFilterChange: (OverlayStartFilterMode, String) -> Unit,
@@ -955,7 +960,7 @@ fun SettingsScreen(
                     subtitle = "Floating bubble for instant sticker access while chatting",
                     checked = isOverlayRunning,
                     onCheckedChange = {
-                        haptics.performToggle(!isOverlayRunning)
+                        // Single haptic owner is the root toggleOverlay().
                         onToggleOverlay()
                     }
                 )
@@ -1026,6 +1031,42 @@ fun SettingsScreen(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
+                // 2A0. Appearance presets (one-shot, opt-in only)
+                Text(
+                    text = "Presets",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 6.dp)
+                )
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OverlayAppearancePreset.entries.forEach { preset ->
+                        PresetRow(
+                            preset = preset,
+                            active = presetAppliesTo(
+                                preset,
+                                overlayBubbleOpacity,
+                                popupMasterOpacity,
+                                popupSurfaceOpacity,
+                                popupStickersOpacity,
+                                popupChromeOpacity,
+                                popupCloseOpacity,
+                                popupResizeOpacity,
+                                stickerShadowStrength
+                            ),
+                            onApply = {
+                                haptics.performTick()
+                                onApplyAppearancePreset(preset)
+                            }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
                 // 2A. Bubble Group
                 Text(
                     text = "Bubble",
@@ -1040,6 +1081,7 @@ fun SettingsScreen(
                     value = previewBubbleSizeDp,
                     valueRange = 32f..72f,
                     valueText = "${previewBubbleSizeDp.toInt()} dp",
+                    contentDescription = "Bubble size, " + ("${previewBubbleSizeDp.toInt()} dp"),
                     onValueChange = { previewBubbleSizeDp = it },
                     onValueChangeFinished = {
                         if (abs(it - overlayBubbleSizeDp) >= 0.5f) {
@@ -1056,6 +1098,7 @@ fun SettingsScreen(
                     value = previewBubbleOpacity,
                     valueRange = 0f..1f,
                     valueText = "${(previewBubbleOpacity * 100).toInt()}% visible",
+                    contentDescription = "Bubble opacity, " + ("${(previewBubbleOpacity * 100).toInt()}% visible"),
                     onValueChange = {
                         previewBubbleOpacity = it
                         onLivePreviewBubbleOpacity(it)
@@ -1102,6 +1145,7 @@ fun SettingsScreen(
                     value = previewMasterOpacity,
                     valueRange = 0f..1f,
                     valueText = "${(previewMasterOpacity * 100).toInt()}% visible",
+                    contentDescription = "Whole popup opacity (master), " + ("${(previewMasterOpacity * 100).toInt()}% visible"),
                     onValueChange = {
                         previewMasterOpacity = it
                         onLivePreviewMasterOpacity(it)
@@ -1123,6 +1167,7 @@ fun SettingsScreen(
                     value = previewSurfaceOpacity,
                     valueRange = 0f..1f,
                     valueText = "${(previewSurfaceOpacity * 100).toInt()}% visible",
+                    contentDescription = "Popup background opacity, " + ("${(previewSurfaceOpacity * 100).toInt()}% visible"),
                     onValueChange = {
                         previewSurfaceOpacity = it
                         onLivePreviewSurfaceOpacity(it)
@@ -1144,6 +1189,7 @@ fun SettingsScreen(
                     value = previewStickersOpacity,
                     valueRange = 0f..1f,
                     valueText = "${(previewStickersOpacity * 100).toInt()}% visible",
+                    contentDescription = "Sticker opacity, " + ("${(previewStickersOpacity * 100).toInt()}% visible"),
                     onValueChange = {
                         previewStickersOpacity = it
                         onLivePreviewStickersOpacity(it)
@@ -1168,6 +1214,7 @@ fun SettingsScreen(
                     valueText = if (showQuickStickersTitle || showQuickStickersSearch || showQuickStickersCategories)
                         "${(previewChromeOpacity * 100).toInt()}% visible"
                     else "Hidden (enable title, search, or categories above)",
+                    contentDescription = "Header search tags opacity",
                     onValueChange = {
                         previewChromeOpacity = it
                         onLivePreviewChromeOpacity(it)
@@ -1189,6 +1236,7 @@ fun SettingsScreen(
                     value = previewCloseOpacity,
                     valueRange = 0f..1f,
                     valueText = "${(previewCloseOpacity * 100).toInt()}% visible",
+                    contentDescription = "Close button opacity, " + ("${(previewCloseOpacity * 100).toInt()}% visible"),
                     onValueChange = {
                         previewCloseOpacity = it
                         onLivePreviewCloseOpacity(it)
@@ -1210,6 +1258,7 @@ fun SettingsScreen(
                     value = previewResizeOpacity,
                     valueRange = 0f..1f,
                     valueText = "${(previewResizeOpacity * 100).toInt()}% visible",
+                    contentDescription = "Resize button opacity, " + ("${(previewResizeOpacity * 100).toInt()}% visible"),
                     onValueChange = {
                         previewResizeOpacity = it
                         onLivePreviewResizeOpacity(it)
@@ -1236,10 +1285,11 @@ fun SettingsScreen(
 
                 SettingsSliderItem(
                     title = "Sticker shadow strength",
-                    subtitle = "Silhouette drop shadow helps stickers stand out over chat backgrounds",
+                    subtitle = "Silhouette drop shadow helps stickers stand out over chat backgrounds. Applies when you release the slider.",
                     value = previewShadowStrength,
                     valueRange = 0f..1f,
                     valueText = "${(previewShadowStrength * 100).toInt()}%",
+                    contentDescription = "Sticker shadow strength, " + ("${(previewShadowStrength * 100).toInt()}%"),
                     onValueChange = {
                         previewShadowStrength = it
                         onLivePreviewShadowStrength(it)
@@ -1962,6 +2012,92 @@ private fun SettingsClickableRow(
 
 
 @Composable
+private fun PresetRow(
+    preset: OverlayAppearancePreset,
+    active: Boolean,
+    onApply: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
+        border = BorderStroke(
+            width = if (active) 2.dp else 1.dp,
+            color = if (active) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(
+                role = Role.RadioButton,
+                onClick = onApply
+            )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = preset.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = preset.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (active) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(LucideR.drawable.lucide_ic_check),
+                        contentDescription = "Active preset",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun presetAppliesTo(
+    preset: OverlayAppearancePreset,
+    bubble: Float,
+    master: Float,
+    surface: Float,
+    stickers: Float,
+    chrome: Float,
+    close: Float,
+    resize: Float,
+    shadow: Float
+): Boolean {
+    fun close(a: Float, b: Float) = kotlin.math.abs(a - b) < 0.005f
+    return close(preset.bubble, bubble) &&
+        close(preset.master, master) &&
+        close(preset.surface, surface) &&
+        close(preset.stickers, stickers) &&
+        close(preset.chrome, chrome) &&
+        close(preset.close, close) &&
+        close(preset.resize, resize) &&
+        close(preset.shadow, shadow)
+}
+
+@Composable
 private fun SettingsSliderItem(
     title: String,
     value: Float,
@@ -1970,16 +2106,19 @@ private fun SettingsSliderItem(
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: (Float) -> Unit,
     subtitle: String? = null,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    contentDescription: String? = null
 ) {
-    // Slider's onValueChangeFinished is () -> Unit, so track the latest drag
-    // value explicitly. Passing the composed `value` directly would persist
-    // a stale frame (the classic "slider snaps back / saves wrong value" bug).
-    var latestValue by remember(valueRange) { mutableFloatStateOf(value) }
+    // Direct manipulation owns the drag through SliderInteractionState: parent
+    // echoes (persisted commits, resets) can never yank the thumb mid-gesture,
+    // and release always persists the exact final value — never a stale frame.
+    val interaction = remember(valueRange) { SliderInteractionState(value, valueRange) }
+    var uiValue by remember(valueRange) { mutableFloatStateOf(value) }
     LaunchedEffect(value) {
-        // Resync when the value changes from outside (e.g. Reset button).
+        // Resync when the value changes from outside (commit/reset).
         // During drag this just echoes the same value back.
-        if (value != latestValue) latestValue = value
+        interaction.synchronize(value)
+        uiValue = interaction.value
     }
     Column(
         modifier = Modifier
@@ -2025,15 +2164,21 @@ private fun SettingsSliderItem(
         }
         Spacer(modifier = Modifier.height(6.dp))
         Slider(
-            value = value,
+            value = uiValue,
             onValueChange = {
-                latestValue = it
-                onValueChange(it)
+                uiValue = interaction.change(it)
+                onValueChange(uiValue)
             },
-            onValueChangeFinished = { onValueChangeFinished(latestValue) },
+            onValueChangeFinished = { onValueChangeFinished(interaction.finish()) },
             valueRange = valueRange,
             enabled = enabled,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (contentDescription != null) {
+                        Modifier.semantics { this.contentDescription = contentDescription }
+                    } else Modifier
+                )
         )
     }
 }
