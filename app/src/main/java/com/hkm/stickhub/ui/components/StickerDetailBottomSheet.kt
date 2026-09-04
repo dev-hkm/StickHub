@@ -118,7 +118,7 @@ fun StickerDetailBottomSheet(
 
                 IconButton(
                     onClick = {
-                        haptics.performConfirm()
+                        haptics.performTick()
                         onToggleFavorite(sticker.id)
                     },
                     modifier = Modifier
@@ -211,7 +211,7 @@ fun StickerDetailBottomSheet(
 
                 FilledTonalButton(
                     onClick = {
-                        haptics.performConfirm()
+                        haptics.performTick()
                         onUpdateDetails(sticker.id, title, selectedCategory, tags)
                         onDismiss()
                     },
@@ -295,7 +295,7 @@ fun StickerDetailBottomSheet(
             // Delete Button
             OutlinedButton(
                 onClick = {
-                    haptics.performConfirm()
+                    haptics.performTick()
                     onDelete(sticker.id)
                     onDismiss()
                 },

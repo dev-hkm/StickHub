@@ -223,7 +223,7 @@ fun SettingsScreen(
         }
         pendingLayoutMode = newMode
         isDismissingPicker = true
-        haptics.performCopyAck()
+        haptics.performTick()
         sheetCoroutineScope.launch {
             try {
                 layoutPickerSheetState.hide()
@@ -330,7 +330,7 @@ fun SettingsScreen(
                         },
                         onClick = {
                             if (visualTheme != AppVisualTheme.DEFAULT) {
-                                haptics.performCopyAck()
+                                haptics.performTick()
                                 onVisualThemeChange(AppVisualTheme.DEFAULT)
                             }
                         }
@@ -356,7 +356,7 @@ fun SettingsScreen(
                         },
                         onClick = {
                             if (visualTheme != AppVisualTheme.HERBARIUM) {
-                                haptics.performCopyAck()
+                                haptics.performTick()
                                 onVisualThemeChange(AppVisualTheme.HERBARIUM)
                             }
                         }
@@ -382,7 +382,7 @@ fun SettingsScreen(
                         },
                         onClick = {
                             if (visualTheme != AppVisualTheme.SKETCHBOOK) {
-                                haptics.performCopyAck()
+                                haptics.performTick()
                                 onVisualThemeChange(AppVisualTheme.SKETCHBOOK)
                             }
                         }
@@ -408,7 +408,7 @@ fun SettingsScreen(
                         },
                         onClick = {
                             if (visualTheme != AppVisualTheme.NEUBRUTALISM) {
-                                haptics.performCopyAck()
+                                haptics.performTick()
                                 onVisualThemeChange(AppVisualTheme.NEUBRUTALISM)
                             }
                         }
@@ -453,7 +453,7 @@ fun SettingsScreen(
                         },
                         onClick = {
                             if (visualTheme != AppVisualTheme.OLD_MONEY) {
-                                haptics.performCopyAck()
+                                haptics.performTick()
                                 onVisualThemeChange(AppVisualTheme.OLD_MONEY)
                             }
                         }
@@ -479,7 +479,7 @@ fun SettingsScreen(
                         },
                         onClick = {
                             if (visualTheme != AppVisualTheme.PRESSROOM) {
-                                haptics.performCopyAck()
+                                haptics.performTick()
                                 onVisualThemeChange(AppVisualTheme.PRESSROOM)
                             }
                         }
@@ -505,7 +505,7 @@ fun SettingsScreen(
                         },
                         onClick = {
                             if (visualTheme != AppVisualTheme.ATELIER) {
-                                haptics.performCopyAck()
+                                haptics.performTick()
                                 onVisualThemeChange(AppVisualTheme.ATELIER)
                             }
                         }
@@ -531,7 +531,7 @@ fun SettingsScreen(
                         },
                         onClick = {
                             if (visualTheme != AppVisualTheme.STARBASE) {
-                                haptics.performCopyAck()
+                                haptics.performTick()
                                 onVisualThemeChange(AppVisualTheme.STARBASE)
                             }
                         }
@@ -557,7 +557,7 @@ fun SettingsScreen(
                         },
                         onClick = {
                             if (visualTheme != AppVisualTheme.COTTAGE) {
-                                haptics.performCopyAck()
+                                haptics.performTick()
                                 onVisualThemeChange(AppVisualTheme.COTTAGE)
                             }
                         }
@@ -583,7 +583,7 @@ fun SettingsScreen(
                         },
                         onClick = {
                             if (visualTheme != AppVisualTheme.AURORA) {
-                                haptics.performCopyAck()
+                                haptics.performTick()
                                 onVisualThemeChange(AppVisualTheme.AURORA)
                             }
                         }
@@ -609,7 +609,7 @@ fun SettingsScreen(
                         },
                         onClick = {
                             if (visualTheme != AppVisualTheme.SYNTHWAVE) {
-                                haptics.performCopyAck()
+                                haptics.performTick()
                                 onVisualThemeChange(AppVisualTheme.SYNTHWAVE)
                             }
                         }
@@ -635,7 +635,7 @@ fun SettingsScreen(
                         },
                         onClick = {
                             if (visualTheme != AppVisualTheme.GATSBY) {
-                                haptics.performCopyAck()
+                                haptics.performTick()
                                 onVisualThemeChange(AppVisualTheme.GATSBY)
                             }
                         }
@@ -661,7 +661,7 @@ fun SettingsScreen(
                         },
                         onClick = {
                             if (visualTheme != AppVisualTheme.UKIYO) {
-                                haptics.performCopyAck()
+                                haptics.performTick()
                                 onVisualThemeChange(AppVisualTheme.UKIYO)
                             }
                         }
@@ -687,7 +687,7 @@ fun SettingsScreen(
                         },
                         onClick = {
                             if (visualTheme != AppVisualTheme.PIXEL) {
-                                haptics.performCopyAck()
+                                haptics.performTick()
                                 onVisualThemeChange(AppVisualTheme.PIXEL)
                             }
                         }
@@ -713,7 +713,7 @@ fun SettingsScreen(
                         },
                         onClick = {
                             if (visualTheme != AppVisualTheme.KAWAII) {
-                                haptics.performCopyAck()
+                                haptics.performTick()
                                 onVisualThemeChange(AppVisualTheme.KAWAII)
                             }
                         }
@@ -739,7 +739,7 @@ fun SettingsScreen(
                         },
                         onClick = {
                             if (visualTheme != AppVisualTheme.SOLARPUNK) {
-                                haptics.performCopyAck()
+                                haptics.performTick()
                                 onVisualThemeChange(AppVisualTheme.SOLARPUNK)
                             }
                         }
@@ -765,7 +765,7 @@ fun SettingsScreen(
                         },
                         onClick = {
                             if (visualTheme != AppVisualTheme.NOIR) {
-                                haptics.performCopyAck()
+                                haptics.performTick()
                                 onVisualThemeChange(AppVisualTheme.NOIR)
                             }
                         }
@@ -791,7 +791,7 @@ fun SettingsScreen(
                         },
                         onClick = {
                             if (visualTheme != AppVisualTheme.GLASS) {
-                                haptics.performCopyAck()
+                                haptics.performTick()
                                 onVisualThemeChange(AppVisualTheme.GLASS)
                             }
                         }
@@ -817,7 +817,7 @@ fun SettingsScreen(
                         },
                         onClick = {
                             if (visualTheme != AppVisualTheme.NOUVEAU) {
-                                haptics.performCopyAck()
+                                haptics.performTick()
                                 onVisualThemeChange(AppVisualTheme.NOUVEAU)
                             }
                         }
@@ -864,7 +864,7 @@ fun SettingsScreen(
                     themeMode = themeMode,
                     onThemeModeChange = { newMode ->
                         if (newMode != themeMode) {
-                            haptics.performCopyAck()
+                            haptics.performTick()
                             onThemeModeChange(newMode)
                         }
                     },
@@ -925,7 +925,7 @@ fun SettingsScreen(
                     subtitle = "Show search field at the top of library",
                     checked = showLibrarySearch,
                     onCheckedChange = {
-                        haptics.performCopyAck()
+                        haptics.performToggle(it)
                         onToggleShowSearch(it)
                     }
                 )
@@ -937,7 +937,7 @@ fun SettingsScreen(
                     subtitle = "Show category tag rail below search",
                     checked = showLibraryCategoryFilters,
                     onCheckedChange = {
-                        haptics.performCopyAck()
+                        haptics.performToggle(it)
                         onToggleShowCategoryFilters(it)
                     }
                 )
@@ -962,7 +962,7 @@ fun SettingsScreen(
                     subtitle = "Floating bubble for instant sticker access while chatting",
                     checked = isOverlayRunning,
                     onCheckedChange = {
-                        haptics.performCopyAck()
+                        haptics.performToggle(!isOverlayRunning)
                         onToggleOverlay()
                     }
                 )
@@ -1010,7 +1010,7 @@ fun SettingsScreen(
                         if (!hasOverlayPermission) {
                             FilledTonalButton(
                                 onClick = {
-                                    haptics.performCopyAck()
+                                    haptics.performTick()
                                     onRetryOverlayPermission()
                                 },
                                 shape = RoundedCornerShape(8.dp),
@@ -1050,7 +1050,7 @@ fun SettingsScreen(
                     onValueChange = { previewBubbleSizeDp = it },
                     onValueChangeFinished = {
                         if (abs(it - overlayBubbleSizeDp) >= 0.5f) {
-                            haptics.performCopyAck()
+                            haptics.performTick()
                             onOverlayBubbleSizeChange(it)
                         }
                     }
@@ -1071,7 +1071,7 @@ fun SettingsScreen(
                         // Always persist + push on release. Live ticks already
                         // sync parent state, so a diff guard here would swallow
                         // the release (this dead-slider bug killed shadow).
-                        haptics.performCopyAck()
+                        haptics.performTick()
                         onOverlayBubbleOpacityChange(it)
                     }
                 )
@@ -1117,7 +1117,7 @@ fun SettingsScreen(
                         // Always persist + push on release. Live ticks already
                         // sync parent state, so a diff guard here would swallow
                         // the release (this dead-slider bug killed shadow).
-                        haptics.performCopyAck()
+                        haptics.performTick()
                         onPopupMasterOpacityChange(it)
                     }
                 )
@@ -1138,7 +1138,7 @@ fun SettingsScreen(
                         // Always persist + push on release. Live ticks already
                         // sync parent state, so a diff guard here would swallow
                         // the release (this dead-slider bug killed shadow).
-                        haptics.performCopyAck()
+                        haptics.performTick()
                         onPopupSurfaceOpacityChange(it)
                     }
                 )
@@ -1159,7 +1159,7 @@ fun SettingsScreen(
                         // Always persist + push on release. Live ticks already
                         // sync parent state, so a diff guard here would swallow
                         // the release (this dead-slider bug killed shadow).
-                        haptics.performCopyAck()
+                        haptics.performTick()
                         onPopupStickersOpacityChange(it)
                     }
                 )
@@ -1183,7 +1183,7 @@ fun SettingsScreen(
                         // Always persist + push on release. Live ticks already
                         // sync parent state, so a diff guard here would swallow
                         // the release (this dead-slider bug killed shadow).
-                        haptics.performCopyAck()
+                        haptics.performTick()
                         onPopupChromeOpacityChange(it)
                     }
                 )
@@ -1204,7 +1204,7 @@ fun SettingsScreen(
                         // Always persist + push on release. Live ticks already
                         // sync parent state, so a diff guard here would swallow
                         // the release (this dead-slider bug killed shadow).
-                        haptics.performCopyAck()
+                        haptics.performTick()
                         onPopupCloseOpacityChange(it)
                     }
                 )
@@ -1225,7 +1225,7 @@ fun SettingsScreen(
                         // Always persist + push on release. Live ticks already
                         // sync parent state, so a diff guard here would swallow
                         // the release (this dead-slider bug killed shadow).
-                        haptics.performCopyAck()
+                        haptics.performTick()
                         onPopupResizeOpacityChange(it)
                     }
                 )
@@ -1255,7 +1255,7 @@ fun SettingsScreen(
                         // Always persist + push on release. Live ticks already
                         // sync parent state, so a diff guard here would swallow
                         // the release (this dead-slider bug killed shadow).
-                        haptics.performCopyAck()
+                        haptics.performTick()
                         onStickerShadowStrengthChange(it)
                     }
                 )
@@ -1267,7 +1267,7 @@ fun SettingsScreen(
                     title = "Reveal overlay controls",
                     subtitle = "Temporarily sets bubble and all popup layers to 100% visibility for 5 seconds",
                     onClick = {
-                        haptics.performCopyAck()
+                        haptics.performTick()
                         onRevealOverlayControls()
                     },
                     trailing = {
@@ -1375,7 +1375,7 @@ fun SettingsScreen(
                     subtitle = "Display app name at the top of quick stickers",
                     checked = showQuickStickersTitle,
                     onCheckedChange = {
-                        haptics.performCopyAck()
+                        haptics.performToggle(it)
                         onToggleShowTitle(it)
                     }
                 )
@@ -1387,7 +1387,7 @@ fun SettingsScreen(
                     subtitle = "Display search input in quick stickers",
                     checked = showQuickStickersSearch,
                     onCheckedChange = {
-                        haptics.performCopyAck()
+                        haptics.performToggle(it)
                         onToggleShowQuickSearch(it)
                     }
                 )
@@ -1399,7 +1399,7 @@ fun SettingsScreen(
                     subtitle = "Display category tabs in quick stickers",
                     checked = showQuickStickersCategories,
                     onCheckedChange = {
-                        haptics.performCopyAck()
+                        haptics.performToggle(it)
                         onToggleShowQuickCategories(it)
                     }
                 )
@@ -1573,7 +1573,7 @@ fun SettingsScreen(
                     TextButton(
                         onClick = {
                             showResetAppearanceDialog = false
-                            haptics.performCopyAck()
+                            haptics.performTick()
                             previewBubbleSizeDp = 40f
                             previewBubbleOpacity = 1.0f
                             previewMasterOpacity = 1.0f
@@ -1619,7 +1619,7 @@ fun SettingsScreen(
                                     .selectable(
                                         selected = startFilterMode == mode,
                                         onClick = {
-                                            haptics.performCopyAck()
+                                            haptics.performTick()
                                             onStartFilterChange(mode, "")
                                             showStartFilterDialog = false
                                         }
@@ -1661,7 +1661,7 @@ fun SettingsScreen(
                                         .selectable(
                                             selected = isSelected,
                                             onClick = {
-                                                haptics.performCopyAck()
+                                                haptics.performTick()
                                                 onStartFilterChange(OverlayStartFilterMode.CUSTOM_CATEGORY, cat)
                                                 showStartFilterDialog = false
                                             }
@@ -1708,7 +1708,7 @@ fun SettingsScreen(
                                     .selectable(
                                         selected = afterCopyAction == action,
                                         onClick = {
-                                            haptics.performCopyAck()
+                                            haptics.performTick()
                                             onAfterCopyActionChange(action)
                                             showAfterCopyDialog = false
                                         }

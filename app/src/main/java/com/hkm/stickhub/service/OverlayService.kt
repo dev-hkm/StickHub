@@ -964,7 +964,7 @@ class OverlayService : Service() {
         val closeLongPress = Runnable {
             if (closePressActive && !closeGestureCancelled) {
                 movingFromClose = true
-                StickHubHaptics.performTap(closeBtn)
+                StickHubHaptics.performLongPress(closeBtn)
                 closeBtn.animate().scaleX(0.9f).scaleY(0.9f).alpha(0.8f).setDuration(120).start()
             }
         }
@@ -1055,7 +1055,7 @@ class OverlayService : Service() {
                     initialPanelHeight = panelParams.height
                     initialResizeTouchX = event.rawX
                     initialResizeTouchY = event.rawY
-                    StickHubHaptics.performTap(view)
+                    StickHubHaptics.performTick(view)
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
@@ -1253,7 +1253,7 @@ class OverlayService : Service() {
                 }
 
                 setOnClickListener {
-                    StickHubHaptics.performTap(it)
+                    StickHubHaptics.performTick(it)
                     selectedCategory = cat
                     // Persist for START_FILTER=LAST_USED; without this the
                     // mode could never observe anything but the default.

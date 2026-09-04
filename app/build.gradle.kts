@@ -45,9 +45,9 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version bump for deletable categories, theme grid+expand, search defocus, clipboard multi-import.
-        versionCode = 41
-        versionName = "3.1.0"
+        // Version bump for full haptic overhaul (tiered semantics + throttle).
+        versionCode = 42
+        versionName = "3.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

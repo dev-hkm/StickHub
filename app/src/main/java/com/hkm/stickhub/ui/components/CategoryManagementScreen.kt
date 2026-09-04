@@ -259,7 +259,7 @@ fun CategoryManagementScreen(
                             // Drag / Reorder handle
                             IconButton(
                                 onClick = {
-                                    haptics.performTap()
+                                    haptics.performTick()
                                 },
                                 modifier = Modifier.size(36.dp)
                             ) {
@@ -419,7 +419,7 @@ fun CategoryManagementScreen(
                         keyboardActions = KeyboardActions(
                             onDone = {
                                 if (validationResult is CategoryValidator.Result.Valid) {
-                                    haptics.performConfirm()
+                                    haptics.performTick()
                                     onAddCategory(newCategoryName.trim())
                                     showAddDialog = false
                                 }
@@ -433,7 +433,7 @@ fun CategoryManagementScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        haptics.performConfirm()
+                        haptics.performTick()
                         onAddCategory(newCategoryName.trim())
                         showAddDialog = false
                     },
@@ -500,7 +500,7 @@ fun CategoryManagementScreen(
                         keyboardActions = KeyboardActions(
                             onDone = {
                                 if (validationResult is CategoryValidator.Result.Valid && hasChanged) {
-                                    haptics.performConfirm()
+                                    haptics.performTick()
                                     onRenameCategory(targetCat.name, updatedName.trim())
                                     categoryToRename = null
                                 }
@@ -514,7 +514,7 @@ fun CategoryManagementScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        haptics.performConfirm()
+                        haptics.performTick()
                         onRenameCategory(targetCat.name, updatedName.trim())
                         categoryToRename = null
                     },
@@ -568,7 +568,7 @@ fun CategoryManagementScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        haptics.performConfirm()
+                        haptics.performTick()
                         onDeleteCategory(targetCat.name)
                         categoryToDelete = null
                     },

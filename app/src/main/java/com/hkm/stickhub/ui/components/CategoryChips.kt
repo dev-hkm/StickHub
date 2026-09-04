@@ -92,7 +92,7 @@ fun CategoryChips(
                     .combinedClickable(
                         onClick = {
                             if (!isSelected) {
-                                haptics.performCopyAck()
+                                haptics.performTick()
                                 onSelectCategory(filter.key)
                             }
                         },

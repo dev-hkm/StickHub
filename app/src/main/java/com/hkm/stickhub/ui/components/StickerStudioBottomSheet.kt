@@ -294,7 +294,7 @@ fun StickerStudioBottomSheet(
                         outlineWidthInt = newVal.roundToInt()
                     },
                     onValueChangeFinished = {
-                        haptics.performCopyAck()
+                        haptics.performTick()
                     },
                     valueRange = 0f..20f,
                     steps = 19,

@@ -1,6 +1,7 @@
 package com.hkm.stickhub.ui.haptics
 
 import android.os.Build
+import android.os.SystemClock
 import android.view.HapticFeedbackConstants
 import android.view.View
 import androidx.compose.runtime.Composable
@@ -10,72 +11,106 @@ import androidx.compose.ui.platform.LocalView
 /**
  * Unified semantic haptic policy for StickHub.
  *
+ * Design goal: feel like a stock-quality app. Strength ladder (weak → strong):
+ * TICK (selections, chips, releases) < NAVIGATION_TAP (moves between screens)
+ * < TOGGLE (switch flips, direction-aware on API 34+) < LONG_PRESS (holds)
+ * < COPY_ACK/CONFIRM (real successes only: copy, save, export, import)
+ * < REJECT (errors).
+ *
  * Guaranteed rules:
- * 1. Reference profile: COPY_ACK is the exact same feedback used for copying a sticker,
- *    category/tag selection, layout changes, and setting toggle mutations.
- * 2. NAVIGATION_TAP is a subtle virtual key feedback for navigating between destinations.
- * 3. No raw numeric API constants; no OS-dependent toggle vibrations.
- * 4. Maximum one haptic event per real state mutation.
+ * 1. COPY_ACK/CONFIRM fires only after a confirmed success — never on a blind
+ *    button press, never for toggles, chips or slider releases.
+ * 2. At most one haptic event per 80ms per source (machine-gun guard).
+ * 3. No raw Vibrator API; only OEM-tuned platform constants.
  */
 class StickHubHaptics(private val view: View) {
 
     enum class FeedbackType {
-        COPY_ACK,
+        TICK,
         NAVIGATION_TAP,
+        TOGGLE_ON,
+        TOGGLE_OFF,
         LONG_PRESS,
+        COPY_ACK,
         REJECT
     }
 
+    private var lastFireUptimeMs: Long = 0L
+
+    private fun fire(type: FeedbackType): Boolean {
+        val now = SystemClock.uptimeMillis()
+        if (now - lastFireUptimeMs < MIN_INTERVAL_MS) return false
+        val constant = resolveFeedbackConstant(type, Build.VERSION.SDK_INT) ?: return false
+        lastFireUptimeMs = now
+        return view.performHapticFeedback(constant)
+    }
+
+    /** Lightest tick: selections, chips, slider releases, dialog buttons. */
+    fun performTick() {
+        fire(FeedbackType.TICK)
+    }
+
+    /** Deliberate navigation events (open/close screens, sheets, dialogs). */
+    fun performNavigationTap() {
+        fire(FeedbackType.NAVIGATION_TAP)
+    }
+
+    /** Direction-aware switch flip (falls back to a tick below API 34). */
+    fun performToggle(enabled: Boolean) {
+        fire(if (enabled) FeedbackType.TOGGLE_ON else FeedbackType.TOGGLE_OFF)
+    }
+
+    /** Acknowledgement for long-press gestures. */
+    fun performLongPress() {
+        fire(FeedbackType.LONG_PRESS)
+    }
+
     /**
-     * Primary reference profile: identical acknowledgement used when copying a sticker.
-     * Also used for category/tag filter selection, layout selection, and successful setting mutations.
+     * Primary reference profile: fires ONLY after a confirmed success
+     * (sticker copied, sticker saved, backup exported/imported).
      */
     fun performCopyAck() {
-        resolveFeedbackConstant(FeedbackType.COPY_ACK, Build.VERSION.SDK_INT)?.let {
-            view.performHapticFeedback(it)
-        }
+        fire(FeedbackType.COPY_ACK)
     }
 
-    /**
-     * Subtle acknowledgement for deliberate navigation events (open/close Settings, dialogs).
-     */
-    fun performNavigationTap() {
-        resolveFeedbackConstant(FeedbackType.NAVIGATION_TAP, Build.VERSION.SDK_INT)?.let {
-            view.performHapticFeedback(it)
-        }
-    }
-
-    /**
-     * Acknowledgement for long-press gestures.
-     */
-    fun performLongPress() {
-        resolveFeedbackConstant(FeedbackType.LONG_PRESS, Build.VERSION.SDK_INT)?.let {
-            view.performHapticFeedback(it)
-        }
-    }
-
-    /**
-     * Acknowledgement for rejected or invalid actions.
-     */
+    /** Acknowledgement for rejected or invalid actions. */
     fun performReject() {
-        resolveFeedbackConstant(FeedbackType.REJECT, Build.VERSION.SDK_INT)?.let {
-            view.performHapticFeedback(it)
-        }
+        fire(FeedbackType.REJECT)
     }
 
     // Semantic aliases for consistency across the codebase
     fun performConfirm() = performCopyAck()
     fun performTap() = performNavigationTap()
-    fun performSelection() = performCopyAck()
+    fun performSelection() = performTick()
 
     companion object {
+        const val MIN_INTERVAL_MS: Long = 80L
+
+        @Volatile
+        private var lastStaticFireUptimeMs: Long = 0L
+
         fun resolveFeedbackConstant(type: FeedbackType, sdkInt: Int): Int? {
             return when (type) {
+                FeedbackType.TICK -> {
+                    if (sdkInt >= 27) HapticFeedbackConstants.TEXT_HANDLE_MOVE
+                    else HapticFeedbackConstants.VIRTUAL_KEY
+                }
+                FeedbackType.NAVIGATION_TAP -> {
+                    if (sdkInt >= 30) HapticFeedbackConstants.KEYBOARD_TAP
+                    else HapticFeedbackConstants.VIRTUAL_KEY
+                }
+                FeedbackType.TOGGLE_ON -> {
+                    if (sdkInt >= 34) HapticFeedbackConstants.TOGGLE_ON
+                    else resolveFeedbackConstant(FeedbackType.TICK, sdkInt)
+                }
+                FeedbackType.TOGGLE_OFF -> {
+                    if (sdkInt >= 34) HapticFeedbackConstants.TOGGLE_OFF
+                    else resolveFeedbackConstant(FeedbackType.TICK, sdkInt)
+                }
                 FeedbackType.COPY_ACK -> {
                     if (sdkInt >= 30) HapticFeedbackConstants.CONFIRM
                     else 6 // HapticFeedbackConstants.CONTEXT_CLICK (API 23+)
                 }
-                FeedbackType.NAVIGATION_TAP -> HapticFeedbackConstants.VIRTUAL_KEY
                 FeedbackType.LONG_PRESS -> HapticFeedbackConstants.LONG_PRESS
                 FeedbackType.REJECT -> {
                     if (sdkInt >= 30) HapticFeedbackConstants.REJECT
@@ -84,33 +119,41 @@ class StickHubHaptics(private val view: View) {
             }
         }
 
-        fun performCopyAck(view: View) {
-            resolveFeedbackConstant(FeedbackType.COPY_ACK, Build.VERSION.SDK_INT)?.let {
-                view.performHapticFeedback(it)
-            }
+        private fun fireStatic(view: View, type: FeedbackType): Boolean {
+            val now = SystemClock.uptimeMillis()
+            if (now - lastStaticFireUptimeMs < MIN_INTERVAL_MS) return false
+            val constant = resolveFeedbackConstant(type, Build.VERSION.SDK_INT) ?: return false
+            lastStaticFireUptimeMs = now
+            return view.performHapticFeedback(constant)
+        }
+
+        fun performTick(view: View) {
+            fireStatic(view, FeedbackType.TICK)
         }
 
         fun performNavigationTap(view: View) {
-            resolveFeedbackConstant(FeedbackType.NAVIGATION_TAP, Build.VERSION.SDK_INT)?.let {
-                view.performHapticFeedback(it)
-            }
+            fireStatic(view, FeedbackType.NAVIGATION_TAP)
+        }
+
+        fun performToggle(view: View, enabled: Boolean) {
+            fireStatic(view, if (enabled) FeedbackType.TOGGLE_ON else FeedbackType.TOGGLE_OFF)
         }
 
         fun performLongPress(view: View) {
-            resolveFeedbackConstant(FeedbackType.LONG_PRESS, Build.VERSION.SDK_INT)?.let {
-                view.performHapticFeedback(it)
-            }
+            fireStatic(view, FeedbackType.LONG_PRESS)
+        }
+
+        fun performCopyAck(view: View) {
+            fireStatic(view, FeedbackType.COPY_ACK)
         }
 
         fun performReject(view: View) {
-            resolveFeedbackConstant(FeedbackType.REJECT, Build.VERSION.SDK_INT)?.let {
-                view.performHapticFeedback(it)
-            }
+            fireStatic(view, FeedbackType.REJECT)
         }
 
         fun performConfirm(view: View) = performCopyAck(view)
         fun performTap(view: View) = performNavigationTap(view)
-        fun performSelection(view: View) = performCopyAck(view)
+        fun performSelection(view: View) = performTick(view)
     }
 }
 

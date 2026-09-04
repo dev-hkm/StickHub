@@ -281,7 +281,7 @@ fun StickHubApp(
         }
         pendingLibraryLayoutMode = newMode
         isDismissingLibraryPicker = true
-        haptics.performCopyAck()
+        haptics.performTick()
         scope.launch {
             try {
                 libraryLayoutPickerSheetState.hide()
@@ -491,7 +491,7 @@ fun StickHubApp(
                     )
                 }
                 duplicates > 0 -> {
-                    haptics.performTap()
+                    haptics.performTick()
                     flashSnackbar("Already in your library.")
                 }
                 else -> {
@@ -605,7 +605,7 @@ fun StickHubApp(
             if (OverlayService.isRunning) {
                 context.stopService(serviceIntent)
                 isOverlayRunning = false
-                haptics.performCopyAck()
+                haptics.performToggle(false)
                 scope.launch { flashSnackbar("Floating overlay disabled") }
             } else {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -614,7 +614,7 @@ fun StickHubApp(
                     context.startService(serviceIntent)
                 }
                 isOverlayRunning = true
-                haptics.performCopyAck()
+                haptics.performToggle(true)
                 scope.launch { flashSnackbar("Floating overlay active") }
             }
         }
@@ -766,7 +766,7 @@ fun StickHubApp(
                                                 onFavoriteBatch = {
                                                     scope.launch {
                                                         repository.batchToggleFavorite(selectedStickerIds.toList(), true)
-                                                        haptics.performConfirm()
+                                                        haptics.performTick()
                                                         flashSnackbar("Added to favorites")
                                                         isSelectionMode = false
                                                         selectedStickerIds = emptySet()
@@ -778,7 +778,7 @@ fun StickHubApp(
                                                 onBatchSetCategory = { catName ->
                                                     scope.launch {
                                                         repository.batchSetCategory(selectedStickerIds.toList(), catName)
-                                                        haptics.performConfirm()
+                                                        haptics.performTick()
                                                         flashSnackbar("Moved to $catName")
                                                         isSelectionMode = false
                                                         selectedStickerIds = emptySet()
@@ -830,7 +830,7 @@ fun StickHubApp(
                                                             context.startService(serviceIntent)
                                                         }
                                                         isOverlayRunning = true
-                                                        haptics.performConfirm()
+                                                        haptics.performToggle(true)
                                                         scope.launch {
                                                             flashSnackbar("Quick Stickers activated!")
                                                         }
@@ -903,7 +903,7 @@ fun StickHubApp(
                                                 onFavoriteBatch = {
                                                     scope.launch {
                                                         repository.batchToggleFavorite(selectedStickerIds.toList(), true)
-                                                        haptics.performConfirm()
+                                                        haptics.performTick()
                                                         flashSnackbar("Added to favorites")
                                                         isSelectionMode = false
                                                         selectedStickerIds = emptySet()
@@ -915,7 +915,7 @@ fun StickHubApp(
                                                 onBatchSetCategory = { catName ->
                                                     scope.launch {
                                                         repository.batchSetCategory(selectedStickerIds.toList(), catName)
-                                                        haptics.performConfirm()
+                                                        haptics.performTick()
                                                         flashSnackbar("Moved to $catName")
                                                         isSelectionMode = false
                                                         selectedStickerIds = emptySet()
@@ -967,7 +967,7 @@ fun StickHubApp(
                                                             context.startService(serviceIntent)
                                                         }
                                                         isOverlayRunning = true
-                                                        haptics.performConfirm()
+                                                        haptics.performToggle(true)
                                                         scope.launch {
                                                             flashSnackbar("Quick Stickers activated!")
                                                         }
@@ -1006,7 +1006,7 @@ fun StickHubApp(
                                                             val activeStickers = reorderPreview ?: allStickers
                                                             val sourceIndex = activeStickers.indexOfFirst { it.id == heldSticker.id }
                                                             if (sourceIndex >= 0) {
-                                                                haptics.performTap()
+                                                                haptics.performLongPress()
                                                                 reorderPreview = activeStickers
                                                                 draggedStickerId = heldSticker.id
                                                                 draggedIndex = sourceIndex
@@ -1119,7 +1119,7 @@ fun StickHubApp(
                                                 onFavoriteBatch = {
                                                     scope.launch {
                                                         repository.batchToggleFavorite(selectedStickerIds.toList(), true)
-                                                        haptics.performConfirm()
+                                                        haptics.performTick()
                                                         flashSnackbar("Added to favorites")
                                                         isSelectionMode = false
                                                         selectedStickerIds = emptySet()
@@ -1131,7 +1131,7 @@ fun StickHubApp(
                                                 onBatchSetCategory = { catName ->
                                                     scope.launch {
                                                         repository.batchSetCategory(selectedStickerIds.toList(), catName)
-                                                        haptics.performConfirm()
+                                                        haptics.performTick()
                                                         flashSnackbar("Moved to $catName")
                                                         isSelectionMode = false
                                                         selectedStickerIds = emptySet()
@@ -1183,7 +1183,7 @@ fun StickHubApp(
                                                             context.startService(serviceIntent)
                                                         }
                                                         isOverlayRunning = true
-                                                        haptics.performConfirm()
+                                                        haptics.performToggle(true)
                                                         scope.launch {
                                                             flashSnackbar("Quick Stickers activated!")
                                                         }
@@ -1253,7 +1253,7 @@ fun StickHubApp(
                                                 onFavoriteBatch = {
                                                     scope.launch {
                                                         repository.batchToggleFavorite(selectedStickerIds.toList(), true)
-                                                        haptics.performConfirm()
+                                                        haptics.performTick()
                                                         flashSnackbar("Added to favorites")
                                                         isSelectionMode = false
                                                         selectedStickerIds = emptySet()
@@ -1265,7 +1265,7 @@ fun StickHubApp(
                                                 onBatchSetCategory = { catName ->
                                                     scope.launch {
                                                         repository.batchSetCategory(selectedStickerIds.toList(), catName)
-                                                        haptics.performConfirm()
+                                                        haptics.performTick()
                                                         flashSnackbar("Moved to $catName")
                                                         isSelectionMode = false
                                                         selectedStickerIds = emptySet()
@@ -1317,7 +1317,7 @@ fun StickHubApp(
                                                             context.startService(serviceIntent)
                                                         }
                                                         isOverlayRunning = true
-                                                        haptics.performConfirm()
+                                                        haptics.performToggle(true)
                                                         scope.launch {
                                                             flashSnackbar("Quick Stickers activated!")
                                                         }
@@ -1585,7 +1585,7 @@ fun StickHubApp(
                 onAddCategory = { name ->
                     scope.launch {
                         if (repository.addCategory(name)) {
-                            haptics.performConfirm()
+                            haptics.performTick()
                             flashSnackbar("Category '$name' created")
                         } else {
                             haptics.performReject()
@@ -1596,7 +1596,7 @@ fun StickHubApp(
                 onRenameCategory = { oldName, newName ->
                     scope.launch {
                         if (repository.renameCategory(oldName, newName)) {
-                            haptics.performConfirm()
+                            haptics.performTick()
                             if (selectedCategory.equals(oldName, ignoreCase = true)) {
                                 selectedCategory = newName
                             }
@@ -1610,7 +1610,7 @@ fun StickHubApp(
                 onDeleteCategory = { name ->
                     scope.launch {
                         if (repository.deleteCategory(name)) {
-                            haptics.performConfirm()
+                            haptics.performTick()
                             if (selectedCategory.equals(name, ignoreCase = true)) {
                                 selectedCategory = "All"
                             }
@@ -1753,31 +1753,37 @@ fun StickHubApp(
             categories = categories,
             onDismiss = { selectedStickerForDetail = null },
             onCopy = {
-                ClipboardHelper.copyStickerToClipboard(context, it)
-                haptics.performConfirm()
-                scope.launch {
-                    repository.recordUsage(it.id)
-                    flashSnackbar("Copied to clipboard!")
+                if (ClipboardHelper.copyStickerToClipboard(context, it)) {
+                    haptics.performConfirm()
+                    scope.launch {
+                        repository.recordUsage(it.id)
+                        flashSnackbar("Copied to clipboard!")
+                    }
+                } else {
+                    haptics.performReject()
+                    scope.launch {
+                        flashSnackbar("Couldn't copy sticker.")
+                    }
                 }
             },
             onToggleFavorite = { id ->
                 scope.launch {
                     repository.toggleFavorite(id)
-                    haptics.performConfirm()
+                    haptics.performTick()
                 }
             },
             onDelete = { id ->
                 scope.launch {
                     repository.deleteSticker(id)
                     selectedStickerForDetail = null
-                    haptics.performConfirm()
+                    haptics.performTick()
                     flashSnackbar("Sticker deleted")
                 }
             },
             onUpdateDetails = { id, title, category, tags ->
                 scope.launch {
                     repository.updateSticker(id, title, category, tags)
-                    haptics.performConfirm()
+                    haptics.performTick()
                     flashSnackbar("Updated successfully")
                 }
             },
@@ -1832,7 +1838,7 @@ fun StickHubApp(
                 scope.launch {
                     if (repository.addCategory(catName)) {
                         selectedCategory = catName
-                        haptics.performConfirm()
+                        haptics.performTick()
                         flashSnackbar("Category '$catName' created")
                     } else {
                         haptics.performReject()
@@ -1873,7 +1879,7 @@ fun StickHubApp(
                                 selectedCategory = "All"
                             }
                             categoryToDelete = null
-                            haptics.performConfirm()
+                            haptics.performTick()
                             flashSnackbar(
                                 if (fallbackHome != null) "Category deleted, stickers moved to $fallbackHome"
                                 else "Category deleted"
@@ -1906,7 +1912,7 @@ fun StickHubApp(
                             isSelectionMode = false
                             selectedStickerIds = emptySet()
                             showBatchDeleteConfirm = false
-                            haptics.performConfirm()
+                            haptics.performTick()
                             flashSnackbar("Deleted $count stickers")
                         }
                     }

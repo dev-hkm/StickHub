@@ -323,7 +323,7 @@ fun SubjectCutoutSheet(
                                 sourceBitmap = state.sourceBitmap,
                                 candidates = state.candidates,
                                 onSelectCandidate = { candidate ->
-                                    haptics.performConfirm()
+                                    haptics.performTick()
                                     selectedCutoutBitmap = candidate.cutoutBitmap
                                 },
                                 onWrongTap = {

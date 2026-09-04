@@ -87,7 +87,7 @@ fun ClipboardImportSheet(
                             uri = uri,
                             selected = uri in selected,
                             onToggle = {
-                                haptics.performTap()
+                                haptics.performTick()
                                 selected = if (uri in selected) selected - uri else selected + uri
                             }
                         )
@@ -98,7 +98,7 @@ fun ClipboardImportSheet(
         confirmButton = {
             Button(
                 onClick = {
-                    haptics.performConfirm()
+                    haptics.performTick()
                     onImportSelected(uris.filter { it in selected })
                 },
                 enabled = selected.isNotEmpty(),
@@ -111,7 +111,7 @@ fun ClipboardImportSheet(
             Row {
                 TextButton(
                     onClick = {
-                        haptics.performTap()
+                        haptics.performTick()
                         selected = if (selected.size == uris.size) emptySet() else uris.toSet()
                     },
                     shape = RoundedCornerShape(12.dp)
