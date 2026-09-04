@@ -51,6 +51,7 @@ import coil.request.ImageRequest
 import com.composables.icons.lucide.R as LucideR
 import com.hkm.stickhub.data.model.StickerItem
 import com.hkm.stickhub.ui.theme.StickHubMotion
+import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
 import java.io.File
 
 /**
@@ -69,6 +70,7 @@ fun CompactStickerCard(
 ) {
     val context = LocalContext.current
     val interactionSource = remember { MutableInteractionSource() }
+    val haptics = rememberStickHubHaptics()
     val isPressed by interactionSource.collectIsPressedAsState()
 
     val scale by animateFloatAsState(
@@ -101,7 +103,10 @@ fun CompactStickerCard(
                     interactionSource = interactionSource,
                     indication = null,
                     onClick = { onClick(sticker) },
-                    onLongClick = { onLongClick?.invoke(sticker) }
+                    onLongClick = {
+                        haptics.performLongPress()
+                        onLongClick?.invoke(sticker)
+                    }
                 )
             )
             .padding(4.dp),
@@ -208,6 +213,7 @@ fun LargeStickerCard(
 ) {
     val context = LocalContext.current
     val interactionSource = remember { MutableInteractionSource() }
+    val haptics = rememberStickHubHaptics()
     val isPressed by interactionSource.collectIsPressedAsState()
 
     val scale by animateFloatAsState(
@@ -232,7 +238,10 @@ fun LargeStickerCard(
                     interactionSource = interactionSource,
                     indication = null,
                     onClick = { onClick(sticker) },
-                    onLongClick = { onLongClick?.invoke(sticker) }
+                    onLongClick = {
+                        haptics.performLongPress()
+                        onLongClick?.invoke(sticker)
+                    }
                 )
             ),
         shape = RoundedCornerShape(18.dp),
@@ -391,6 +400,7 @@ fun StickerListItem(
 ) {
     val context = LocalContext.current
     val interactionSource = remember { MutableInteractionSource() }
+    val haptics = rememberStickHubHaptics()
     val isPressed by interactionSource.collectIsPressedAsState()
 
     val scale by animateFloatAsState(
@@ -415,7 +425,10 @@ fun StickerListItem(
                     interactionSource = interactionSource,
                     indication = null,
                     onClick = { onClick(sticker) },
-                    onLongClick = { onLongClick?.invoke(sticker) }
+                    onLongClick = {
+                        haptics.performLongPress()
+                        onLongClick?.invoke(sticker)
+                    }
                 )
             ),
         shape = RoundedCornerShape(16.dp),

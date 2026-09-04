@@ -45,6 +45,7 @@ import coil.request.ImageRequest
 import com.composables.icons.lucide.R as LucideR
 import com.hkm.stickhub.data.model.StickerItem
 import com.hkm.stickhub.ui.theme.StickHubMotion
+import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
 import java.io.File
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -64,6 +65,7 @@ fun StickerCard(
 ) {
     val context = LocalContext.current
     val interactionSource = remember { MutableInteractionSource() }
+    val haptics = rememberStickHubHaptics()
     val isPressed by interactionSource.collectIsPressedAsState()
     var dragStarted by remember(sticker.id) { mutableStateOf(false) }
     var reorderDragDistance by remember(sticker.id) { mutableStateOf(0f) }
@@ -84,6 +86,9 @@ fun StickerCard(
                     dragStarted = true
                     reorderDragDistance = 0f
                     holdStartedInSelection = isSelectionMode
+                    // Single owner of the grab buzz on armed cards: the shared
+                    // select/detail callback stays silent (see below).
+                    haptics.performLongPress()
                     onReorderStart(sticker)
                 },
                 onDrag = { change, dragAmount ->
@@ -144,7 +149,11 @@ fun StickerCard(
                     indication = null,
                     onClick = { onClick(sticker) },
                     onLongClick = if (reorderArmed && isSelectionMode) null
-                    else ({ onLongClick?.invoke(sticker) })
+                    else ({
+                        // Armed cards already buzzed in the detector above.
+                        if (!reorderArmed) haptics.performLongPress()
+                        onLongClick?.invoke(sticker)
+                    })
                 )
             )
             .padding(6.dp),

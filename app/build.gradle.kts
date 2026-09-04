@@ -45,9 +45,9 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version 5.0.2: select fires at long-press timeout, reorder survives select.
-        versionCode = 47
-        versionName = "5.0.2"
+        // Version 5.0.3: single-buzz long-press, poisoned-URI-proof clipboard scan.
+        versionCode = 48
+        versionName = "5.0.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

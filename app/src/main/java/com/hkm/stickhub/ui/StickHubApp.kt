@@ -811,11 +811,12 @@ fun StickHubApp(
         }
     }
 
+    // Long-press haptics live in the cards (single buzz guaranteed no matter
+    // which detector fires); this callback only flips state.
     val onItemLongClick: (StickerItem) -> Unit = { item ->
         if (isSelectionMode) {
             detailStickerId = item.id
         } else {
-            haptics.performLongPress()
             isSelectionMode = true
             selectedStickerIds = setOf(item.id)
         }
@@ -1173,7 +1174,7 @@ fun StickHubApp(
                                                                 val activeStickers = reorderPreview ?: allStickers
                                                                 val sourceIndex = activeStickers.indexOfFirst { it.id == heldSticker.id }
                                                                 if (sourceIndex >= 0) {
-                                                                    haptics.performLongPress()
+                                                                    // Grab buzz is owned by the card detector.
                                                                     reorderPreview = activeStickers
                                                                     draggedStickerId = heldSticker.id
                                                                     draggedIndex = sourceIndex

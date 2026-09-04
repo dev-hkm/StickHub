@@ -47,7 +47,8 @@ class ClipboardMultiImportTest {
     @Test
     fun singleItemUriListTextExpandsToEveryLine() {
         // Some gallery apps copy N photos as one item whose text holds N uri lines.
-        val text = "file:///sdcard/a.png\nfile:///sdcard/b.png\n  \nfile:///sdcard/c.png"
+        // A garbage line must not kill the good ones around it.
+        val text = "file:///sdcard/a.png\nnot a uri at all\nfile:///sdcard/b.png\n  \nfile:///sdcard/c.png"
         val clip = ClipData(
             ClipDescription(
                 "images",
@@ -57,13 +58,17 @@ class ClipboardMultiImportTest {
         )
         clipboard.setPrimaryClip(clip)
         val (uris, _) = ClipboardHelper.getClipboardImagesStamped(context)
-        assertEquals(
-            listOf(
-                Uri.parse("file:///sdcard/a.png"),
-                Uri.parse("file:///sdcard/b.png"),
-                Uri.parse("file:///sdcard/c.png")
-            ),
-            uris
+        // A garbage line must not kill the good ones around it. (Exact contents
+        // are not asserted: Robolectric shadows decode any stream, while a real
+        // device rejects the garbage line at the eligibility gate.)
+        assertTrue(
+            uris.containsAll(
+                listOf(
+                    Uri.parse("file:///sdcard/a.png"),
+                    Uri.parse("file:///sdcard/b.png"),
+                    Uri.parse("file:///sdcard/c.png")
+                )
+            )
         )
     }
 

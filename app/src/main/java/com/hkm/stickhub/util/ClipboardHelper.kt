@@ -7,11 +7,14 @@ import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import com.hkm.stickhub.data.model.StickerItem
 import com.hkm.stickhub.data.provider.StickerContentProvider
 import java.io.File
 
 object ClipboardHelper {
+
+    private const val TAG = "ClipboardImport"
 
     fun copyStickerToClipboard(context: Context, sticker: StickerItem): Boolean {
         return try {
@@ -79,7 +82,11 @@ object ClipboardHelper {
                 // payload. Some gallery apps copy N photos as one item whose text
                 // holds N uri lines — reading item.uri alone kept only the first.
                 val candidates = mutableListOf<Uri>()
-                item.uri?.let { candidates.add(it) }
+                try {
+                    item.uri?.let { candidates.add(it) }
+                } catch (_: Exception) {
+                    Log.d(TAG, "Skipping unreadable clipboard item $i")
+                }
                 if (hasUriList) {
                     extractUriListText(context, item)?.lineSequence()?.forEach { line ->
                         val trimmed = line.trim()
@@ -94,7 +101,15 @@ object ClipboardHelper {
                 }
                 for (uri in candidates) {
                     if (uri in out) continue
-                    if (isEligibleClipboardImageUri(context, clip.description, uri)) {
+                    // One poisoned URI (dead provider, revoked grant, getType
+                    // throwing) must never truncate the URIs after it.
+                    val eligible = try {
+                        isEligibleClipboardImageUri(context, clip.description, uri)
+                    } catch (e: Exception) {
+                        Log.d(TAG, "Skipping ineligible clipboard uri $uri", e)
+                        false
+                    }
+                    if (eligible) {
                         out.add(uri)
                     }
                 }
