@@ -45,9 +45,10 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version bump for rail drag-reorder, item shuffle motion, collapsed theme expander.
-        versionCode = 44
-        versionName = "3.2.2"
+        // Version 5.0.0: reliability + interaction release (data safety, overlay,
+        // cutout save/gate, category drag session, clipboard lifecycle).
+        versionCode = 45
+        versionName = "5.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
