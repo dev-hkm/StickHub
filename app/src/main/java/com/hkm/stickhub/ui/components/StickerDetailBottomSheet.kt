@@ -73,9 +73,11 @@ fun StickerDetailBottomSheet(
     val context = LocalContext.current
     val haptics = rememberStickHubHaptics()
 
-    var title by remember(sticker) { mutableStateOf(sticker.title) }
-    var selectedCategory by remember(sticker) { mutableStateOf(sticker.category) }
-    var tags by remember(sticker) { mutableStateOf(sticker.tags) }
+    // Keyed on the stable id: live updates (favorite toggle, rename from elsewhere)
+    // refresh the rendered row without wiping the user's in-progress edits.
+    var title by remember(sticker.id) { mutableStateOf(sticker.title) }
+    var selectedCategory by remember(sticker.id) { mutableStateOf(sticker.category) }
+    var tags by remember(sticker.id) { mutableStateOf(sticker.tags) }
     var isCategoryExpanded by remember { mutableStateOf(false) }
 
     ModalBottomSheet(

@@ -1,6 +1,7 @@
 package com.hkm.stickhub
 
 import android.graphics.Bitmap
+import com.hkm.stickhub.data.cutout.CutoutModelInputPlan
 import com.hkm.stickhub.data.cutout.SubjectCutoutProcessor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -17,9 +18,14 @@ class CutoutModelInputTest {
     fun narrowPhotoDoesNotExpandBeyondTheModelPixelBudget() {
         val source = Bitmap.createBitmap(2048, 64, Bitmap.Config.ARGB_8888)
         val processor = SubjectCutoutProcessor(RuntimeEnvironment.getApplication())
-        val method = SubjectCutoutProcessor::class.java.getDeclaredMethod("scaleForSubjectModel", Bitmap::class.java)
+        val method = SubjectCutoutProcessor::class.java.getDeclaredMethod(
+            "scaleForSubjectModel",
+            Bitmap::class.java,
+            CutoutModelInputPlan::class.java
+        )
         method.isAccessible = true
-        val result = method.invoke(processor, source) as Bitmap
+        val plan = CutoutModelInputPlan.create(source.width, source.height)
+        val result = method.invoke(processor, source, plan) as Bitmap
         try {
             assertTrue("Longest side must remain at most 2048", maxOf(result.width, result.height) <= 2048)
             assertTrue("Model still receives at least 512 pixels per side", minOf(result.width, result.height) >= 512)
@@ -34,9 +40,14 @@ class CutoutModelInputTest {
     fun ordinaryPhotoKeepsItsDimensions() {
         val source = Bitmap.createBitmap(1024, 768, Bitmap.Config.ARGB_8888)
         val processor = SubjectCutoutProcessor(RuntimeEnvironment.getApplication())
-        val method = SubjectCutoutProcessor::class.java.getDeclaredMethod("scaleForSubjectModel", Bitmap::class.java)
+        val method = SubjectCutoutProcessor::class.java.getDeclaredMethod(
+            "scaleForSubjectModel",
+            Bitmap::class.java,
+            CutoutModelInputPlan::class.java
+        )
         method.isAccessible = true
-        val result = method.invoke(processor, source) as Bitmap
+        val plan = CutoutModelInputPlan.create(source.width, source.height)
+        val result = method.invoke(processor, source, plan) as Bitmap
         try {
             assertEquals(1024, result.width)
             assertEquals(768, result.height)

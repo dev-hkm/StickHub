@@ -57,20 +57,16 @@ object ClipboardHelper {
     }
 
     /**
-     * Image URIs plus the clip timestamp. The timestamp changes on every
-     * copy event — even when the URI itself is identical — so callers can
-     * tell a fresh copy apart from the one they already handled.
+     * Image URIs plus a copy-event id. The id is the clip timestamp on
+     * API 26+ and 0 below that (callers fall back to their own revision
+     * counter driven by the primary-clip listener).
      */
     fun getClipboardImagesStamped(context: Context): Pair<List<Uri>, Long> {
         try {
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                 ?: return emptyList<Uri>() to 0L
             val clip = clipboard.primaryClip ?: return emptyList<Uri>() to 0L
-            val stamp = try {
-                clipboard.primaryClipDescription?.timestamp ?: 0L
-            } catch (_: Exception) {
-                0L
-            }
+            val stamp = clipEventId(clipboard)
             val out = mutableListOf<Uri>()
             for (i in 0 until clip.itemCount) {
                 val uri = clip.getItemAt(i)?.uri ?: continue
@@ -123,6 +119,23 @@ object ClipboardHelper {
 
     fun hasImageInClipboard(context: Context): Boolean {
         return getClipboardImageUri(context) != null
+    }
+
+    /**
+     * Copy-event identity for [getClipboardImagesStamped]. ClipDescription
+     * timestamps exist only on API 26+; below that callers must drive their
+     * own revision counter from the primary-clip listener.
+     */
+    fun clipEventId(clipboard: ClipboardManager): Long {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                clipboard.primaryClipDescription?.timestamp ?: 0L
+            } else {
+                0L
+            }
+        } catch (_: Exception) {
+            0L
+        }
     }
 
     private fun isDecodableImage(context: Context, uri: Uri): Boolean {

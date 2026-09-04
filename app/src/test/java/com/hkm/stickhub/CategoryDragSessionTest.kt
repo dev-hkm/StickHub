@@ -36,4 +36,34 @@ class CategoryDragSessionTest {
         drag.start("A")
         assertNull(drag.finish())
     }
+
+    @Test
+    fun externalDeleteOfDraggedChipEndsDragSilently() {
+        val drag = CategoryDragSession(listOf("A", "B", "C"))
+        drag.start("B")
+        drag.moveTo("C")
+        drag.syncExternal(listOf("A", "C"))
+        assertNull(drag.draggedKey)
+        assertEquals(listOf("A", "C"), drag.order)
+        assertNull(drag.finish())
+    }
+
+    @Test
+    fun externalChangesPreserveActiveDragBaselineForCancel() {
+        val original = listOf("A", "B", "C")
+        val drag = CategoryDragSession(original)
+        drag.start("A")
+        drag.moveTo("C")
+        drag.syncExternal(listOf("A", "B", "C", "D"))
+        assertEquals(listOf("B", "C", "A", "D"), drag.order)
+        drag.cancel()
+        assertEquals(original, drag.order)
+    }
+
+    @Test
+    fun idleSyncAdoptsFlowOrder() {
+        val drag = CategoryDragSession(listOf("A", "B"))
+        drag.syncExternal(listOf("B", "C"))
+        assertEquals(listOf("B", "C"), drag.order)
+    }
 }

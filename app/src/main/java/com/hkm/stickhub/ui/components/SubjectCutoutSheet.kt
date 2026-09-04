@@ -18,6 +18,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -34,6 +35,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
@@ -79,6 +81,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.composables.icons.lucide.R as LucideR
 import com.hkm.stickhub.data.cutout.CutoutCandidate
+import com.hkm.stickhub.data.cutout.CutoutSaveSession
+import com.hkm.stickhub.data.cutout.CutoutSaveState
 import com.hkm.stickhub.data.cutout.CutoutState
 import com.hkm.stickhub.data.cutout.SubjectCutoutProcessor
 import com.hkm.stickhub.data.model.CategoryItem
@@ -98,7 +102,7 @@ fun SubjectCutoutSheet(
     sheetState: SheetState,
     categories: List<CategoryItem>,
     onDismiss: () -> Unit,
-    onSaveSticker: (bitmap: Bitmap, title: String, category: String, tags: String) -> Unit,
+    onSaveSticker: suspend (bitmap: Bitmap, title: String, category: String, tags: String) -> Boolean,
     onChangeImage: () -> Unit
 ) {
     val context = LocalContext.current
@@ -107,8 +111,14 @@ fun SubjectCutoutSheet(
 
     val processor = remember { SubjectCutoutProcessor(context) }
     val cutoutState by processor.state.collectAsState()
+    val saveSession = remember { CutoutSaveSession() }
+    val saveState by saveSession.state.collectAsState()
+    val isSaving = saveState == CutoutSaveState.Saving
+    val readyState = cutoutState as? CutoutState.CandidatesReady
 
-    var selectedCutoutBitmap by remember(imageUri) { mutableStateOf<Bitmap?>(null) }
+    var selectedCandidate by remember(imageUri) { mutableStateOf<CutoutCandidate?>(null) }
+    var transparentBitmap by remember(imageUri) { mutableStateOf<Bitmap?>(null) }
+    val selectedCutoutBitmap = selectedCandidate?.cutoutBitmap ?: transparentBitmap
 
     // Metadata inputs
     var title by remember { mutableStateOf("") }
@@ -116,21 +126,33 @@ fun SubjectCutoutSheet(
     var tags by remember { mutableStateOf("") }
     var categoryDropdownExpanded by remember { mutableStateOf(false) }
 
+    // A new CandidatesReady object is a new generation (including retry of the same
+    // image): adopt its first subject so the form can never save a bitmap from a
+    // superseded generation.
+    LaunchedEffect(readyState) {
+        transparentBitmap = null
+        selectedCandidate = readyState?.candidates?.firstOrNull()
+    }
+
     DisposableEffect(imageUri) {
         onDispose {
+            // Recycle before reset: reset() parks the state at Idle, which owns nothing.
+            processor.state.value.recycleOwnedBitmaps()
             processor.reset()
         }
     }
 
     LaunchedEffect(imageUri) {
-        selectedCutoutBitmap = null
-        title = "Sticker ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())}"
+        // Reset first so a stale generation can never paint into the new image.
         processor.reset()
+        selectedCandidate = null
+        transparentBitmap = null
+        title = "Sticker ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())}"
         processor.processUri(imageUri)
     }
 
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isSaving) onDismiss() },
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = MaterialTheme.colorScheme.surface
@@ -156,7 +178,7 @@ fun SubjectCutoutSheet(
                     fontWeight = FontWeight.Bold
                 )
 
-                IconButton(onClick = onDismiss) {
+                IconButton(onClick = onDismiss, enabled = !isSaving) {
                     Icon(
                         painter = painterResource(LucideR.drawable.lucide_ic_x),
                         contentDescription = "Close",
@@ -206,6 +228,7 @@ fun SubjectCutoutSheet(
                         OutlinedTextField(
                             value = title,
                             onValueChange = { title = it },
+                            enabled = !isSaving,
                             label = { Text("Title") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
@@ -222,6 +245,7 @@ fun SubjectCutoutSheet(
                             OutlinedTextField(
                                 value = selectedCategory,
                                 onValueChange = {},
+                                enabled = !isSaving,
                                 readOnly = true,
                                 label = { Text("Category") },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryDropdownExpanded) },
@@ -251,6 +275,7 @@ fun SubjectCutoutSheet(
                         OutlinedTextField(
                             value = tags,
                             onValueChange = { tags = it },
+                            enabled = !isSaving,
                             label = { Text("Tags (comma separated)") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
@@ -265,29 +290,61 @@ fun SubjectCutoutSheet(
                         ) {
                             OutlinedButton(
                                 onClick = {
-                                    selectedCutoutBitmap = null
+                                    selectedCandidate = null
+                                    transparentBitmap = null
                                 },
+                                enabled = !isSaving,
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(14.dp)
                             ) {
                                 Text("Back")
                             }
 
+                            if (saveState == CutoutSaveState.Failed) {
+                                Text(
+                                    text = "Couldn't save this sticker. Check storage and try again.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+                            }
                             Button(
                                 onClick = {
-                                    val bmp = selectedCutoutBitmap ?: return@Button
-                                    onSaveSticker(bmp, title, selectedCategory, tags)
+                                    val bmp = selectedCutoutBitmap
+                                    if (bmp == null || bmp.isRecycled || isSaving) {
+                                        haptics.performReject()
+                                        return@Button
+                                    }
+                                    scope.launch {
+                                        // Serialized by the session (double-tap safe) and
+                                        // resolvable once; the sheet closes on success only.
+                                        val saved = saveSession.save {
+                                            onSaveSticker(bmp, title, selectedCategory, tags)
+                                        }
+                                        if (saved) onDismiss() else haptics.performReject()
+                                    }
                                 },
+                                enabled = selectedCutoutBitmap != null && !isSaving,
                                 modifier = Modifier.weight(2f),
                                 shape = RoundedCornerShape(14.dp)
                             ) {
-                                Icon(
-                                    painter = painterResource(LucideR.drawable.lucide_ic_save),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
+                                if (isSaving) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Icon(
+                                        painter = painterResource(LucideR.drawable.lucide_ic_save),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Save to Hub", fontWeight = FontWeight.Bold)
+                                Text(
+                                    if (isSaving) "Saving…" else "Save to Hub",
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }
@@ -314,7 +371,8 @@ fun SubjectCutoutSheet(
                         }
                         is CutoutState.TransparentDetected -> {
                             LaunchedEffect(state.bitmap) {
-                                selectedCutoutBitmap = state.bitmap
+                                selectedCandidate = null
+                                transparentBitmap = state.bitmap
                             }
                         }
                         // Phase: Candidate selection
@@ -322,9 +380,11 @@ fun SubjectCutoutSheet(
                             CandidatesSelectionView(
                                 sourceBitmap = state.sourceBitmap,
                                 candidates = state.candidates,
+                                selectedCandidate = selectedCandidate,
+                                selectionEnabled = !isSaving,
                                 onSelectCandidate = { candidate ->
                                     haptics.performTick()
-                                    selectedCutoutBitmap = candidate.cutoutBitmap
+                                    selectedCandidate = candidate
                                 },
                                 onWrongTap = {
                                     haptics.performReject()
@@ -436,6 +496,8 @@ private fun AnalyzingSkeletonView(
 private fun CandidatesSelectionView(
     sourceBitmap: Bitmap,
     candidates: List<CutoutCandidate>,
+    selectedCandidate: CutoutCandidate?,
+    selectionEnabled: Boolean,
     onSelectCandidate: (CutoutCandidate) -> Unit,
     onWrongTap: () -> Unit
 ) {
@@ -490,7 +552,34 @@ private fun CandidatesSelectionView(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        if (candidates.size > 1) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+            ) {
+                candidates.forEachIndexed { index, candidate ->
+                    AssistChip(
+                        onClick = { if (selectionEnabled) onSelectCandidate(candidate) },
+                        enabled = selectionEnabled,
+                        label = { Text("Subject ${index + 1}") },
+                        leadingIcon = if (candidate == selectedCandidate) {
+                            {
+                                Icon(
+                                    painter = painterResource(LucideR.drawable.lucide_ic_check),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        } else null
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+        } else {
+            Spacer(modifier = Modifier.height(12.dp))
+        }
 
         BoxWithConstraints(
             modifier = Modifier
@@ -536,6 +625,7 @@ private fun CandidatesSelectionView(
                                 }
                             },
                             onLongPress = { touchOffset ->
+                                if (!selectionEnabled) return@detectTapGestures
                                 val normX = (touchOffset.x - offsetX) / renderW
                                 val normY = (touchOffset.y - offsetY) / renderH
                                 if (normX in 0f..1f && normY in 0f..1f) {
@@ -550,6 +640,7 @@ private fun CandidatesSelectionView(
                                 }
                             },
                             onTap = { touchOffset ->
+                                if (!selectionEnabled) return@detectTapGestures
                                 val normX = (touchOffset.x - offsetX) / renderW
                                 val normY = (touchOffset.y - offsetY) / renderH
                                 if (normX in 0f..1f && normY in 0f..1f) {
@@ -670,6 +761,30 @@ private fun FallbackStateView(
                 Text(secondaryActionText, fontWeight = FontWeight.SemiBold)
             }
         }
+    }
+}
+
+/** Recycles every display bitmap owned by a terminal cutout state. Guarded against
+ * double-recycle. All decoded bitmaps here are processor-owned and fresh per request
+ * (processImage has no production callers), so no caller-owned pixels are touched. */
+private fun CutoutState.recycleOwnedBitmaps() {
+    when (this) {
+        is CutoutState.CandidatesReady -> {
+            sourceBitmap.recycleSafely()
+            candidates.forEach { it.cutoutBitmap?.recycleSafely() }
+        }
+        is CutoutState.TransparentDetected -> bitmap.recycleSafely()
+        is CutoutState.NoSubjectFound -> sourceBitmap.recycleSafely()
+        else -> Unit
+    }
+}
+
+private fun Bitmap.recycleSafely() {
+    try {
+        if (!isRecycled) recycle()
+    } catch (_: Exception) {
+        // A frame already in flight may still reference the pixels; they become
+        // unreachable after this regardless.
     }
 }
 

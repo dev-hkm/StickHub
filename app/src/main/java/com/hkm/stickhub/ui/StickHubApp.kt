@@ -8,11 +8,16 @@ import com.hkm.stickhub.service.OverlayStartFilterMode
 import com.hkm.stickhub.service.OverlayAfterCopyAction
 import com.hkm.stickhub.service.QuickStickersOnboardingPolicy
 
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -159,6 +164,8 @@ import com.hkm.stickhub.ui.theme.NeoStickerMotif
 import com.hkm.stickhub.ui.theme.SketchDoodleMotif
 import com.hkm.stickhub.ui.theme.StickHubMotion
 import com.hkm.stickhub.util.BackupHelper
+import com.hkm.stickhub.util.BackupOperations
+import com.hkm.stickhub.util.BackupWorkState
 import com.hkm.stickhub.util.ClipboardHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -180,6 +187,7 @@ fun StickHubApp(
     repository: StickerRepository,
     incomingSharedUri: Uri? = null,
     onClearSharedUri: () -> Unit = {},
+    foregroundTick: Int = 0,
     themeMode: AppThemeMode = AppThemeMode.SYSTEM,
     onThemeModeChange: (AppThemeMode) -> Unit = {},
     visualTheme: AppVisualTheme = AppVisualTheme.DEFAULT,
@@ -239,7 +247,9 @@ fun StickHubApp(
     var showBatchDeleteConfirm by remember { mutableStateOf(false) }
 
     // Detail & Studio BottomSheets
-    var selectedStickerForDetail by remember { mutableStateOf<StickerItem?>(null) }
+    // The detail sheet holds only an id and resolves the live row every
+    // composition, so edits/favorites landing mid-session never go stale.
+    var detailStickerId by remember { mutableStateOf<Long?>(null) }
     val detailSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var selectedStickerForStudio by remember { mutableStateOf<StickerItem?>(null) }
@@ -447,9 +457,79 @@ fun StickHubApp(
         }
     }
     var clipboardImageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
-    var lastClipboardStamp by remember { mutableLongStateOf(0L) }
+    var lastClipboardEventId by remember { mutableLongStateOf(0L) }
+    var localClipboardRevision by remember { mutableLongStateOf(0L) }
+    var lastOfferedClipboardUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var showClipboardPicker by remember { mutableStateOf(false) }
     var recentlyCopiedId by remember { mutableStateOf<Long?>(null) }
+
+    val backupOps = remember(context) { BackupOperations.getInstance(context) }
+    val backupWorkState by backupOps.state.collectAsState()
+
+    // Clipboard observation follows the foreground lifecycle: an immediate
+    // check on every resume plus the system clip listener while resumed.
+    // No background polling. Copy events are told apart by clip timestamp on
+    // API 26+; below that a listener-driven revision counter fills in.
+    val lifecycleOwner = remember(context) { context as? LifecycleOwner }
+    fun checkClipboardOffer() {
+        scope.launch {
+            val (uris, stamp) = withContext(Dispatchers.IO) {
+                ClipboardHelper.getClipboardImagesStamped(context)
+            }
+            val eventId = if (stamp != 0L) stamp else localClipboardRevision
+            val isNew = eventId != lastClipboardEventId ||
+                (stamp == 0L && uris != lastOfferedClipboardUris)
+            if (isNew) {
+                lastClipboardEventId = eventId
+                lastOfferedClipboardUris = uris
+                // Freeze the offer while the picker sheet is open.
+                if (!showClipboardPicker) {
+                    clipboardImageUris = uris
+                }
+            }
+        }
+    }
+    DisposableEffect(lifecycleOwner) {
+        val owner = lifecycleOwner
+        if (owner == null) {
+            checkClipboardOffer()
+            onDispose { }
+        } else {
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+            val clipListener = ClipboardManager.OnPrimaryClipChangedListener {
+                localClipboardRevision++
+                checkClipboardOffer()
+            }
+            val observer = LifecycleEventObserver { _, event ->
+                when (event) {
+                    Lifecycle.Event.ON_RESUME -> {
+                        try {
+                            clipboard?.addPrimaryClipChangedListener(clipListener)
+                        } catch (_: Exception) {
+                        }
+                        checkClipboardOffer()
+                    }
+                    Lifecycle.Event.ON_PAUSE -> {
+                        try {
+                            clipboard?.removePrimaryClipChangedListener(clipListener)
+                        } catch (_: Exception) {
+                        }
+                    }
+                    else -> {}
+                }
+            }
+            owner.lifecycle.addObserver(observer)
+            // The observer misses an already-resumed state: check immediately.
+            checkClipboardOffer()
+            onDispose {
+                owner.lifecycle.removeObserver(observer)
+                try {
+                    clipboard?.removePrimaryClipChangedListener(clipListener)
+                } catch (_: Exception) {
+                }
+            }
+        }
+    }
 
     // Photo Picker Launcher
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -468,28 +548,10 @@ fun StickHubApp(
         }
     }
 
-    // Periodic check for clipboard image changes. The clip timestamp tells a
-    // fresh copy apart from the one already handled — even when the URI is
-    // identical — so a saved/dismissed image never pops back up on its own.
-    LaunchedEffect(Unit) {
-        while (true) {
-            val (uris, stamp) = withContext(Dispatchers.IO) {
-                ClipboardHelper.getClipboardImagesStamped(context)
-            }
-            if (stamp != lastClipboardStamp) {
-                lastClipboardStamp = stamp
-                // Freeze the offer while the picker sheet is open.
-                if (!showClipboardPicker) {
-                    clipboardImageUris = uris
-                }
-            }
-            delay(2000)
-        }
-    }
-
     /** Clears the current clipboard offer (after import or dismiss). */
     fun consumeClipboardOffer() {
         clipboardImageUris = emptyList()
+        lastOfferedClipboardUris = emptyList()
         showClipboardPicker = false
     }
 
@@ -537,16 +599,9 @@ fun StickHubApp(
         contract = ActivityResultContracts.CreateDocument("application/octet-stream")
     ) { uri: Uri? ->
         if (uri != null) {
-            scope.launch {
-                val success = BackupHelper.exportBackup(context, uri, allStickers, categories)
-                if (success) {
-                    haptics.performConfirm()
-                    flashSnackbar("Backup exported successfully!")
-                } else {
-                    haptics.performReject()
-                    flashSnackbar("Failed to export backup!")
-                }
-            }
+            haptics.performTick()
+            scope.launch { flashSnackbar("Export started…") }
+            backupOps.startExport(uri, allStickers, categories)
         }
     }
 
@@ -555,15 +610,51 @@ fun StickHubApp(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         if (uri != null) {
-            scope.launch {
-                val count = BackupHelper.importBackup(context, uri, repository)
-                if (count > 0) {
+            haptics.performTick()
+            scope.launch { flashSnackbar("Import started…") }
+            backupOps.startImport(uri)
+        }
+    }
+
+    // Single consumer for rotation-safe backup outcomes.
+    LaunchedEffect(backupWorkState) {
+        when (val work = backupWorkState) {
+            is BackupWorkState.Idle, is BackupWorkState.Running -> {}
+            is BackupWorkState.ImportFinished -> {
+                if (work.imported > 0) {
                     haptics.performConfirm()
-                    flashSnackbar("Merged $count stickers from backup!")
+                    val extra = buildList {
+                        if (work.alreadyPresent > 0) {
+                            add("${work.alreadyPresent} already present")
+                        }
+                    }.joinToString(" • ")
+                    flashSnackbar(
+                        (if (work.imported == 1) "Sticker merged into library!" else "${work.imported} stickers merged into library!") +
+                            (if (extra.isNotEmpty()) " ($extra)" else "")
+                    )
+                } else if (work.alreadyPresent > 0) {
+                    haptics.performTick()
+                    flashSnackbar("Already in your library.")
                 } else {
                     haptics.performReject()
                     flashSnackbar("No valid stickers found in backup!")
                 }
+                backupOps.acknowledge()
+            }
+            is BackupWorkState.ExportFinished -> {
+                if (work.ok) {
+                    haptics.performConfirm()
+                    flashSnackbar("Backup exported successfully!")
+                } else {
+                    haptics.performReject()
+                    flashSnackbar("Failed to export backup!")
+                }
+                backupOps.acknowledge()
+            }
+            is BackupWorkState.Failed -> {
+                haptics.performReject()
+                flashSnackbar(work.message)
+                backupOps.acknowledge()
             }
         }
     }
@@ -611,6 +702,47 @@ fun StickHubApp(
     }
     val displayedStickers = if (canReorderStickers) reorderPreview ?: filteredStickers else filteredStickers
 
+    // Reconcile the toggle with the real world on every foreground return:
+    // a revoked permission stops the service instead of showing a stale ON.
+    LaunchedEffect(foregroundTick) {
+        if (foregroundTick == 0) return@LaunchedEffect
+        val hasPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+            Settings.canDrawOverlays(context)
+        if (OverlayService.isRunning && !hasPermission) {
+            try {
+                context.stopService(Intent(context, OverlayService::class.java))
+            } catch (_: Exception) {
+            }
+            isOverlayRunning = false
+        } else {
+            isOverlayRunning = OverlayService.isRunning
+        }
+    }
+
+    /**
+     * Starts the overlay service and reports the verified outcome. Never
+     * celebrates before [OverlayService.isRunning] actually flips.
+     */
+    fun requestOverlayStart(onDone: (Boolean) -> Unit = {}) {
+        try {
+            val serviceIntent = Intent(context, OverlayService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
+        } catch (_: Exception) {
+            onDone(false)
+            return
+        }
+        scope.launch {
+            kotlinx.coroutines.delay(800)
+            val actuallyRunning = OverlayService.isRunning
+            isOverlayRunning = actuallyRunning
+            onDone(actuallyRunning)
+        }
+    }
+
     fun toggleOverlay() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
             val intent = Intent(
@@ -630,14 +762,15 @@ fun StickHubApp(
                 haptics.performToggle(false)
                 scope.launch { flashSnackbar("Floating overlay disabled") }
             } else {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(serviceIntent)
-                } else {
-                    context.startService(serviceIntent)
+                requestOverlayStart { actuallyRunning ->
+                    haptics.performToggle(actuallyRunning)
+                    scope.launch {
+                        flashSnackbar(
+                            if (actuallyRunning) "Floating overlay active"
+                            else "Couldn't start overlay"
+                        )
+                    }
                 }
-                isOverlayRunning = true
-                haptics.performToggle(true)
-                scope.launch { flashSnackbar("Floating overlay active") }
             }
         }
     }
@@ -676,7 +809,7 @@ fun StickHubApp(
 
     val onItemLongClick: (StickerItem) -> Unit = { item ->
         if (isSelectionMode) {
-            selectedStickerForDetail = item
+            detailStickerId = item.id
         } else {
             haptics.performLongPress()
             isSelectionMode = true
@@ -728,7 +861,14 @@ fun StickHubApp(
                                                 val (uris, stamp) = withContext(Dispatchers.IO) {
                                                     ClipboardHelper.getClipboardImagesStamped(context)
                                                 }
-                                                lastClipboardStamp = stamp
+                                                // Explicit user action: adopt whatever is there now.
+                                                if (stamp != 0L) {
+                                                    lastClipboardEventId = stamp
+                                                } else {
+                                                    localClipboardRevision++
+                                                    lastClipboardEventId = localClipboardRevision
+                                                }
+                                                lastOfferedClipboardUris = uris
                                                 clipboardImageUris = uris
                                                 showCreateSourceDialog = true
                                             }
@@ -850,16 +990,14 @@ fun StickHubApp(
                                                             flashSnackbar("Please grant 'Display over other apps' to activate Quick Stickers")
                                                         }
                                                     } else {
-                                                        val serviceIntent = Intent(context, OverlayService::class.java)
-                                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                                            context.startForegroundService(serviceIntent)
-                                                        } else {
-                                                            context.startService(serviceIntent)
-                                                        }
-                                                        isOverlayRunning = true
-                                                        haptics.performToggle(true)
-                                                        scope.launch {
-                                                            flashSnackbar("Quick Stickers activated!")
+                                                        requestOverlayStart { actuallyRunning ->
+                                                            haptics.performToggle(actuallyRunning)
+                                                            scope.launch {
+                                                                flashSnackbar(
+                                                                    if (actuallyRunning) "Quick Stickers activated!"
+                                                                    else "Couldn't start overlay"
+                                                                )
+                                                            }
                                                         }
                                                     }
                                                 },
@@ -994,16 +1132,14 @@ fun StickHubApp(
                                                             flashSnackbar("Please grant 'Display over other apps' to activate Quick Stickers")
                                                         }
                                                     } else {
-                                                        val serviceIntent = Intent(context, OverlayService::class.java)
-                                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                                            context.startForegroundService(serviceIntent)
-                                                        } else {
-                                                            context.startService(serviceIntent)
-                                                        }
-                                                        isOverlayRunning = true
-                                                        haptics.performToggle(true)
-                                                        scope.launch {
-                                                            flashSnackbar("Quick Stickers activated!")
+                                                        requestOverlayStart { actuallyRunning ->
+                                                            haptics.performToggle(actuallyRunning)
+                                                            scope.launch {
+                                                                flashSnackbar(
+                                                                    if (actuallyRunning) "Quick Stickers activated!"
+                                                                    else "Couldn't start overlay"
+                                                                )
+                                                            }
                                                         }
                                                     }
                                                 },
@@ -1217,16 +1353,14 @@ fun StickHubApp(
                                                             flashSnackbar("Please grant 'Display over other apps' to activate Quick Stickers")
                                                         }
                                                     } else {
-                                                        val serviceIntent = Intent(context, OverlayService::class.java)
-                                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                                            context.startForegroundService(serviceIntent)
-                                                        } else {
-                                                            context.startService(serviceIntent)
-                                                        }
-                                                        isOverlayRunning = true
-                                                        haptics.performToggle(true)
-                                                        scope.launch {
-                                                            flashSnackbar("Quick Stickers activated!")
+                                                        requestOverlayStart { actuallyRunning ->
+                                                            haptics.performToggle(actuallyRunning)
+                                                            scope.launch {
+                                                                flashSnackbar(
+                                                                    if (actuallyRunning) "Quick Stickers activated!"
+                                                                    else "Couldn't start overlay"
+                                                                )
+                                                            }
                                                         }
                                                     }
                                                 },
@@ -1358,16 +1492,14 @@ fun StickHubApp(
                                                             flashSnackbar("Please grant 'Display over other apps' to activate Quick Stickers")
                                                         }
                                                     } else {
-                                                        val serviceIntent = Intent(context, OverlayService::class.java)
-                                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                                            context.startForegroundService(serviceIntent)
-                                                        } else {
-                                                            context.startService(serviceIntent)
-                                                        }
-                                                        isOverlayRunning = true
-                                                        haptics.performToggle(true)
-                                                        scope.launch {
-                                                            flashSnackbar("Quick Stickers activated!")
+                                                        requestOverlayStart { actuallyRunning ->
+                                                            haptics.performToggle(actuallyRunning)
+                                                            scope.launch {
+                                                                flashSnackbar(
+                                                                    if (actuallyRunning) "Quick Stickers activated!"
+                                                                    else "Couldn't start overlay"
+                                                                )
+                                                            }
                                                         }
                                                     }
                                                 },
@@ -1783,16 +1915,18 @@ fun StickHubApp(
             categories = categories,
             onDismiss = { activeCutoutUri = null },
             onSaveSticker = { bitmap, title, category, tags ->
-                scope.launch {
-                    val saved = repository.saveStickerBitmap(bitmap, title, category, tags)
+                // Suspend contract: the sheet only dismisses on true, so the URI must
+                // stay alive across failures for retry.
+                val saved = repository.saveStickerBitmap(bitmap, title, category, tags)
+                if (saved != null) {
                     activeCutoutUri = null
-                    if (saved != null) {
-                        haptics.performConfirm()
-                        flashSnackbar("Sticker created successfully!")
-                    } else {
-                        haptics.performReject()
-                        flashSnackbar("Failed to create sticker")
-                    }
+                    haptics.performConfirm()
+                    flashSnackbar("Sticker created successfully!")
+                    true
+                } else {
+                    haptics.performReject()
+                    flashSnackbar("Failed to create sticker")
+                    false
                 }
             },
             onChangeImage = {
@@ -1807,12 +1941,15 @@ fun StickHubApp(
     }
 
     // Sticker Detail BottomSheet
-    selectedStickerForDetail?.let { sticker ->
+    detailStickerId?.let { detailId ->
+        // Live resolve: a favorite toggle or rename that lands while the sheet is
+        // open updates the form source instead of stranding a stale snapshot.
+        allStickers.find { it.id == detailId }?.let { sticker ->
         StickerDetailBottomSheet(
             sticker = sticker,
             sheetState = detailSheetState,
             categories = categories,
-            onDismiss = { selectedStickerForDetail = null },
+            onDismiss = { detailStickerId = null },
             onCopy = {
                 if (ClipboardHelper.copyStickerToClipboard(context, it)) {
                     haptics.performConfirm()
@@ -1836,7 +1973,7 @@ fun StickHubApp(
             onDelete = { id ->
                 scope.launch {
                     repository.deleteSticker(id)
-                    selectedStickerForDetail = null
+                    detailStickerId = null
                     haptics.performTick()
                     flashSnackbar("Sticker deleted")
                 }
@@ -1850,10 +1987,11 @@ fun StickHubApp(
             },
             onOpenStudio = {
                 val targetSticker = sticker
-                selectedStickerForDetail = null
+                detailStickerId = null
                 selectedStickerForStudio = targetSticker
             }
         )
+        }
     }
 
     // Sticker Studio BottomSheet

@@ -27,6 +27,8 @@ class MainActivity : ComponentActivity() {
     private var incomingSharedUri by mutableStateOf<Uri?>(null)
     private var themeMode by mutableStateOf(AppThemeMode.SYSTEM)
     private var visualTheme by mutableStateOf(AppVisualTheme.DEFAULT)
+    /** Bumped on every resume so the UI reconciles real permission/service state. */
+    private var foregroundTick by mutableStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,6 +65,7 @@ class MainActivity : ComponentActivity() {
                     repository = repository,
                     incomingSharedUri = incomingSharedUri,
                     onClearSharedUri = { incomingSharedUri = null },
+                    foregroundTick = foregroundTick,
                     themeMode = themeMode,
                     onThemeModeChange = { newMode ->
                         themeMode = newMode
@@ -94,6 +97,15 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleIncomingIntent(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Re-read everything another surface could have changed while we were
+        // away so the UI reflects reality, not first-launch memory.
+        themeMode = ThemePreferences.getThemeMode(this)
+        visualTheme = ThemePreferences.getVisualTheme(this)
+        foregroundTick++
     }
 
     private fun handleIncomingIntent(intent: Intent?) {

@@ -23,11 +23,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -42,6 +45,7 @@ import androidx.compose.ui.zIndex
 import com.composables.icons.lucide.R as LucideR
 import com.hkm.stickhub.data.model.CategoryItem
 import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
+import com.hkm.stickhub.ui.library.CategoryDragSession
 import com.hkm.stickhub.ui.theme.StickHubMotion
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -75,67 +79,78 @@ fun CategoryChips(
         LibraryFilter("Favorites", "Favorites", LucideR.drawable.lucide_ic_heart),
         LibraryFilter("Frequent", "Frequent", LucideR.drawable.lucide_ic_gauge)
     )
-    // Local order mirrors the flow; resets only when the flow itself changes.
-    var customOrder by remember(categories) {
-        mutableStateOf(categories.map { it.name })
-    }
-    val orderedCustoms = customOrder.mapNotNull { name ->
+    // General stays pinned first and is never draggable; the drag session owns the
+    // arrangement of the rest. Rendered order always intersects the live flow so a
+    // deleted chip can never resurrect from a stale preview.
+    val customNames = categories.map { it.name }
+    val generalHeads = customNames.filter { it.equals("General", ignoreCase = true) }
+    val restNames = customNames.filterNot { it.equals("General", ignoreCase = true) }
+    val dragSession = remember { CategoryDragSession(restNames) }
+    LaunchedEffect(categories) { dragSession.syncExternal(restNames) }
+    val orderedCustoms = generalHeads.mapNotNull { head ->
+        categories.find { it.name.equals(head, ignoreCase = true) }
+    } + dragSession.order.mapNotNull { name ->
         categories.find { it.name.equals(name, ignoreCase = true) }
-    } + categories.filter { cat -> customOrder.none { it.equals(cat.name, ignoreCase = true) } }
+    } + categories.filter { cat ->
+        (generalHeads + dragSession.order).none { it.equals(cat.name, ignoreCase = true) }
+    }
     val filters = fixedFilters + orderedCustoms.map { category ->
         LibraryFilter(category.name, category.name, LucideR.drawable.lucide_ic_folder, category)
     }
 
     val listState = rememberLazyListState()
-    var draggedKey by remember { mutableStateOf<String?>(null) }
-    var dragOffsetX by remember { mutableFloatStateOf(0f) }
-    var dragTotalX by remember { mutableFloatStateOf(0f) }
-    var orderDirty by remember { mutableStateOf(false) }
+    // Absolute follow: the finger offset inside the chip is grabbed once, then the
+    // translation is recomputed from the live item offset every event — no drift.
+    var dragGrabDX by remember { mutableFloatStateOf(0f) }
+    var dragTranslateX by remember { mutableFloatStateOf(0f) }
+    var dragMoved by remember { mutableStateOf(false) }
+    val draggedKey = dragSession.draggedKey
 
-    fun persistOrderIfNeeded() {
-        if (orderDirty) {
-            orderDirty = false
-            onReorderCustomCategories?.invoke(customOrder.toList())
-        }
-    }
+    // Stable gesture block: callbacks and row data flow through updated state so a
+    // recomposition (selection, rename) never restarts an in-flight drag.
+    val latestFilters by rememberUpdatedState(filters)
+    val latestCustoms by rememberUpdatedState(orderedCustoms)
+    val latestHeads by rememberUpdatedState(generalHeads)
+    val latestReorder by rememberUpdatedState(onReorderCustomCategories)
+    val latestLongClick by rememberUpdatedState(onCategoryLongClick)
 
     LazyRow(
         state = listState,
-        modifier = modifier.pointerInput(filters) {
+        modifier = modifier.pointerInput(Unit) {
             detectDragGesturesAfterLongPress(
                 onDragStart = { touch ->
-                    // Only custom chips (past the pinned trio) start a drag.
+                    // Only custom chips (past the pinned trio) start a drag; the
+                    // pinned General head is not in the session so start() refuses it.
+                    val current = latestFilters
                     val hit = listState.layoutInfo.visibleItemsInfo.firstOrNull { info ->
                         info.index >= fixedFilters.size &&
                             touch.x >= info.offset && touch.x <= info.offset + info.size
                     }
-                    if (hit != null) {
-                        draggedKey = filters.getOrNull(hit.index)?.key
-                        dragOffsetX = 0f
-                        dragTotalX = 0f
+                    val key = hit?.let { current.getOrNull(it.index)?.key }
+                    if (key != null && dragSession.start(key)) {
+                        dragGrabDX = touch.x - (hit?.offset?.toFloat() ?: touch.x)
+                        dragTranslateX = 0f
+                        dragMoved = false
+                        haptics.performLongPress()
                     }
                 },
-                onDrag = { change, dragAmount ->
+                onDrag = { change, _ ->
                     change.consume()
-                    val key = draggedKey ?: return@detectDragGesturesAfterLongPress
-                    dragOffsetX += dragAmount.x
-                    dragTotalX += abs(dragAmount.x)
-                    val from = customOrder.indexOfFirst { it == key }
-                    if (from < 0) return@detectDragGesturesAfterLongPress
-                    // Dragged center in row coordinates → target slot.
-                    val draggedCenter = (listState.layoutInfo.visibleItemsInfo
-                        .firstOrNull { filters.getOrNull(it.index)?.key == key }
-                        ?.let { it.offset + dragOffsetX + it.size / 2f }) ?: return@detectDragGesturesAfterLongPress
-                    val targetInfo = listState.layoutInfo.visibleItemsInfo.firstOrNull { info ->
-                        info.index >= fixedFilters.size &&
-                            draggedCenter >= info.offset && draggedCenter <= info.offset + info.size
-                    }
-                    val targetFilter = targetInfo?.let { filters.getOrNull(it.index) }
-                    val to = targetFilter?.let { tf -> customOrder.indexOfFirst { it == tf.key } } ?: -1
-                    if (to >= 0 && to != from) {
-                        customOrder = customOrder.toMutableList().also { it.add(to, it.removeAt(from)) }
-                        orderDirty = true
-                        haptics.performTick()
+                    val key = dragSession.draggedKey ?: return@detectDragGesturesAfterLongPress
+                    val current = latestFilters
+                    val itemInfo = listState.layoutInfo.visibleItemsInfo
+                        .firstOrNull { current.getOrNull(it.index)?.key == key }
+                    if (itemInfo != null) {
+                        dragTranslateX = change.position.x - dragGrabDX - itemInfo.offset
+                        if (abs(dragTranslateX) > 4f) dragMoved = true
+                        val draggedCenter = itemInfo.offset + dragTranslateX + itemInfo.size / 2f
+                        val target = listState.layoutInfo.visibleItemsInfo.firstOrNull { info ->
+                            info.index >= fixedFilters.size &&
+                                draggedCenter >= info.offset && draggedCenter <= info.offset + info.size
+                        }?.let { current.getOrNull(it.index)?.key }
+                        if (target != null && dragSession.moveTo(target)) {
+                            haptics.performTick()
+                        }
                     }
                     // Edge auto-scroll while dragging.
                     val viewportEnd = listState.layoutInfo.viewportEndOffset.toFloat()
@@ -147,25 +162,29 @@ fun CategoryChips(
                     }
                 },
                 onDragEnd = {
-                    val key = draggedKey
-                    draggedKey = null
-                    dragOffsetX = 0f
-                    if (key != null && dragTotalX < 12f) {
-                        // Treated as a long-press tap: legacy delete shortcut.
-                        val category = orderedCustoms.find { it.name == key }
-                        if (category != null && onCategoryLongClick != null) {
-                            haptics.performLongPress()
-                            onCategoryLongClick(category)
+                    val key = dragSession.draggedKey
+                    dragTranslateX = 0f
+                    if (key != null && !dragMoved) {
+                        // Treated as a long-press tap: legacy delete shortcut,
+                        // never offered for the pinned General head.
+                        val category = latestCustoms.find { it.name == key }
+                        if (category != null && !category.name.equals("General", ignoreCase = true)) {
+                            latestLongClick?.let {
+                                haptics.performLongPress()
+                                it(category)
+                            }
                         }
                     } else if (key != null) {
                         haptics.performTick()
                     }
-                    persistOrderIfNeeded()
+                    // Persist only on a real drop; a tap or a no-op releases nothing.
+                    dragSession.finish()?.let { latestReorder?.invoke(latestHeads + it) }
                 },
                 onDragCancel = {
-                    draggedKey = null
-                    dragOffsetX = 0f
-                    persistOrderIfNeeded()
+                    // Roll back the preview and persist nothing — a canceled
+                    // gesture must never write an order.
+                    dragSession.cancel()
+                    dragTranslateX = 0f
                 }
             )
         },
@@ -198,7 +217,7 @@ fun CategoryChips(
                     .animateItem()
                     .graphicsLayer {
                         if (isDragged) {
-                            translationX = dragOffsetX
+                            translationX = dragTranslateX
                             scaleX = 1.06f
                             scaleY = 1.06f
                         }
@@ -206,6 +225,7 @@ fun CategoryChips(
                     .zIndex(if (isDragged) 1f else 0f)
                     .clip(RoundedCornerShape(14.dp))
                     .combinedClickable(
+                        role = Role.Tab,
                         onClick = {
                             if (!isSelected) {
                                 haptics.performTick()
