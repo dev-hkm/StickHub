@@ -69,8 +69,10 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -88,6 +90,7 @@ import com.hkm.stickhub.data.cutout.SubjectCutoutProcessor
 import com.hkm.stickhub.data.model.CategoryItem
 import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
 import com.hkm.stickhub.ui.theme.StickHubMotion
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -103,6 +106,7 @@ fun SubjectCutoutSheet(
     categories: List<CategoryItem>,
     onDismiss: () -> Unit,
     onSaveSticker: suspend (bitmap: Bitmap, title: String, category: String, tags: String) -> Boolean,
+    onCopySticker: suspend (bitmap: Bitmap) -> Boolean,
     onChangeImage: () -> Unit
 ) {
     val context = LocalContext.current
@@ -114,6 +118,8 @@ fun SubjectCutoutSheet(
     val saveSession = remember { CutoutSaveSession() }
     val saveState by saveSession.state.collectAsState()
     val isSaving = saveState == CutoutSaveState.Saving
+    var isCopying by remember(imageUri) { mutableStateOf(false) }
+    val isBusy = isSaving || isCopying
     val readyState = cutoutState as? CutoutState.CandidatesReady
 
     var selectedCandidate by remember(imageUri) { mutableStateOf<CutoutCandidate?>(null) }
@@ -152,7 +158,7 @@ fun SubjectCutoutSheet(
     }
 
     ModalBottomSheet(
-        onDismissRequest = { if (!isSaving) onDismiss() },
+        onDismissRequest = { if (!isBusy) onDismiss() },
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = MaterialTheme.colorScheme.surface
@@ -178,7 +184,7 @@ fun SubjectCutoutSheet(
                     fontWeight = FontWeight.Bold
                 )
 
-                IconButton(onClick = onDismiss, enabled = !isSaving) {
+                IconButton(onClick = onDismiss, enabled = !isBusy) {
                     Icon(
                         painter = painterResource(LucideR.drawable.lucide_ic_x),
                         contentDescription = "Close",
@@ -228,7 +234,7 @@ fun SubjectCutoutSheet(
                         OutlinedTextField(
                             value = title,
                             onValueChange = { title = it },
-                            enabled = !isSaving,
+                            enabled = !isBusy,
                             label = { Text("Title") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
@@ -245,7 +251,7 @@ fun SubjectCutoutSheet(
                             OutlinedTextField(
                                 value = selectedCategory,
                                 onValueChange = {},
-                                enabled = !isSaving,
+                                enabled = !isBusy,
                                 readOnly = true,
                                 label = { Text("Category") },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryDropdownExpanded) },
@@ -275,7 +281,7 @@ fun SubjectCutoutSheet(
                         OutlinedTextField(
                             value = tags,
                             onValueChange = { tags = it },
-                            enabled = !isSaving,
+                            enabled = !isBusy,
                             label = { Text("Tags (comma separated)") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
@@ -283,6 +289,17 @@ fun SubjectCutoutSheet(
                         )
 
                         Spacer(modifier = Modifier.height(20.dp))
+
+                        if (saveState == CutoutSaveState.Failed) {
+                            Text(
+                                text = "Couldn't save this sticker. Check storage and try again.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp)
+                            )
+                        }
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -293,25 +310,68 @@ fun SubjectCutoutSheet(
                                     selectedCandidate = null
                                     transparentBitmap = null
                                 },
-                                enabled = !isSaving,
+                                enabled = !isBusy,
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(14.dp)
                             ) {
                                 Text("Back")
                             }
 
-                            if (saveState == CutoutSaveState.Failed) {
-                                Text(
-                                    text = "Couldn't save this sticker. Check storage and try again.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.padding(bottom = 8.dp)
-                                )
+                            OutlinedButton(
+                                onClick = {
+                                    val bmp = selectedCutoutBitmap ?: run {
+                                        haptics.performReject()
+                                        return@OutlinedButton
+                                    }
+                                    if (bmp.isRecycled || isBusy) {
+                                        haptics.performReject()
+                                        return@OutlinedButton
+                                    }
+                                    isCopying = true
+                                    scope.launch {
+                                         val copied = try {
+                                             onCopySticker(bmp)
+                                         } catch (cancelled: CancellationException) {
+                                             throw cancelled
+                                         } catch (_: Exception) {
+                                            haptics.performReject()
+                                            false
+                                        }
+                                        isCopying = false
+                                        // The host callback owns the normal success/failure
+                                        // acknowledgement; only unexpected callback throws
+                                        // are acknowledged locally above. This prevents a
+                                        // failure from producing two consecutive buzzes.
+                                        if (copied) onDismiss()
+                                    }
+                                },
+                                enabled = !isBusy,
+                                modifier = Modifier.weight(1.1f),
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                if (isCopying) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(17.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Icon(
+                                        painter = painterResource(LucideR.drawable.lucide_ic_copy),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(17.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text("Copy", fontWeight = FontWeight.SemiBold)
                             }
+
                             Button(
                                 onClick = {
-                                    val bmp = selectedCutoutBitmap
-                                    if (bmp == null || bmp.isRecycled || isSaving) {
+                                    val bmp = selectedCutoutBitmap ?: run {
+                                        haptics.performReject()
+                                        return@Button
+                                    }
+                                    if (bmp.isRecycled || isBusy) {
                                         haptics.performReject()
                                         return@Button
                                     }
@@ -321,11 +381,16 @@ fun SubjectCutoutSheet(
                                         val saved = saveSession.save {
                                             onSaveSticker(bmp, title, selectedCategory, tags)
                                         }
-                                        if (saved) onDismiss() else haptics.performReject()
+                                        if (saved) {
+                                            haptics.performConfirm()
+                                            onDismiss()
+                                        } else {
+                                            haptics.performReject()
+                                        }
                                     }
                                 },
-                                enabled = selectedCutoutBitmap != null && !isSaving,
-                                modifier = Modifier.weight(2f),
+                                enabled = !isBusy,
+                                modifier = Modifier.weight(1.75f),
                                 shape = RoundedCornerShape(14.dp)
                             ) {
                                 if (isSaving) {
@@ -381,7 +446,7 @@ fun SubjectCutoutSheet(
                                 sourceBitmap = state.sourceBitmap,
                                 candidates = state.candidates,
                                 selectedCandidate = selectedCandidate,
-                                selectionEnabled = !isSaving,
+                                selectionEnabled = !isBusy,
                                 onSelectCandidate = { candidate ->
                                     haptics.performTick()
                                     selectedCandidate = candidate
@@ -544,7 +609,7 @@ private fun CandidatesSelectionView(
                     modifier = Modifier.size(15.dp)
                 )
                 Text(
-                    text = "Tap or hold a subject to isolate as sticker",
+                    text = "Press and hold a subject to create a sticker",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -606,6 +671,39 @@ private fun CandidatesSelectionView(
             val renderH = imgH * scale
             val offsetX = (containerWidth - renderW) / 2f
             val offsetY = (containerHeight - renderH) / 2f
+            // Build one disconnected Path per candidate once. Drawing two paths
+            // per frame is substantially cheaper than issuing two drawLine calls
+            // for every mask edge, especially on noisy multi-subject photos.
+            val contourPaths = remember(candidates) {
+                candidates.associate { candidate ->
+                    candidate.id to Path().apply {
+                        candidate.outlineSegments.forEach { segment ->
+                            moveTo(segment.start.x, segment.start.y)
+                            lineTo(segment.end.x, segment.end.y)
+                        }
+                    }
+                }
+            }
+
+            fun candidateAt(touchOffset: Offset): CutoutCandidate? {
+                val normX = (touchOffset.x - offsetX) / renderW
+                val normY = (touchOffset.y - offsetY) / renderH
+                if (normX !in 0f..1f || normY !in 0f..1f) return null
+                // Overlapping subjects are resolved by the confidence at the
+                // actual touch point, not list order. This makes a long press
+                // feel like Google Photos even when two boxes overlap.
+                return candidates
+                    .mapNotNull { candidate ->
+                        candidate.confidenceAtNormalizedPoint(normX, normY)
+                            ?.let { confidence -> candidate to confidence }
+                    }
+                    .filter { (_, confidence) -> confidence > 0.25f }
+                    .maxWithOrNull(
+                        compareBy<Pair<CutoutCandidate, Float>> { it.second }
+                            .thenBy { it.first.normalizedBounds.width * it.first.normalizedBounds.height }
+                    )
+                    ?.first
+            }
 
             // Image and interactive overlay
             Box(
@@ -614,11 +712,7 @@ private fun CandidatesSelectionView(
                     .pointerInput(candidates, renderW, renderH, offsetX, offsetY) {
                         detectTapGestures(
                             onPress = { touchOffset ->
-                                val normX = (touchOffset.x - offsetX) / renderW
-                                val normY = (touchOffset.y - offsetY) / renderH
-                                val isCandidate = (normX in 0f..1f && normY in 0f..1f) &&
-                                        candidates.any { it.containsNormalizedPoint(normX, normY) }
-                                if (isCandidate) {
+                                if (candidateAt(touchOffset) != null) {
                                     isPressedOnCandidate = true
                                     tryAwaitRelease()
                                     isPressedOnCandidate = false
@@ -626,30 +720,18 @@ private fun CandidatesSelectionView(
                             },
                             onLongPress = { touchOffset ->
                                 if (!selectionEnabled) return@detectTapGestures
-                                val normX = (touchOffset.x - offsetX) / renderW
-                                val normY = (touchOffset.y - offsetY) / renderH
-                                if (normX in 0f..1f && normY in 0f..1f) {
-                                    val matched = candidates.find { it.containsNormalizedPoint(normX, normY) }
-                                    if (matched != null) {
-                                        onSelectCandidate(matched)
-                                    } else {
-                                        onWrongTap()
-                                    }
+                                val matched = candidateAt(touchOffset)
+                                if (matched != null) {
+                                    onSelectCandidate(matched)
                                 } else {
                                     onWrongTap()
                                 }
                             },
                             onTap = { touchOffset ->
                                 if (!selectionEnabled) return@detectTapGestures
-                                val normX = (touchOffset.x - offsetX) / renderW
-                                val normY = (touchOffset.y - offsetY) / renderH
-                                if (normX in 0f..1f && normY in 0f..1f) {
-                                    val matched = candidates.find { it.containsNormalizedPoint(normX, normY) }
-                                    if (matched != null) {
-                                        onSelectCandidate(matched)
-                                    } else {
-                                        onWrongTap()
-                                    }
+                                val matched = candidateAt(touchOffset)
+                                if (matched != null) {
+                                    onSelectCandidate(matched)
                                 } else {
                                     onWrongTap()
                                 }
@@ -665,23 +747,42 @@ private fun CandidatesSelectionView(
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // Refined subtle shimmer outline over candidates
+                // Refined shimmer outline over the actual confidence-mask
+                // silhouette. A rectangular bounds outline made the affordance
+                // look like a crop tool rather than a subject selector.
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     for (candidate in candidates) {
-                        val nb = candidate.normalizedBounds
-                        val left = offsetX + nb.left * renderW
-                        val top = offsetY + nb.top * renderH
-                        val width = nb.width * renderW
-                        val height = nb.height * renderH
-
-                        // Draw subtle rounded outline
-                        drawRoundRect(
-                            color = Color.White.copy(alpha = shimmerAlpha),
-                            topLeft = Offset(left, top),
-                            size = Size(width, height),
-                            cornerRadius = CornerRadius(16f, 16f),
-                            style = Stroke(width = 2.5f)
-                        )
+                        val selected = candidate == selectedCandidate
+                        val glowAlpha = if (selected) shimmerAlpha else shimmerAlpha * 0.55f
+                        val coreAlpha = if (selected) 0.96f else 0.62f
+                        val contourPath = contourPaths[candidate.id]
+                        if (candidate.outlineSegments.isNotEmpty() && contourPath != null) {
+                            val inverseScale = 1f / min(renderW, renderH).coerceAtLeast(1f)
+                            withTransform({
+                                translate(offsetX, offsetY)
+                                scale(renderW, renderH)
+                            }) {
+                                drawPath(
+                                    path = contourPath,
+                                    color = Color.White.copy(alpha = glowAlpha * 0.42f),
+                                    style = Stroke(width = (if (selected) 7f else 5f) * inverseScale)
+                                )
+                                drawPath(
+                                    path = contourPath,
+                                    color = Color.White.copy(alpha = coreAlpha),
+                                    style = Stroke(width = (if (selected) 2.2f else 1.6f) * inverseScale)
+                                )
+                            }
+                        } else {
+                            val nb = candidate.normalizedBounds
+                            drawRoundRect(
+                                color = Color.White.copy(alpha = glowAlpha),
+                                topLeft = Offset(offsetX + nb.left * renderW, offsetY + nb.top * renderH),
+                                size = Size(nb.width * renderW, nb.height * renderH),
+                                cornerRadius = CornerRadius(16f, 16f),
+                                style = Stroke(width = if (selected) 2.5f else 2f)
+                            )
+                        }
                     }
                 }
             }

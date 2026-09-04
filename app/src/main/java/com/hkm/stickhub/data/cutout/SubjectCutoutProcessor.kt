@@ -134,6 +134,7 @@ class SubjectCutoutProcessor(private val context: Context) {
             .enableMultipleSubjects(
                 SubjectSegmenterOptions.SubjectResultOptions.Builder()
                     .enableConfidenceMask()
+                    .enableSubjectBitmap()
                     .build()
             )
             .build()
@@ -538,14 +539,43 @@ class SubjectCutoutProcessor(private val context: Context) {
             }
         }
 
-        val croppedCutout = Bitmap.createBitmap(cropW, cropH, Bitmap.Config.ARGB_8888).apply {
-            setPixels(pixels, 0, cropW, 0, 0, cropW, cropH)
+        // Prefer ML Kit's own masked bitmap when available: it is generated
+        // from the same subject result and carries the model's refined edge
+        // alpha. The original-pixels + confidence-mask path remains the
+        // defensive fallback for older Play services builds.
+        val croppedCutout = try {
+            val modelBitmap = try { subject.bitmap } catch (_: Exception) { null }
+            if (modelBitmap != null &&
+                modelBitmap.width == width &&
+                modelBitmap.height == height &&
+                modelBitmap.hasAlpha()
+            ) {
+                modelBitmap.copy(Bitmap.Config.ARGB_8888, true)
+            } else {
+                Bitmap.createBitmap(cropW, cropH, Bitmap.Config.ARGB_8888).apply {
+                    setPixels(pixels, 0, cropW, 0, 0, cropW, cropH)
+                }
+            }
+        } catch (_: Exception) {
+            Bitmap.createBitmap(cropW, cropH, Bitmap.Config.ARGB_8888).apply {
+                setPixels(pixels, 0, cropW, 0, 0, cropW, cropH)
+            }
         }
         val normalizedCutout = try {
             StickerCanvasNormalizer.normalize(croppedCutout)
         } finally {
             croppedCutout.recycle()
         }
+
+        val outlineSegments = MaskContourExtractor.extract(
+            mask = maskFloats,
+            width = width,
+            height = height,
+            startX = startX,
+            startY = startY,
+            toNormalizedX = ::toOriginalX,
+            toNormalizedY = ::toOriginalY
+        )
 
         return CutoutCandidate(
             id = index,
@@ -559,7 +589,8 @@ class SubjectCutoutProcessor(private val context: Context) {
             cutoutBitmap = normalizedCutout,
             maskWidth = width,
             maskHeight = height,
-            confidenceMask = maskFloats
+            confidenceMask = maskFloats,
+            outlineSegments = outlineSegments
         )
     }
 

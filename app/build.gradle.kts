@@ -45,9 +45,9 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version 5.0.4: single-beat hold haptic, all-shape clipboard harvest.
-        versionCode = 49
-        versionName = "5.0.4"
+        // Version 5.1.0: one-tap clipboard import and subject-aware sticker transport.
+        versionCode = 50
+        versionName = "5.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

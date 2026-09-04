@@ -172,8 +172,11 @@ import com.hkm.stickhub.util.ClipboardOfferReducer
 import com.hkm.stickhub.util.ClipboardStager
 import com.hkm.stickhub.util.IncomingShareBatch
 import com.hkm.stickhub.util.StagedClipboardItem
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -548,6 +551,77 @@ fun StickHubApp(
             clipboardOffer = null
             clipboardImageUris = emptyList()
             clipboardSkippedCount = 0
+        }
+    }
+
+    /**
+     * The regular clipboard affordance intentionally keeps the original one-tap
+     * behavior: a clipboard primary clip is treated as one ready-made sticker.
+     * Multi-item review remains reserved for an explicit ACTION_SEND_MULTIPLE
+     * share, where the sender actually supplied a batch.
+     */
+    fun importSingleClipboardSticker() {
+        val offer = clipboardOffer ?: return
+        val candidate = offer.candidates.firstOrNull() ?: return
+        if (isStagingClipboard || isImportingClipboard) return
+
+        // Freeze this observation while the provider grant is staged. If the user
+        // copies something else during the read, the reducer holds it as pending
+        // and surfaces it after this operation completes.
+        reduceClipboard(ClipboardOfferReducer.Event.ReviewOpened)
+        isStagingClipboard = true
+        clipboardStageProgress = 0 to 1
+        val singleOffer = offer.copy(
+            sourceItemCount = 1,
+            candidates = listOf(candidate),
+            rejected = emptyList()
+        )
+
+        scope.launch {
+            try {
+                val staged = clipboardStager.stage(singleOffer) { done, total ->
+                    scope.launch { clipboardStageProgress = done to total }
+                }
+                isStagingClipboard = false
+                val ready = staged.filterIsInstance<StagedClipboardItem.Ready>()
+                if (ready.isEmpty()) {
+                    haptics.performReject()
+                    flashSnackbar("Couldn't read the copied image.")
+                    closeClipboardReview(consumeCurrent = false)
+                    return@launch
+                }
+
+                isImportingClipboard = true
+                val result = repository.importStagedClipboardBatch(ready)
+                isImportingClipboard = false
+                // There is no review sheet in this path, so a failed provider
+                // read cannot be retried from a hidden temporary file.
+                ready.forEach { if (it.file.exists()) it.file.delete() }
+
+                when {
+                    result.saved.isNotEmpty() -> {
+                        haptics.performConfirm()
+                        flashSnackbar("Sticker saved to your library.")
+                    }
+                    result.duplicates.isNotEmpty() -> {
+                        haptics.performTick()
+                        flashSnackbar("Already in your library.")
+                    }
+                    else -> {
+                        haptics.performReject()
+                        flashSnackbar("Couldn't import the copied image.")
+                    }
+                }
+                closeClipboardReview(consumeCurrent = result.failed.isEmpty())
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                isStagingClipboard = false
+                isImportingClipboard = false
+                haptics.performReject()
+                flashSnackbar("Couldn't import the copied image.")
+                closeClipboardReview(consumeCurrent = false)
+            }
         }
     }
 
@@ -1025,7 +1099,7 @@ fun StickHubApp(
                                                     }
                                                 },
                                                 clipboardImageUris = clipboardImageUris,
-                                                onImportClipboard = { openClipboardReview() },
+                                                onImportClipboard = { importSingleClipboardSticker() },
                                                 onDismissClipboard = { closeClipboardReview(consumeCurrent = true) },
                                                 appFocusManager = appFocusManager,
                                                 showQuickStickersOnboarding = showOnboarding,
@@ -1167,7 +1241,7 @@ fun StickHubApp(
                                                     }
                                                 },
                                                 clipboardImageUris = clipboardImageUris,
-                                                onImportClipboard = { openClipboardReview() },
+                                                onImportClipboard = { importSingleClipboardSticker() },
                                                 onDismissClipboard = { closeClipboardReview(consumeCurrent = true) },
                                                 appFocusManager = appFocusManager,
                                                 showQuickStickersOnboarding = showOnboarding,
@@ -1388,7 +1462,7 @@ fun StickHubApp(
                                                     }
                                                 },
                                                 clipboardImageUris = clipboardImageUris,
-                                                onImportClipboard = { openClipboardReview() },
+                                                onImportClipboard = { importSingleClipboardSticker() },
                                                 onDismissClipboard = { closeClipboardReview(consumeCurrent = true) },
                                                 appFocusManager = appFocusManager,
                                                 showQuickStickersOnboarding = showOnboarding,
@@ -1527,7 +1601,7 @@ fun StickHubApp(
                                                     }
                                                 },
                                                 clipboardImageUris = clipboardImageUris,
-                                                onImportClipboard = { openClipboardReview() },
+                                                onImportClipboard = { importSingleClipboardSticker() },
                                                 onDismissClipboard = { closeClipboardReview(consumeCurrent = true) },
                                                 appFocusManager = appFocusManager,
                                                 showQuickStickersOnboarding = showOnboarding,
@@ -1900,7 +1974,7 @@ fun StickHubApp(
                         onClick = {
                             if (clipboardImageUris.isEmpty()) return@Button
                             showCreateSourceDialog = false
-                            openClipboardReview()
+                            importSingleClipboardSticker()
                         },
                         enabled = clipboardImageUris.isNotEmpty(),
                         modifier = Modifier.fillMaxWidth(),
@@ -1913,11 +1987,11 @@ fun StickHubApp(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = when (clipboardImageUris.size) {
-                                0 -> "No image currently on clipboard"
-                                1 -> "Import copied image directly"
-                                else -> "Import ${clipboardImageUris.size} copied images"
-                            }
+                                text = if (clipboardImageUris.isEmpty()) {
+                                    "No image currently on clipboard"
+                                } else {
+                                    "Import copied image"
+                                }
                         )
                     }
                     Button(
@@ -1976,14 +2050,28 @@ fun StickHubApp(
                 val saved = repository.saveStickerBitmap(bitmap, title, category, tags)
                 if (saved != null) {
                     activeCutoutUri = null
-                    haptics.performConfirm()
                     flashSnackbar("Sticker created successfully!")
                     true
                 } else {
-                    haptics.performReject()
                     flashSnackbar("Failed to create sticker")
                     false
                 }
+            },
+            onCopySticker = { bitmap ->
+                // Encoding/cropping can touch a multi-megapixel bitmap. Keep
+                // it off Compose's main dispatcher so the sheet animation and
+                // progress indicator stay responsive.
+                val copied = withContext(Dispatchers.IO) {
+                    ClipboardHelper.copyBitmapToClipboard(context, bitmap)
+                }
+                if (copied) {
+                    haptics.performConfirm()
+                    flashSnackbar("Sticker copied to clipboard.")
+                } else {
+                    haptics.performReject()
+                    flashSnackbar("Couldn't copy sticker.")
+                }
+                copied
             },
             onChangeImage = {
                 activeCutoutUri = null
@@ -2438,7 +2526,6 @@ private fun LibraryHeadersContent(
             if (clipboardImageUris.isNotEmpty()) {
                 val context = LocalContext.current
                 val previewUri = clipboardImageUris.first()
-                val extraCount = clipboardImageUris.size - 1
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2487,33 +2574,18 @@ private fun LibraryHeadersContent(
                                         .padding(3.dp)
                                 )
 
-                                if (extraCount > 0) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(Color.Black.copy(alpha = 0.45f)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = "+$extraCount",
-                                            style = MaterialTheme.typography.labelLarge,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.White
-                                        )
-                                    }
-                                }
                             }
 
                             Spacer(modifier = Modifier.width(12.dp))
 
                             Column {
                                 Text(
-                                    text = if (extraCount > 0) "${clipboardImageUris.size} images ready" else "Ready to import",
+                                    text = "Ready to import",
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
-                                    text = if (extraCount > 0) "Review and import together" else "Save sticker to your library",
+                                    text = "Save one copied sticker to your library",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -2536,7 +2608,7 @@ private fun LibraryHeadersContent(
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    if (extraCount > 0) "Review" else "Save",
+                                    "Save",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )

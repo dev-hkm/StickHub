@@ -26,21 +26,60 @@ object ClipboardHelper {
             val file = File(sticker.filePath)
             if (!file.exists() || !file.isFile) return false
 
-            val stickerUri = StickerContentProvider.getStickerUri(context, file)
-            val mimeType = StickerMimeTypes.fromFileName(file.name)
-
-            val clipData = ClipData(
-                ClipDescription("Sticker", arrayOf(mimeType, "image/*")),
-                ClipData.Item(stickerUri)
+            // Messaging clients make their sticker/photo decision from the
+            // delivered payload, not from StickHub's internal 1024px library
+            // canvas. Prepare a bounded, transparent WebP envelope while
+            // retaining the original library file untouched.
+            val payload = StickerTransport.prepare(context, file)
+            setClipboardPayload(
+                context = context,
+                uri = payload?.let { StickerContentProvider.getClipboardUri(context, it.file) }
+                    ?: StickerContentProvider.getStickerUri(context, file),
+                mimeType = payload?.mimeType ?: StickerMimeTypes.fromFileName(file.name)
             )
-
-            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return false
-            clipboard.setPrimaryClip(clipData)
-            true
         } catch (e: Exception) {
             e.printStackTrace()
             false
         }
+    }
+
+    /** Copies a freshly cut subject without forcing the user to save it first. */
+    fun copyBitmapToClipboard(context: Context, bitmap: android.graphics.Bitmap): Boolean {
+        if (bitmap.isRecycled) return false
+        val source = File(
+            context.cacheDir,
+            "sticker_copy_source_${System.currentTimeMillis()}_${java.util.UUID.randomUUID()}.png"
+        )
+        return try {
+            source.outputStream().use { output ->
+                if (!bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, output)) {
+                    return false
+                }
+                output.flush()
+            }
+            val payload = StickerTransport.prepare(context, source) ?: return false
+            setClipboardPayload(
+                context = context,
+                uri = StickerContentProvider.getClipboardUri(context, payload.file),
+                mimeType = payload.mimeType
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        } finally {
+            source.delete()
+        }
+    }
+
+    private fun setClipboardPayload(context: Context, uri: Uri, mimeType: String): Boolean {
+        val clipData = ClipData(
+            ClipDescription("Sticker", arrayOf(mimeType, "image/*")),
+            ClipData.Item(uri)
+        )
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+            ?: return false
+        clipboard.setPrimaryClip(clipData)
+        return true
     }
 
     /**

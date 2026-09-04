@@ -326,10 +326,22 @@ private fun shareSticker(context: Context, sticker: StickerItem) {
     try {
         val file = File(sticker.filePath)
         if (!file.exists()) return
-        val uri = StickerContentProvider.getStickerUri(context, file)
+        val payload = com.hkm.stickhub.util.StickerTransport.prepare(context, file)
+        val uri = payload?.let {
+            StickerContentProvider.getClipboardUri(context, it.file)
+        } ?: StickerContentProvider.getStickerUri(context, file)
+        val mimeType = payload?.mimeType ?: StickerMimeTypes.fromFileName(file.name)
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = StickerMimeTypes.fromFileName(file.name)
+            type = mimeType
             putExtra(Intent.EXTRA_STREAM, uri)
+            // Some receivers inspect ClipData rather than EXTRA_STREAM when
+            // deciding whether transparent media is sticker-like. Keep the
+            // image MIME on ClipData too; newRawUri() would expose only
+            // text/uri-list and can make chat clients fall back to a photo.
+            clipData = android.content.ClipData(
+                android.content.ClipDescription("Sticker", arrayOf(mimeType, "image/*")),
+                android.content.ClipData.Item(uri)
+            )
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(Intent.createChooser(shareIntent, "Share Sticker"))

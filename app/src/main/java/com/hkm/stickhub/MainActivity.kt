@@ -16,6 +16,7 @@ import com.hkm.stickhub.ui.StickHubApp
 import com.hkm.stickhub.util.ClipboardHelper
 import com.hkm.stickhub.util.ClipboardStager
 import com.hkm.stickhub.util.IncomingShareBatch
+import com.hkm.stickhub.util.StickerTransport
 import com.hkm.stickhub.ui.theme.AppThemeMode
 import com.hkm.stickhub.ui.theme.AppVisualTheme
 import com.hkm.stickhub.ui.theme.StickHubTheme
@@ -56,6 +57,7 @@ class MainActivity : ComponentActivity() {
         }
         repository = StickerRepository.getInstance(this)
         ClipboardStager.cleanupStale(applicationContext)
+        StickerTransport.cleanup(applicationContext)
         themeMode = ThemePreferences.getThemeMode(this)
         visualTheme = ThemePreferences.getVisualTheme(this)
 

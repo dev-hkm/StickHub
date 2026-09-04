@@ -21,9 +21,9 @@ import java.net.URLDecoder
  * clipboard readers (keyboards, chat apps) open these URIs without an Intent
  * carrying FLAG_GRANT_READ_URI_PERMISSION, so exported=false would silently
  * break paste everywhere. Containment instead of obscurity: strict
- * basename whitelist under the stickers path, canonical boundary check
- * into filesDir/stickers only, read-only mode, no DB or non-sticker
- * file exposure.
+ * basename whitelist under the stickers path and short-lived share cache,
+ * canonical boundary checks, read-only mode, and no DB/non-sticker file
+ * exposure.
  */
 class StickerContentProvider : ContentProvider() {
 
@@ -32,14 +32,21 @@ class StickerContentProvider : ContentProvider() {
         val CONTENT_URI: Uri get() = Uri.parse("content://$AUTHORITY")
 
         private const val CODE_STICKER = 1
+        private const val CODE_CLIPBOARD = 2
         private val uriMatcher by lazy {
             UriMatcher(UriMatcher.NO_MATCH).apply {
                 addURI(AUTHORITY, "stickers/*", CODE_STICKER)
+                addURI(AUTHORITY, "clipboard/*", CODE_CLIPBOARD)
             }
         }
 
         fun getStickerUri(context: Context, file: File): Uri {
             return Uri.parse("content://$AUTHORITY/stickers/${file.name}")
+        }
+
+        /** URI for a bounded, short-lived transport payload in cache/sticker_share. */
+        fun getClipboardUri(context: Context, file: File): Uri {
+            return Uri.parse("content://$AUTHORITY/clipboard/${file.name}")
         }
 
         fun isValidBasename(name: String): Boolean {
@@ -53,7 +60,7 @@ class StickerContentProvider : ContentProvider() {
 
     private fun resolveStickerFile(uri: Uri): File {
         val match = uriMatcher.match(uri)
-        if (match != CODE_STICKER) {
+        if (match != CODE_STICKER && match != CODE_CLIPBOARD) {
             throw SecurityException("Unauthorized URI pattern: $uri")
         }
 
@@ -69,10 +76,19 @@ class StickerContentProvider : ContentProvider() {
         }
 
         val ctx = context ?: throw IllegalStateException("Provider context is null")
-        val stickersDir = File(ctx.filesDir, "stickers")
-        val canonicalDir = stickersDir.canonicalPath
+        val rootDir = if (match == CODE_STICKER) {
+            File(ctx.filesDir, "stickers")
+        } else {
+            // Only StickerTransport-generated names are valid here. This keeps
+            // the exported provider from becoming a generic cache file reader.
+            if (!decodedName.startsWith("share_")) {
+                throw SecurityException("Invalid clipboard payload name")
+            }
+            File(ctx.cacheDir, "sticker_share")
+        }
+        val canonicalDir = rootDir.canonicalPath
 
-        val targetFile = File(stickersDir, decodedName)
+        val targetFile = File(rootDir, decodedName)
         val canonicalTarget = targetFile.canonicalPath
 
         // Strict canonical boundary check
