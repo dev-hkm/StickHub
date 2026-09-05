@@ -45,9 +45,9 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version 5.2.5: unified category and filter reordering with interactive drag-and-drop.
-        versionCode = 57
-        versionName = "5.2.5"
+        // Version 5.2.6: centralized export contract + StickHub Keyboard (Commit Content API).
+        versionCode = 58
+        versionName = "5.2.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -52,9 +52,6 @@ import coil.request.ImageRequest
 import com.composables.icons.lucide.R as LucideR
 import com.hkm.stickhub.data.model.CategoryItem
 import com.hkm.stickhub.data.model.StickerItem
-import com.hkm.stickhub.data.provider.StickerContentProvider
-import com.hkm.stickhub.util.ClipboardHelper
-import com.hkm.stickhub.util.StickerMimeTypes
 import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
 import java.io.File
 
@@ -210,7 +207,7 @@ fun StickerDetailBottomSheet(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Share")
+                    Text("Share as image")
                 }
 
                 FilledTonalButton(
@@ -327,20 +324,15 @@ private fun shareSticker(context: Context, sticker: StickerItem) {
     try {
         val file = File(sticker.filePath)
         if (!file.exists()) return
-        val payload = com.hkm.stickhub.util.StickerTransport.prepare(context, file)
-        val uri = payload?.let {
-            StickerContentProvider.getClipboardUri(context, it.file)
-        } ?: StickerContentProvider.getStickerUri(context, file)
-        val mimeType = payload?.mimeType ?: StickerMimeTypes.fromFileName(file.name)
-        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = mimeType
-            putExtra(Intent.EXTRA_STREAM, uri)
-            // Use the same provider-backed, typed URI clip as the copy path.
-            // newRawUri() would expose only text/uri-list and can make chat
-            // clients fall back to a photo.
-            clipData = ClipboardHelper.createImageClipData(context, uri, mimeType)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
+        // Same central export as every other sender: validated PNG envelope
+        // (or the untouched original as fallback), canonical ACTION_SEND
+        // shape, read grant. The target app alone decides photo vs sticker.
+        val payload = com.hkm.stickhub.util.StickerExportService.export(
+            context,
+            com.hkm.stickhub.util.StickerExportService.ExportSource.LibraryFile(file),
+            com.hkm.stickhub.util.StickerExportService.ExportPurpose.SHARE
+        ) ?: return
+        val shareIntent = com.hkm.stickhub.util.StickerExportService.buildShareIntent(context, payload)
         context.startActivity(Intent.createChooser(shareIntent, "Share Sticker"))
     } catch (e: Exception) {
         e.printStackTrace()

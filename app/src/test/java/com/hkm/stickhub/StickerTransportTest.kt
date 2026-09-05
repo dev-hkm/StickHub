@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Color
 import com.hkm.stickhub.data.provider.StickerContentProvider
 import com.hkm.stickhub.util.ClipboardHelper
+import com.hkm.stickhub.util.StickerExportService
 import com.hkm.stickhub.util.StickerMimeTypes
 import com.hkm.stickhub.util.StickerTransport
 import org.junit.Assert.assertEquals
@@ -149,5 +150,166 @@ class StickerTransportTest {
         decoded.recycle()
         payload.file.delete()
         source.delete()
+    }
+
+    // ---- Central export contract (StickerExportService) ----
+
+    private fun redSquarePng(target: File, size: Int = 64) {
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.RED)
+        }
+        target.outputStream().use { assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+        bitmap.recycle()
+    }
+
+    @Test
+    fun exportJpegSourceYieldsMatchingPngEnvelope() {
+        val context = RuntimeEnvironment.getApplication()
+        val source = File(context.cacheDir, "export-source.jpg")
+        val bitmap = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.RED)
+        }
+        source.outputStream().use { assertTrue(bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)) }
+        bitmap.recycle()
+
+        val payload = StickerExportService.export(
+            context,
+            StickerExportService.ExportSource.LibraryFile(source),
+            StickerExportService.ExportPurpose.CLIPBOARD
+        )
+        assertNotNull(payload)
+        payload!!
+        assertEquals(StickerMimeTypes.PNG, payload.mimeType)
+        assertTrue(payload.uri.toString().startsWith("content://com.hkm.stickhub.stickerprovider/clipboard/"))
+        assertTrue(payload.uri.lastPathSegment.orEmpty().endsWith(".png"))
+        assertTrue(payload.file.isFile)
+        // Re-decoded bytes are a real PNG with visible alpha.
+        assertTrue(StickerExportService.verifyPayload(payload.file))
+        payload.file.delete()
+        source.delete()
+    }
+
+    @Test
+    fun exportFullyTransparentFallsBackToUntouchedOriginal() {
+        val context = RuntimeEnvironment.getApplication()
+        val source = File(context.cacheDir, "export-transparent.png")
+        val bitmap = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.TRANSPARENT)
+        }
+        source.outputStream().use { assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+        bitmap.recycle()
+
+        val payload = StickerExportService.export(
+            context,
+            StickerExportService.ExportSource.LibraryFile(source),
+            StickerExportService.ExportPurpose.SHARE
+        )
+        assertNotNull(payload)
+        payload!!
+        assertTrue(payload.fromOriginal)
+        assertTrue(payload.uri.toString().startsWith("content://com.hkm.stickhub.stickerprovider/stickers/"))
+        assertEquals(StickerMimeTypes.PNG, payload.mimeType)
+        assertEquals(source.absolutePath, payload.file.absolutePath)
+        source.delete()
+    }
+
+    @Test
+    fun exportRejectsCorruptZeroByteAndRecycledSources() {
+        val context = RuntimeEnvironment.getApplication()
+        val corrupt = File(context.cacheDir, "export-corrupt.png").apply {
+            writeBytes(byteArrayOf(1, 2, 3, 4, 5))
+        }
+        assertEquals(
+            null,
+            StickerTransport.prepare(context, corrupt)?.also { it.file.delete() }
+        )
+        val zero = File(context.cacheDir, "export-zero.png").apply { createNewFile() }
+        assertEquals(null, StickerExportService.export(
+            context,
+            StickerExportService.ExportSource.LibraryFile(zero),
+            StickerExportService.ExportPurpose.CLIPBOARD
+        ))
+        val missing = File(context.cacheDir, "export-missing.png")
+        assertEquals(null, StickerExportService.export(
+            context,
+            StickerExportService.ExportSource.LibraryFile(missing),
+            StickerExportService.ExportPurpose.CLIPBOARD
+        ))
+        val recycled = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { recycle() }
+        assertEquals(null, StickerExportService.export(
+            context,
+            StickerExportService.ExportSource.BitmapSource(recycled),
+            StickerExportService.ExportPurpose.CLIPBOARD
+        ))
+        corrupt.delete()
+        zero.delete()
+    }
+
+    @Test
+    fun exportNeverRewritesTheLibrarySource() {
+        val context = RuntimeEnvironment.getApplication()
+        val source = File(context.cacheDir, "export-untouched.png")
+        redSquarePng(source, 96)
+        val before = source.readBytes()
+
+        val payload = StickerExportService.export(
+            context,
+            StickerExportService.ExportSource.LibraryFile(source),
+            StickerExportService.ExportPurpose.CLIPBOARD
+        )
+        assertNotNull(payload)
+        payload!!
+        assertArrayEquals(before, source.readBytes())
+        assertTrue(payload.file.absolutePath != source.absolutePath)
+        payload.file.delete()
+        source.delete()
+    }
+
+    @Test
+    fun exportOutputNameIsProviderSafe() {
+        val context = RuntimeEnvironment.getApplication()
+        val source = File(context.cacheDir, "export-safe-name.png")
+        redSquarePng(source)
+        val payload = StickerExportService.export(
+            context,
+            StickerExportService.ExportSource.LibraryFile(source),
+            StickerExportService.ExportPurpose.IME
+        )
+        assertNotNull(payload)
+        payload!!
+        assertTrue(StickerContentProvider.isValidBasename(payload.file.name))
+        payload.file.delete()
+        source.delete()
+    }
+
+    @Test
+    fun verifyPayloadRejectsWrongSizeAndNonImage() {
+        val context = RuntimeEnvironment.getApplication()
+        val small = File(context.cacheDir, "verify-small.png")
+        redSquarePng(small, 100)
+        assertTrue(!StickerExportService.verifyPayload(small))
+        val text = File(context.cacheDir, "verify-text.png").apply {
+            writeBytes("not an image".toByteArray())
+        }
+        assertTrue(!StickerExportService.verifyPayload(text))
+        val missing = File(context.cacheDir, "verify-missing.png")
+        assertTrue(!StickerExportService.verifyPayload(missing))
+        small.delete()
+        text.delete()
+    }
+
+    @Test
+    fun cleanupKeepsFreshPayloadsAndDeletesExpiredOnes() {
+        val context = RuntimeEnvironment.getApplication()
+        val dir = File(context.cacheDir, "sticker_share").apply { mkdirs() }
+        val fresh = File(dir, "share_fresh_test.png").apply { writeBytes(byteArrayOf(1, 2, 3)) }
+        val old = File(dir, "share_old_test.png").apply { writeBytes(byteArrayOf(4, 5, 6)) }
+        assertTrue(old.setLastModified(System.currentTimeMillis() - 25L * 60L * 60L * 1000L))
+
+        StickerExportService.cleanup(context)
+
+        assertTrue(fresh.isFile)
+        assertTrue(!old.exists())
+        fresh.delete()
     }
 }

@@ -15,11 +15,13 @@ import kotlin.math.roundToInt
 /**
  * Builds the small, transparent image payload used when a sticker leaves
  * StickHub. Library files intentionally keep their original 1024px canvas and
- * PNG fidelity; chat/clipboard consumers get a conventional 512px transparent
- * PNG sticker envelope instead. PNG is deliberately used for the transport
- * copy because Android clipboard consumers commonly negotiate `image/png`
- * (and several chat apps only offer their sticker path for that MIME). The
- * library file itself is never rewritten.
+ * PNG fidelity; clipboard/share/IME consumers get a conventional 512px
+ * transparent PNG compatibility envelope instead. PNG is used because it is
+ * the image MIME Android clipboard consumers most widely negotiate — not
+ * because pixels, canvas size or filenames can force any receiving app to
+ * render a native sticker. That decision belongs to the target app alone
+ * (see [StickerExportService] for the full contract). The library file
+ * itself is never rewritten.
  */
 object StickerTransport {
     const val CANVAS_SIZE = 512

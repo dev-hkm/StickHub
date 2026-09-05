@@ -1,13 +1,11 @@
 package com.hkm.stickhub.util
 
 import android.content.ClipData
-import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
 import android.os.Build
 import com.hkm.stickhub.data.model.StickerItem
-import com.hkm.stickhub.data.provider.StickerContentProvider
 import java.io.File
 
 object ClipboardHelper {
@@ -26,17 +24,17 @@ object ClipboardHelper {
             val file = File(sticker.filePath)
             if (!file.exists() || !file.isFile) return false
 
-            // Messaging clients make their sticker/photo decision from the
-            // delivered payload, not from StickHub's internal 1024px library
-            // canvas. Prepare a bounded, transparent PNG envelope while
-            // retaining the original library file untouched.
-            val payload = StickerTransport.prepare(context, file)
-            setClipboardPayload(
-                context = context,
-                uri = payload?.let { StickerContentProvider.getClipboardUri(context, it.file) }
-                    ?: StickerContentProvider.getStickerUri(context, file),
-                mimeType = payload?.mimeType ?: StickerMimeTypes.fromFileName(file.name)
-            )
+            // Single shared export path (see StickerExportService): the library
+            // file stays untouched while receivers get the validated 512px
+            // transparent PNG envelope. Messaging clients make their
+            // sticker/photo decision from the delivered payload, not from
+            // StickHub's internal 1024px library canvas.
+            val payload = StickerExportService.export(
+                context,
+                StickerExportService.ExportSource.LibraryFile(file),
+                StickerExportService.ExportPurpose.CLIPBOARD
+            ) ?: return false
+            setClipboardPayload(context, payload.uri, payload.mimeType)
         } catch (e: Exception) {
             e.printStackTrace()
             false
@@ -45,29 +43,16 @@ object ClipboardHelper {
 
     /** Copies a freshly cut subject without forcing the user to save it first. */
     fun copyBitmapToClipboard(context: Context, bitmap: android.graphics.Bitmap): Boolean {
-        if (bitmap.isRecycled) return false
-        val source = File(
-            context.cacheDir,
-            "sticker_copy_source_${System.currentTimeMillis()}_${java.util.UUID.randomUUID()}.png"
-        )
         return try {
-            source.outputStream().use { output ->
-                if (!bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, output)) {
-                    return false
-                }
-                output.flush()
-            }
-            val payload = StickerTransport.prepare(context, source) ?: return false
-            setClipboardPayload(
-                context = context,
-                uri = StickerContentProvider.getClipboardUri(context, payload.file),
-                mimeType = payload.mimeType
-            )
+            val payload = StickerExportService.export(
+                context,
+                StickerExportService.ExportSource.BitmapSource(bitmap),
+                StickerExportService.ExportPurpose.CLIPBOARD
+            ) ?: return false
+            setClipboardPayload(context, payload.uri, payload.mimeType)
         } catch (e: Exception) {
             e.printStackTrace()
             false
-        } finally {
-            source.delete()
         }
     }
 
@@ -80,24 +65,16 @@ object ClipboardHelper {
     }
 
     /**
-     * Builds a URI clip using the provider's real MIME type. Android's
+     * Builds a URI clip using the payload's real MIME type. Android's
      * [ClipData.newUri] path is important here: paste targets can negotiate a
      * typed image stream from the URI instead of receiving an opaque
      * text/URI-list reference. The explicit fallback keeps copying functional
      * if a target/provider lookup is temporarily unavailable.
+     *
+     * Single implementation lives in [StickerExportService].
      */
     fun createImageClipData(context: Context, uri: Uri, fallbackMimeType: String): ClipData {
-        val inferred = runCatching {
-            ClipData.newUri(context.contentResolver, "Sticker", uri)
-        }.getOrNull()
-        return if (inferred != null && inferred.description.hasMimeType("image/*")) {
-            inferred
-        } else {
-            ClipData(
-                ClipDescription("Sticker", arrayOf(fallbackMimeType, "image/*")),
-                ClipData.Item(uri)
-            )
-        }
+        return StickerExportService.buildClipData(context, uri, fallbackMimeType)
     }
 
     /**

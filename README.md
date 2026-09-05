@@ -38,6 +38,7 @@ Modern chat applications (Telegram, Zalo, Messenger, WhatsApp, Discord, Slack...
 * 🎈 **Quick Stickers Floating Overlay:** A floating bubble (`WindowManager TYPE_APPLICATION_OVERLAY`) that hovers over any chat app. One tap expands a compact sticker grid to copy any sticker to the clipboard with zero background bloat.
 * 🤖 **On-Device ML Subject Segmentation:** Offline ML Kit subject cutout processor that extracts foreground subjects with crisp contour smoothing in milliseconds without sending any data to the cloud.
 * 📋 **Smart Clipboard Staging & Dedup:** Detects clipboard image copies with SHA-256 content deduplication and offers one-tap batch import straight into organized libraries.
+* ⌨️ **StickHub Keyboard (opt-in):** An `InputMethodService` that inserts stickers straight into editors supporting rich content via the Commit Content API, with one-time clipboard fallback otherwise. Whether a target renders compact or large stays the target app's decision.
 * 🎨 **Unified Category Management & Drag-and-Drop:** Intuitive reordering of custom folders and smart filters (`All`, `Favorites`, `Frequent`) with haptic feedback, instantly synced to the overlay in real-time.
 * 🔒 **100% Offline & Privacy-First:** Local SQLite database, isolated internal storage sandbox, and edge-to-edge Material You Dynamic Color theme sync.
 

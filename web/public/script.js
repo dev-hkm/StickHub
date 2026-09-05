@@ -26,7 +26,7 @@
       btnHeaderDownload: 'Tải APK',
 
       // Hero
-      heroBadge: 'Bản Cập Nhật v5.2.5 • Sổ Tay Android Mến Yêu',
+      heroBadge: 'Bản Cập Nhật v5.2.6 • Sổ Tay Android Mến Yêu',
       heroTitle: 'Kho Sticker Nổi.<br><span class=\"highlight-ink\">Thả Cảm Xúc</span> Ấm Áp<br>Không Rời Cuộc Vui.',
       heroSubtitle: 'StickHub mang cả cuốn sổ sticker & meme bạn yêu thích bay lơ lửng trên Messenger, Telegram, Zalo hay WhatsApp. Chạm nhẹ là dán ngay, giữ trọn từng khoảnh khắc kết nối!',
       btnPrimaryCta: 'Tải APK Miễn Phí',
@@ -125,17 +125,17 @@
       faq2Q: 'Cài đặt trực tiếp file APK có an toàn cho điện thoại không?',
       faq2A: 'Tuyệt đối an toàn. StickHub hoạt động hoàn toàn offline, không yêu cầu các quyền nhạy cảm như danh bạ hay vị trí. Ứng dụng chỉ cần quyền hiển thị bong bóng nổi và lưu trữ sticker cục bộ.',
       faq3Q: 'StickHub dùng được trên những ứng dụng trò chuyện nào?',
-      faq3A: 'Tất cả mọi ứng dụng! Nhờ cơ chế bong bóng nổi trên hệ thống, khi bạn chạm chọn sticker, ảnh sẽ được đưa vào Clipboard chuẩn. Bạn chỉ cần mở bàn phím ở Messenger, Zalo, Telegram, WhatsApp hay Instagram rồi nhấn \"Dán\".',
+      faq3A: 'StickHub gửi ảnh sticker trong suốt qua Clipboard chuẩn của Android, hoạt động tốt ở những ứng dụng chấp nhận dạng này như Zalo. Bạn chỉ cần mở bàn phím rồi nhấn \"Dán\". Mỗi ứng dụng như Messenger, Telegram, WhatsApp hay Instagram tự quyết định hiển thị sticker gọn hay ảnh lớn — StickHub còn có StickHub Keyboard để chèn trực tiếp vào trình soạn thảo hỗ trợ.',
       faq4Q: 'Bong bóng nổi có gây hao pin hay làm chậm máy không?',
       faq4A: 'Không hề nha! Ứng dụng được viết bằng Kotlin tối ưu sâu. Khi ở dạng bong bóng nhỏ, ứng dụng gần như tiêu thụ 0% CPU và chỉ tải bộ nhớ khi bạn chạm mở sổ chọn sticker.',
 
       // Master CTA
       masterTitle: 'Sẵn Sàng Cho Những Cuộc Trò Chuyện Ấm Áp?',
       masterDesc: 'Đừng để những chiếc sticker đong đầy cảm xúc bị lãng quên. Tải StickHub ngay hôm nay để sẻ chia niềm vui cùng những người bạn yêu thương!',
-      btnMasterDownload: 'Tải StickHub APK (v5.2.5)',
+      btnMasterDownload: 'Tải StickHub APK (v5.2.6)',
 
       // Sticky Bar
-      stickySubtitle: 'v5.2.5 • Miễn phí',
+      stickySubtitle: 'v5.2.6 • Miễn phí',
       btnSticky: 'Tải APK (13MB)',
 
       // Footer
@@ -158,7 +158,7 @@
       btnHeaderDownload: 'Get APK',
 
       // Hero
-      heroBadge: 'Update v5.2.5 • Cherished Android Scrapbook',
+      heroBadge: 'Update v5.2.6 • Cherished Android Scrapbook',
       heroTitle: 'Floating Sticker Album.<br><span class=\"highlight-ink\">Drop Reactions</span><br>Without Leaving Chats.',
       heroSubtitle: 'StickHub brings your favorite sticker & meme scrapbook to hover gracefully over Messenger, Telegram, Zalo, or WhatsApp. One gentle tap to paste, keeping conversations lively and warm!',
       btnPrimaryCta: 'Download Free APK',
@@ -257,17 +257,17 @@
       faq2Q: 'Is installing this APK directly safe for my phone?',
       faq2A: 'Completely safe. StickHub operates 100% offline and requires no sensitive permissions like Contacts or Location. It only asks for floating overlay permission and local storage to keep your stickers safe.',
       faq3Q: 'Which chat apps does StickHub support?',
-      faq3A: 'All of them! Because StickHub uses a system-level overlay, selecting any sticker copies it to the Android standard Clipboard. Simply tap \"Paste\" inside Messenger, Zalo, Telegram, WhatsApp, Discord, or Instagram.',
+      faq3A: 'StickHub sends a transparent sticker image through the standard Android Clipboard, which works well in apps that accept this format, such as Zalo. Just open the keyboard and tap \"Paste\". Each app — Messenger, Telegram, WhatsApp, Discord or Instagram — decides on its own whether to show it compact or large. StickHub Keyboard can also insert directly into editors that support it.',
       faq4Q: 'Does the floating bubble drain battery or lag the phone?',
       faq4A: 'Not at all! The app is written in optimized Kotlin. When minimized as a tiny bubble, it consumes practically 0% CPU and only loads memory when you actively tap to open the sticker picker.',
 
       // Master CTA
       masterTitle: 'Ready For Warm & Meaningful Chats?',
       masterDesc: 'Never let memorable moments and perfect memes slip away. Download StickHub today and share warmth with the people you love!',
-      btnMasterDownload: 'Download StickHub APK (v5.2.5)',
+      btnMasterDownload: 'Download StickHub APK (v5.2.6)',
 
       // Sticky Bar
-      stickySubtitle: 'v5.2.5 • Free',
+      stickySubtitle: 'v5.2.6 • Free',
       btnSticky: 'Get APK (13MB)',
 
       // Footer
