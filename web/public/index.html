@@ -1,0 +1,564 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <title>StickHub — Kho Sticker Nổi Độc Quyền Cho Android | Chat Không Gián Đoạn</title>
+  
+  <!-- SEO & Social Meta -->
+  <meta name="description" content="StickHub mang cả vũ trụ sticker & meme bay lượn trên mọi ứng dụng: Messenger, Telegram, Zalo, WhatsApp. Chạm bong bóng nổi, dán ngay trong 1 giây!" />
+  <meta name="keywords" content="stickhub, sticker android, bong bong sticker, meme messenger zalo, sticker noi android, overlay sticker" />
+  <meta name="author" content="Khanh Minh (khanhminh.web.app)" />
+  <meta name="theme-color" content="#07150E" />
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://stickhub.web.app/" />
+  <meta property="og:title" content="StickHub — Kho Sticker Nổi Độc Quyền Cho Android" />
+  <meta property="og:description" content="Thả sticker và meme siêu tốc trên mọi app nhắn tin bằng bong bóng nổi thông minh. 100% Offline, sạch, không quảng cáo!" />
+  <meta property="og:image" content="https://stickhub.web.app/icon.png" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="icon.png" />
+  <link rel="apple-touch-icon" href="icon.png" />
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Ambient Solarpunk Spores Canvas -->
+  <canvas id="ambient-canvas"></canvas>
+
+  <!-- Sticky Mobile Bottom CTA Bar -->
+  <div class="sticky-mobile-cta" id="stickyMobileCta">
+    <div class="sticky-info">
+      <img src="icon.png" alt="StickHub Logo" class="sticky-icon" />
+      <div class="sticky-text">
+        <h5>StickHub</h5>
+        <p>v5.2.5 • Miễn phí</p>
+      </div>
+    </div>
+    <a href="https://pub-66aa1ff95abc4f6198b4ab5def83a4a0.r2.dev/StickHub-v5.2.5.apk" class="btn-sticky-download" id="stickyDownloadBtn">
+      Tải APK (13MB)
+    </a>
+  </div>
+
+  <!-- Header Navigation -->
+  <header class="site-header" id="siteHeader">
+    <div class="container nav-wrapper">
+      <a href="#" class="brand-link">
+        <img src="icon.png" alt="StickHub App Icon" class="brand-icon" />
+        <span class="brand-text">Stick<span>Hub</span></span>
+      </a>
+
+      <nav class="nav-actions">
+        <a href="#problem" class="nav-link">So sánh</a>
+        <a href="#features" class="nav-link">Tính năng</a>
+        <a href="#install" class="nav-link">Cách cài</a>
+        <a href="#faq" class="nav-link">FAQ</a>
+        <a href="https://pub-66aa1ff95abc4f6198b4ab5def83a4a0.r2.dev/StickHub-v5.2.5.apk" class="btn-header-download">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Tải APK
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- HERO SECTION -->
+    <section class="hero-section" id="hero">
+      <div class="hero-glow-top"></div>
+      
+      <div class="container hero-grid">
+        <!-- Hero Text Content -->
+        <div class="hero-content reveal-on-scroll">
+          <div class="hero-badge">
+            <span class="hero-badge-pulse"></span>
+            Phiên Bản Mới v5.2.5 • Dành Cho Android
+          </div>
+
+          <h1 class="hero-title">
+            Kho Sticker Nổi.<br />
+            <span class="text-gradient-solar">Thả Cảm Xúc</span><br />
+            Không Rời Cuộc Trò Chuyện.
+          </h1>
+
+          <p class="hero-subtitle">
+            StickHub đưa cả vũ trụ sticker, GIF & meme yêu thích của bạn vào một <strong>bong bóng nổi thông minh</strong>. Chạm nhẹ, chọn sticker và dán ngay vào Messenger, Telegram, Zalo hay WhatsApp mà không cần thoát ứng dụng!
+          </p>
+
+          <div class="cta-group">
+            <a href="https://pub-66aa1ff95abc4f6198b4ab5def83a4a0.r2.dev/StickHub-v5.2.5.apk" class="btn-primary-cta" id="heroDownloadBtn">
+              <svg class="btn-icon" viewBox="0 0 24 24">
+                <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
+              </svg>
+              <span>Tải APK Ngay</span>
+              <span class="btn-badge">13.4 MB</span>
+            </a>
+
+            <a href="https://github.com/dev-hkm/StickHub/releases/tag/v5.2.5" target="_blank" rel="noopener noreferrer" class="btn-secondary-cta">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+              </svg>
+              GitHub Release
+            </a>
+          </div>
+
+          <div class="hero-trust-row">
+            <div class="trust-item">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              100% Offline & An Toàn
+            </div>
+            <div class="trust-item">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+              </svg>
+              Không Quảng Cáo
+            </div>
+            <div class="trust-item">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
+              Không Cần Quyền Root
+            </div>
+          </div>
+        </div>
+
+        <!-- Interactive Phone Mockup Demo -->
+        <div class="hero-visual reveal-on-scroll delay-2">
+          <div class="phone-mockup" id="phoneMockup">
+            <!-- Notch & Status Bar -->
+            <div class="phone-notch"></div>
+            <div class="phone-status-bar">
+              <span>09:41</span>
+              <span>5G • 100%</span>
+            </div>
+
+            <!-- Simulated Chat App Header -->
+            <div class="sim-chat-header">
+              <div class="sim-avatar">Crush</div>
+              <div class="sim-chat-info">
+                <h4>Hội Bạn Thân & Crush 🌸</h4>
+                <p>● Đang hoạt động</p>
+              </div>
+            </div>
+
+            <!-- Simulated Chat App Body -->
+            <div class="sim-chat-body" id="simChatBody">
+              <div class="chat-bubble incoming">
+                Tối nay đi ăn gì đây mn ơi? Ai gửi meme chốt kèo nhanh nào! 🍜✨
+              </div>
+              <div class="chat-bubble outgoing">
+                Đợi tui xíu, mở StickHub thả chiếc meme hủy diệt này liền nè haha...
+              </div>
+            </div>
+
+            <!-- Mascot Floating Bubble (Clickable Simulator) -->
+            <div class="interactive-overlay-bubble" id="simBubbleBtn" title="Nhấn để mở StickHub mô phỏng!">
+              <img src="icon.png" alt="StickHub Floating Mascot" />
+              <div class="bubble-hint-pulse">Chạm thử! 👉</div>
+            </div>
+
+            <!-- Expanded Quick Stickers Panel (Interactive Demo) -->
+            <div class="sim-quick-stickers-panel" id="simPanel">
+              <div class="panel-header">
+                <h5>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                  </svg>
+                  STICKER GẦN ĐÂY
+                </h5>
+                <button class="panel-close-btn" id="simPanelClose">✕</button>
+              </div>
+
+              <!-- Categories Rail -->
+              <div class="panel-chips-rail" id="simChipsRail">
+                <button class="sim-chip active" data-cat="all">Tất cả</button>
+                <button class="sim-chip" data-cat="pepe">Pepe 🐸</button>
+                <button class="sim-chip" data-cat="cat">Mèo Bựa 🐱</button>
+                <button class="sim-chip" data-cat="cute">Cute 🌸</button>
+                <button class="sim-chip" data-cat="troll">Troll 😂</button>
+              </div>
+
+              <!-- Sticker Grid inside Phone -->
+              <div class="panel-grid" id="simStickerGrid">
+                <!-- Injected via JavaScript with delightful SVGs -->
+              </div>
+            </div>
+
+            <!-- Simulation Toast -->
+            <div class="sim-copy-toast" id="simToast">Đã dán sticker vào đoạn chat! ✨</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION: PAIN POINT VS SOLARPUNK SOLUTION -->
+    <section class="section" id="problem">
+      <div class="container">
+        <div class="section-header reveal-on-scroll">
+          <span class="section-tag">// VẤN ĐỀ & GIẢI PHÁP</span>
+          <h2 class="section-title">Tại Sao Cách Gửi Sticker Cũ Quá Bực Bội?</h2>
+          <p class="section-desc">
+            Khi cuộc trò chuyện đang lên cao trào, việc phải chuyển qua chuyển lại giữa các ứng dụng sẽ làm tụt mood ngay lập tức.
+          </p>
+        </div>
+
+        <div class="vs-comparison-grid">
+          <!-- The Old Way -->
+          <div class="vs-card old-way reveal-on-scroll">
+            <div class="vs-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+              CÁCH CŨ RƯỜM RÀ
+            </div>
+            <h3 class="vs-title">Mất 5 bước & 15 giây cho 1 chiếc meme</h3>
+            <ul class="vs-list">
+              <li>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                <span><strong>Rời màn hình chat:</strong> Phải thoát ra màn hình chính để mở ứng dụng Thư viện hoặc Telegram.</span>
+              </li>
+              <li>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                <span><strong>Bơi trong hàng ngàn ảnh:</strong> Cuộn mỏi tay giữa ảnh chụp tài liệu, ảnh selfie để tìm meme ưng ý.</span>
+              </li>
+              <li>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                <span><strong>Bị trôi tin nhắn:</strong> Khi quay lại app chat, bạn bè đã đổi chủ đề khác, mất luôn cơ hội troll!</span>
+              </li>
+              <li>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                <span><strong>Bị giới hạn hệ sinh thái:</strong> Sticker Telegram không gửi sang Zalo được, sticker Zalo không qua Messenger được.</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- The StickHub Solarpunk Way -->
+          <div class="vs-card new-way reveal-on-scroll delay-1">
+            <div class="vs-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              CÙNG STICKHUB
+            </div>
+            <h3 class="vs-title">Chạm 1 giây — Dán ngay tức thì</h3>
+            <ul class="vs-list">
+              <li>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <span><strong>Bong bóng nổi thông minh:</strong> Nằm gọn gàng ở cạnh màn hình, có mặt trên Messenger, Zalo, Telegram, WhatsApp.</span>
+              </li>
+              <li>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <span><strong>1 chạm là copy:</strong> Tự động sao chép sticker vào bộ nhớ đệm (Clipboard) kèm haptic rung đã tay.</span>
+              </li>
+              <li>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <span><strong>Kho sticker gom chung một chỗ:</strong> Không phân biệt sticker từ đâu, tất cả gom về StickHub phân loại gọn gàng.</span>
+              </li>
+              <li>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <span><strong>Tự động thu hoạch (Harvester):</strong> Cứ copy bất kỳ ảnh nào trên mạng, StickHub tự lưu và chống trùng lặp!</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION: BENTO GRID FEATURES -->
+    <section class="section" id="features">
+      <div class="container">
+        <div class="section-header reveal-on-scroll">
+          <span class="section-tag">// VŨ KHÍ TỐI THƯỢNG</span>
+          <h2 class="section-title">Tính Năng Đỉnh Cao Sinh Ra Cho Dân Nghiện Chat</h2>
+          <p class="section-desc">
+            Được chế tác với triết lý Solarpunk: tối ưu hiệu năng, tôn trọng quyền riêng tư và giao diện tràn đầy năng lượng sinh thái.
+          </p>
+        </div>
+
+        <div class="bento-grid">
+          <!-- Card 1: Floating Overlay WindowManager (Col 8) -->
+          <div class="bento-card col-8 reveal-on-scroll">
+            <div class="bento-icon-wrapper">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                <line x1="8" y1="21" x2="16" y2="21"/>
+                <line x1="12" y1="17" x2="12" y2="21"/>
+                <circle cx="17" cy="8" r="2" fill="currentColor"/>
+              </svg>
+            </div>
+            <h3>Bong Bóng Nổi WindowManager Siêu Mượt</h3>
+            <p>
+              Tận dụng trực tiếp Android WindowManager API cấp hệ thống. Bong bóng nổi cực nhẹ, tự động bám dính thông minh vào mép màn hình, thu nhỏ kích thước khi bạn xem phim hoặc chơi game toàn màn hình để không gây vướng víu.
+            </p>
+            <div class="feature-pills">
+              <span class="feature-pill">#NativeWindowManager</span>
+              <span class="feature-pill">#ZeroLag</span>
+              <span class="feature-pill">#SmartEdgeSnap</span>
+              <span class="feature-pill">#AutoDim</span>
+            </div>
+          </div>
+
+          <!-- Card 2: On-device AI Cutout (Col 4) -->
+          <div class="bento-card col-4 reveal-on-scroll delay-1">
+            <div class="bento-icon-wrapper">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+              </svg>
+            </div>
+            <h3>AI Tách Nền Siêu Tốc</h3>
+            <p>
+              Tích hợp Google ML Kit chạy hoàn toàn cục bộ trên thiết bị (On-device AI). Biến ảnh chụp khuôn mặt bạn bè hay thú cưng thành sticker không phông nền chỉ trong 1 chạm!
+            </p>
+            <div class="feature-pills">
+              <span class="feature-pill">#MLKit</span>
+              <span class="feature-pill">#100%OnDevice</span>
+            </div>
+          </div>
+
+          <!-- Card 3: Clipboard Harvester with SHA-256 (Col 4) -->
+          <div class="bento-card col-4 reveal-on-scroll">
+            <div class="bento-icon-wrapper">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                <path d="M12 11h4M12 16h4M8 11h.01M8 16h.01"/>
+              </svg>
+            </div>
+            <h3>Clipboard Harvester Thông Minh</h3>
+            <p>
+              Tự động thu hoạch bất kỳ ảnh nào bạn vừa bấm Sao Chép trên trình duyệt hay mạng xã hội. Kiểm tra băm SHA-256 chống lưu trùng lặp tuyệt đối.
+            </p>
+            <div class="feature-pills">
+              <span class="feature-pill">#SHA256Deduplication</span>
+              <span class="feature-pill">#InstantCapture</span>
+            </div>
+          </div>
+
+          <!-- Card 4: Category Management (Col 8) -->
+          <div class="bento-card col-8 reveal-on-scroll delay-1">
+            <div class="bento-icon-wrapper">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="8" y1="6" x2="21" y2="6"/>
+                <line x1="8" y1="12" x2="21" y2="12"/>
+                <line x1="8" y1="18" x2="21" y2="18"/>
+                <line x1="3" y1="6" x2="3.01" y2="6"/>
+                <line x1="3" y1="12" x2="3.01" y2="12"/>
+                <line x1="3" y1="18" x2="3.01" y2="18"/>
+              </svg>
+            </div>
+            <h3>Quản Lý Danh Mục Kéo Thả Trực Quan</h3>
+            <p>
+              Hệ thống kéo thả reorder toàn diện. Sắp xếp thứ tự danh mục Yêu thích, Thường dùng hay các pack meme tùy biến không giới hạn. Tự do chuyển đổi giữa 4 layout hiển thị: Grid lớn, Thác nước Masonry, Compact và Danh sách chi tiết.
+            </p>
+            <div class="feature-pills">
+              <span class="feature-pill">#DragAndDrop</span>
+              <span class="feature-pill">#4LayoutModes</span>
+              <span class="feature-pill">#SmartFavorites</span>
+            </div>
+          </div>
+
+          <!-- Card 5: 100% Offline & Private (Col 6) -->
+          <div class="bento-card col-6 reveal-on-scroll">
+            <div class="bento-icon-wrapper">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </div>
+            <h3>100% Offline & Tôn Trọng Quyền Riêng Tư</h3>
+            <p>
+              Dữ liệu và bộ sưu tập sticker của bạn chỉ nằm duy nhất trong bộ nhớ máy. StickHub không gửi bất kỳ hình ảnh nào lên máy chủ bên ngoài, không yêu cầu đăng nhập tài khoản và không có mã theo dõi ngầm.
+            </p>
+            <div class="feature-pills">
+              <span class="feature-pill">#NoCloudLeak</span>
+              <span class="feature-pill">#ZeroTracking</span>
+              <span class="feature-pill">#SafeSandbox</span>
+            </div>
+          </div>
+
+          <!-- Card 6: Solarpunk Aesthetics (Col 6) -->
+          <div class="bento-card col-6 reveal-on-scroll delay-1">
+            <div class="bento-icon-wrapper">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+                <path d="M19 3v4M21 5h-4"/>
+              </svg>
+            </div>
+            <h3>Solarpunk & Material You Tinh Tế</h3>
+            <p>
+              Tông màu xanh thực vật mướt mát kết hợp sắc vàng năng lượng mặt trời. Hỗ trợ đầy đủ Dynamic Color theo màu hình nền thiết bị, Dark Mode sâu thẳm tiết kiệm pin AMOLED và hiệu ứng rung Haptic phản hồi tinh tế.
+            </p>
+            <div class="feature-pills">
+              <span class="feature-pill">#SolarpunkPalette</span>
+              <span class="feature-pill">#MaterialYou</span>
+              <span class="feature-pill">#AmoledFriendly</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION: 3 EASY INSTALL STEPS -->
+    <section class="section" id="install">
+      <div class="container">
+        <div class="section-header reveal-on-scroll">
+          <span class="section-tag">// HƯỚNG DẪN CÀI ĐẶT</span>
+          <h2 class="section-title">Chỉ 3 Bước Đơn Giản Trong 30 Giây</h2>
+          <p class="section-desc">
+            Không cần tài khoản Google Play, không cần Root. Cài đặt trực tiếp file APK an toàn và bắt đầu sử dụng ngay!
+          </p>
+        </div>
+
+        <div class="steps-grid">
+          <div class="step-card reveal-on-scroll">
+            <div class="step-number">01</div>
+            <h4>Tải File APK StickHub</h4>
+            <p>Nhấn nút tải trực tiếp từ máy chủ CDN tốc độ cao hoặc GitHub Release. File cài đặt cực nhẹ, chỉ 13.4 MB.</p>
+          </div>
+
+          <div class="step-card reveal-on-scroll delay-1">
+            <div class="step-number">02</div>
+            <h4>Cấp Quyền Cài Đặt</h4>
+            <p>Mở file APK vừa tải về, chọn "Cài đặt". Nếu Android hỏi, hãy bật "Cho phép cài đặt từ nguồn này" trong Cài đặt bảo mật.</p>
+          </div>
+
+          <div class="step-card reveal-on-scroll delay-2">
+            <div class="step-number">03</div>
+            <h4>Bật Bong Bóng Nổi & Tận Hưởng</h4>
+            <p>Mở app và cấp quyền "Hiển thị trên ứng dụng khác" để kích hoạt bong bóng nổi. Thêm meme vào và tha hồ chat troll bạn bè!</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION: FAQS -->
+    <section class="section" id="faq">
+      <div class="container">
+        <div class="section-header reveal-on-scroll">
+          <span class="section-tag">// CÂU HỎI THƯỜNG GẶP</span>
+          <h2 class="section-title">Bạn Có Thắc Mắc? Chúng Tôi Giải Đáp Ngay</h2>
+          <p class="section-desc">Những câu hỏi phổ biến nhất về cách vận hành, tính an toàn và kế hoạch phát triển của StickHub.</p>
+        </div>
+
+        <div class="faq-accordion">
+          <!-- FAQ 1: The 25$ story -->
+          <div class="faq-item active reveal-on-scroll">
+            <button class="faq-question">
+              <span>Tại sao StickHub chưa có trên Google Play Store?</span>
+              <svg class="faq-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+            <div class="faq-answer">
+              Thành thật chia sẻ cùng bạn: Tác giả là học sinh và hiện tại chưa có đủ 25$ phí đăng ký tài khoản Google Play Developer! 😅 Tuy nhiên, toàn bộ bản cài đặt APK được build sạch sẽ 100%, không chèn quảng cáo rác hay mã độc. Bạn hoàn toàn có thể yên tâm tải về và trải nghiệm. Khi có đủ kinh phí trong tương lai, StickHub chắc chắn sẽ chính thức cập bến Google Play Store!
+            </div>
+          </div>
+
+          <!-- FAQ 2: Security & Offline -->
+          <div class="faq-item reveal-on-scroll">
+            <button class="faq-question">
+              <span>Cài file APK trực tiếp có an toàn cho điện thoại không?</span>
+              <svg class="faq-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+            <div class="faq-answer">
+              Tuyệt đối an toàn. StickHub hoạt động hoàn toàn offline, không yêu cầu các quyền nhạy cảm như đọc danh bạ hay vị trí. App chỉ cần quyền bộ nhớ để bạn chọn ảnh làm sticker và quyền "Hiển thị trên ứng dụng khác" để vẽ bong bóng nổi. Không có bất kỳ dòng code theo dõi hay quảng cáo nào.
+            </div>
+          </div>
+
+          <!-- FAQ 3: Compatibility with apps -->
+          <div class="faq-item reveal-on-scroll">
+            <button class="faq-question">
+              <span>StickHub hỗ trợ những ứng dụng nhắn tin nào?</span>
+              <svg class="faq-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+            <div class="faq-answer">
+              Tất cả các ứng dụng! Cơ chế của StickHub là bong bóng nổi cấp hệ điều hành. Khi bạn chọn bất kỳ sticker nào, StickHub tự động nạp ảnh vào Clipboard tiêu chuẩn của Android. Bạn chỉ việc mở bàn phím ở bất kỳ đâu (Messenger, Zalo, Telegram, WhatsApp, Instagram Direct, Discord,...) và nhấn "Dán".
+            </div>
+          </div>
+
+          <!-- FAQ 4: Battery & RAM -->
+          <div class="faq-item reveal-on-scroll">
+            <button class="faq-question">
+              <span>Bong bóng nổi có gây tốn pin hoặc làm chậm máy không?</span>
+              <svg class="faq-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+            <div class="faq-answer">
+              Không hề! Dịch vụ Foreground Service của StickHub được lập trình bằng Kotlin thuần túy và tối ưu hóa tài nguyên phần cứng. Khi thu nhỏ thành bong bóng, app gần như tiêu thụ 0% CPU. Bộ nhớ chỉ được tải khi bạn chạm mở bảng chọn sticker.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MASTER CALL TO ACTION BOX -->
+    <section class="section" style="padding-bottom: 7rem;">
+      <div class="container">
+        <div class="master-cta-box reveal-on-scroll">
+          <h2 class="master-cta-title">Sẵn Sàng Nâng Tầm Cuộc Trò Chuyện?</h2>
+          <p class="master-cta-desc">
+            Đừng để những chiếc meme đắt giá bị trôi mất. Tải ngay StickHub hôm nay và trở thành người thả sticker nhanh nhất trong mọi nhóm chat!
+          </p>
+
+          <div class="cta-group" style="justify-content: center;">
+            <a href="https://pub-66aa1ff95abc4f6198b4ab5def83a4a0.r2.dev/StickHub-v5.2.5.apk" class="btn-primary-cta" id="masterDownloadBtn">
+              <svg class="btn-icon" viewBox="0 0 24 24">
+                <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
+              </svg>
+              <span>Tải APK Miễn Phí (v5.2.5)</span>
+            </a>
+            <a href="https://github.com/dev-hkm/StickHub" target="_blank" rel="noopener noreferrer" class="btn-secondary-cta">
+              Xem Trên GitHub
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <a href="#" class="brand-link">
+          <img src="icon.png" alt="StickHub Logo" class="brand-icon" />
+          <span class="brand-text">Stick<span>Hub</span></span>
+        </a>
+        <p>Kho sticker nổi thông minh cho Android. Được thiết kế theo phong cách Solarpunk tràn đầy sức sống.</p>
+      </div>
+
+      <div class="footer-links">
+        <a href="#features">Tính năng</a>
+        <a href="#problem">So sánh</a>
+        <a href="#install">Hướng dẫn</a>
+        <a href="#faq">FAQ</a>
+        <a href="https://github.com/dev-hkm/StickHub" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </div>
+
+      <div class="footer-creator-credit">
+        <span>Tác giả:</span>
+        <a href="https://khanhminh.web.app" target="_blank" rel="noopener noreferrer">Khanh Minh (khanhminh.web.app)</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Interactive JavaScript -->
+  <script src="script.js"></script>
+</body>
+</html>
