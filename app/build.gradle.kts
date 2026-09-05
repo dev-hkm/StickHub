@@ -45,9 +45,9 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version 5.2.2: stabilized Beta long-press subject selection.
-        versionCode = 54
-        versionName = "5.2.2"
+        // Version 5.2.3: optimize monochrome adaptive icon face cutouts.
+        versionCode = 55
+        versionName = "5.2.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
