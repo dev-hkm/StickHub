@@ -32,6 +32,30 @@ object OverlayLayoutPolicy {
         val height: Int
     )
 
+    /** Position of the compact close control in its own overlay window. */
+    data class CloseOverlayPosition(val x: Int, val y: Int)
+
+    /**
+     * Dock the close control on the outside corner of the popup.  The center
+     * sits on the popup's top-right corner, leaving half of the control above
+     * and to the right of the surface instead of consuming content space.
+     */
+    fun closeOverlayPosition(
+        panelX: Int,
+        panelY: Int,
+        panelWidth: Int,
+        closeSize: Int,
+        screenWidth: Int,
+        screenHeight: Int
+    ): CloseOverlayPosition {
+        val maxX = max(0, screenWidth - closeSize)
+        val maxY = max(0, screenHeight - closeSize)
+        return CloseOverlayPosition(
+            x = (panelX + panelWidth - closeSize / 2).coerceIn(0, maxX),
+            y = (panelY - closeSize / 2).coerceIn(0, maxY)
+        )
+    }
+
     /**
      * Calculates the exact pixel width/height for a square grid cell.
      * Ensures: 3 * cellSize + (GRID_COLUMNS * 2 * cellMargin) + (2 * horizontalPadding) <= panelWidthPx.

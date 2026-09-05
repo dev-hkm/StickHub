@@ -81,6 +81,9 @@ class OverlayService : Service() {
     private var searchBg: GradientDrawable? = null
     private var categoryScrollView: HorizontalScrollView? = null
     private var closeBtnView: ImageView? = null
+    private var closeOverlayAttached = false
+    private var closeOverlaySizePx = 0
+    private lateinit var closeOverlayParams: WindowManager.LayoutParams
     private var closeBtnBg: GradientDrawable? = null
     private var resizeBtnView: ImageView? = null
     private var resizeHandleBg: GradientDrawable? = null
@@ -465,11 +468,13 @@ class OverlayService : Service() {
                 windowManager.updateViewLayout(panel, panelParams)
             }
         }
+        updateCloseOverlayLayout()
     }
 
     private fun recreateOverlayViews() {
         val wasPanelOpen = isPanelOpen
         panelGeneration++
+        removeCloseOverlay()
         panelRoot?.let { panel ->
             if (panel.isAttachedToWindow) windowManager.removeViewImmediate(panel)
         }
@@ -603,6 +608,7 @@ class OverlayService : Service() {
                     windowManager.updateViewLayout(panel, panelParams)
                 }
             }
+            updateCloseOverlayLayout()
         }
     }
 
@@ -934,6 +940,7 @@ class OverlayService : Service() {
                         panelParams.x = (initialPanelX + dx).coerceIn(0, max(0, currentW - panelParams.width))
                         panelParams.y = (initialPanelY + dy).coerceIn(0, max(0, currentH - panelParams.height))
                         windowManager.updateViewLayout(root, panelParams)
+                        updateCloseOverlayLayout()
                     }
                     true
                 }
@@ -1091,8 +1098,8 @@ class OverlayService : Service() {
         val closeBtn = ImageView(this).apply {
             setImageDrawable(ContextCompat.getDrawable(this@OverlayService, LucideR.drawable.lucide_ic_x))
             setColorFilter(palette.textColor)
-            val btnSize = (36 * density).toInt()
-            val pad = (9 * density).toInt()
+            val btnSize = (30 * density).toInt()
+            val pad = (7 * density).toInt()
             setPadding(pad, pad, pad, pad)
             val btnBg = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
@@ -1103,11 +1110,13 @@ class OverlayService : Service() {
             background = btnBg
             contentDescription = "Close popup. Hold and drag to move."
             elevation = 12f
-            layoutParams = FrameLayout.LayoutParams(btnSize, btnSize).apply {
-                gravity = Gravity.TOP or Gravity.END
-                setMargins(0, (2 * density).toInt(), (2 * density).toInt(), 0)
-            }
+            closeOverlaySizePx = btnSize
         }
+        closeOverlayParams = WindowManager.LayoutParams(
+            closeOverlaySizePx, closeOverlaySizePx, layoutFlag,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT
+        ).apply { gravity = Gravity.TOP or Gravity.START }
         var closeInitialPanelX = 0
         var closeInitialPanelY = 0
         var closeInitialTouchX = 0f
@@ -1115,24 +1124,9 @@ class OverlayService : Service() {
         var movingFromClose = false
         var closeGestureCancelled = false
         var closePressActive = false
-        var forwardedChip: View? = null
-        fun chipAtRawPoint(rawX: Float, rawY: Float): View? {
-            val pointX = rawX.toInt()
-            val pointY = rawY.toInt()
-            for (index in 0 until chipsGroup.childCount) {
-                val candidate = chipsGroup.getChildAt(index)
-                val rect = android.graphics.Rect()
-                if (candidate.isShown && candidate.getGlobalVisibleRect(rect) && rect.contains(pointX, pointY)) {
-                    return candidate
-                }
-            }
-            return null
-        }
         val closeLongPress = Runnable {
             if (closePressActive && !closeGestureCancelled) {
                 movingFromClose = true
-                forwardedChip?.isPressed = false
-                forwardedChip = null
                 StickHubHaptics.performLongPress(closeBtn)
                 closeBtn.animate().scaleX(0.9f).scaleY(0.9f).alpha(0.8f).setDuration(120).start()
             }
@@ -1147,8 +1141,6 @@ class OverlayService : Service() {
                     movingFromClose = false
                     closeGestureCancelled = false
                     closePressActive = true
-                    forwardedChip = chipAtRawPoint(event.rawX, event.rawY)
-                    forwardedChip?.isPressed = true
                     view.postDelayed(closeLongPress, ViewConfiguration.getLongPressTimeout().toLong())
                     true
                 }
@@ -1158,14 +1150,13 @@ class OverlayService : Service() {
                     if (!movingFromClose && (abs(dx) > touchSlop || abs(dy) > touchSlop)) {
                         closeGestureCancelled = true
                         view.removeCallbacks(closeLongPress)
-                        forwardedChip?.isPressed = false
-                        forwardedChip = null
                     }
                     if (movingFromClose) {
                         val (currentW, currentH) = currentOverlayBounds()
                         panelParams.x = (closeInitialPanelX + dx).coerceIn(0, max(0, currentW - panelParams.width))
                         panelParams.y = (closeInitialPanelY + dy).coerceIn(0, max(0, currentH - panelParams.height))
                         windowManager.updateViewLayout(root, panelParams)
+                        updateCloseOverlayLayout()
                     }
                     true
                 }
@@ -1173,15 +1164,7 @@ class OverlayService : Service() {
                     view.removeCallbacks(closeLongPress)
                     closePressActive = false
                     closeBtn.animate().scaleX(1f).scaleY(1f).alpha(effectiveCloseOpacity()).setDuration(160).start()
-                    val chip = forwardedChip
-                    forwardedChip = null
-                    chip?.isPressed = false
-                    if (chip != null && !movingFromClose && !closeGestureCancelled && event.actionMasked == MotionEvent.ACTION_UP) {
-                        // The close hit box may geometrically overlap a chip
-                        // in a compact layout. Forward that tap to the chip
-                        // rather than accidentally toggling the popup closed.
-                        chip.performClick()
-                    } else if (movingFromClose) {
+                    if (movingFromClose) {
                         OverlayPreferences.setPanelPosition(this@OverlayService, panelParams.x, panelParams.y)
                     } else if (!closeGestureCancelled && event.actionMasked == MotionEvent.ACTION_UP) {
                         // Route through click for TalkBack/switch access parity.
@@ -1199,7 +1182,6 @@ class OverlayService : Service() {
         }
         closeBtn.alpha = effectiveCloseOpacity()
         closeBtnView = closeBtn
-        root.addView(closeBtn)
 
         // Bottom-End Resize Handle (Lucide move_diagonal_2). Same 36dp
         // reasoning as the close button: bigger target, same artwork.
@@ -1279,6 +1261,7 @@ class OverlayService : Service() {
                     panelParams.x = clamped.x
                     panelParams.y = clamped.y
                     windowManager.updateViewLayout(root, panelParams)
+                    updateCloseOverlayLayout()
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
@@ -1333,6 +1316,7 @@ class OverlayService : Service() {
                 .setInterpolator(DecelerateInterpolator())
                 .withEndAction {
                     if (panelGeneration == currentToken && panel.isAttachedToWindow) {
+                        removeCloseOverlay()
                         windowManager.removeView(panel)
                     }
                 }
@@ -1405,6 +1389,7 @@ class OverlayService : Service() {
             if (!panel.isAttachedToWindow) {
                 windowManager.addView(panel, panelParams)
             }
+            attachCloseOverlay()
 
             panelSurfaceView?.animate()?.alpha(effectiveSurfaceOpacity())?.setDuration(260)?.start()
             chromeContainer?.animate()?.alpha(effectiveChromeOpacity())?.setDuration(260)?.start()
@@ -1459,6 +1444,51 @@ class OverlayService : Service() {
                 android.util.Log.e("StickHubOverlay", "Category UI refresh failed", error)
             }
         }
+    }
+
+    private fun updateCloseOverlayLayout() {
+        val close = closeBtnView ?: return
+        if (!::panelParams.isInitialized || !::closeOverlayParams.isInitialized) return
+        val (screenW, screenH) = currentOverlayBounds()
+        val position = OverlayLayoutPolicy.closeOverlayPosition(
+            panelX = panelParams.x,
+            panelY = panelParams.y,
+            panelWidth = panelParams.width,
+            closeSize = closeOverlaySizePx,
+            screenWidth = screenW,
+            screenHeight = screenH
+        )
+        closeOverlayParams.x = position.x
+        closeOverlayParams.y = position.y
+        if (closeOverlayAttached && close.isAttachedToWindow) {
+            try { windowManager.updateViewLayout(close, closeOverlayParams) } catch (_: Exception) { closeOverlayAttached = false }
+        }
+    }
+
+    private fun attachCloseOverlay() {
+        val close = closeBtnView ?: return
+        if (!::closeOverlayParams.isInitialized) return
+        updateCloseOverlayLayout()
+        if (!close.isAttachedToWindow) {
+            try {
+                windowManager.addView(close, closeOverlayParams)
+                closeOverlayAttached = true
+                close.isClickable = true
+            } catch (error: Exception) {
+                closeOverlayAttached = false
+                close.isClickable = false
+                android.util.Log.e("StickHubOverlay", "Close overlay attach failed", error)
+            }
+        }
+    }
+
+    private fun removeCloseOverlay() {
+        val close = closeBtnView ?: return
+        close.isClickable = false
+        if (close.isAttachedToWindow) {
+            try { windowManager.removeViewImmediate(close) } catch (_: Exception) { }
+        }
+        closeOverlayAttached = false
     }
 
     private fun setupCategoryChips() {
@@ -1677,6 +1707,7 @@ class OverlayService : Service() {
         serviceScope.cancel()
         stickerAdapter?.cancelRequests()
         stickerAdapter = null
+        removeCloseOverlay()
         // Detach exactly once per attached view; WindowManager throws if a
         // view was already removed, so every removal is individually guarded.
         bubbleView?.let { bubble ->
