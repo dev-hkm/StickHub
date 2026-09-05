@@ -426,6 +426,20 @@ class OverlayService : Service() {
         searchBg?.setColor(withAlpha(palette.surfaceVariantColor, if (palette.isDark) 140 else 200))
         categoryScrollView?.visibility = if (showCategories) View.VISIBLE else View.GONE
 
+        // Chrome visibility can change while the same popup view is alive.
+        // Re-apply the top safe inset here as well as during construction;
+        // otherwise disabling the title would move the category row back
+        // underneath the floating close hit-target.
+        panelContent?.let { content ->
+            val isGridOnly = !showTitle && !showSearch && !showCategories
+            val outerPad = if (isGridOnly) (4 * density).toInt() else (6 * density).toInt()
+            val safeTop = max(
+                outerPad,
+                OverlayLayoutPolicy.closeSafeTopInsetPx(density, showTitle)
+            )
+            content.setPadding(outerPad, safeTop, outerPad, outerPad)
+        }
+
         // Hidden rows must not keep filtering invisibly. Clearing the EditText
         // keeps the widget and the query in the same state.
         syncSearchRow(showSearch)
@@ -873,7 +887,16 @@ class OverlayService : Service() {
             )
             elevation = 12f
             val outerPad = if (isGridOnly) (4 * density).toInt() else (6 * density).toInt()
-            setPadding(outerPad, outerPad, outerPad, outerPad)
+            // The close button is a floating 36dp hit target at the
+            // top-end of the root. When the title is hidden, reserve a
+            // complete vertical safe area so the first visible row (and
+            // especially the right-most category chip) can never sit
+            // underneath that button.
+            val safeTop = max(
+                outerPad,
+                OverlayLayoutPolicy.closeSafeTopInsetPx(density, showTitle)
+            )
+            setPadding(outerPad, safeTop, outerPad, outerPad)
         }
 
         // Chrome Container (Header, Search, Categories) with its own opacity.

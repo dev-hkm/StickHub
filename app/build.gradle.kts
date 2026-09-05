@@ -45,10 +45,10 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version 5.2.8: resilient Quick Stickers category selection and
-        // thumbnail decoding hardening.
-        versionCode = 60
-        versionName = "5.2.8"
+        // Version 5.2.9: reserve a safe hit area for the popup close control
+        // so category chips can never dismiss the overlay.
+        versionCode = 61
+        versionName = "5.2.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

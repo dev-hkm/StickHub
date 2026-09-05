@@ -117,6 +117,11 @@ class OverlayServiceIntegrationTest {
 
     @Test
     fun categoryChipDoesNotSitUnderCloseControlWhenTitleIsHidden() = withService { service ->
+        val repository = field<StickerRepository>(service, "repository")
+        runBlocking {
+            (1..12).forEach { repository.addCategory("Category $it") }
+        }
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
         OverlayPreferences.setShowTitle(service, false)
         OverlayPreferences.setShowSearch(service, false)
         OverlayPreferences.setShowCategories(service, true)
@@ -125,22 +130,25 @@ class OverlayServiceIntegrationTest {
         assertTrue(bubble.performClick())
         Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
 
+        val root = field<android.widget.FrameLayout>(service, "panelRoot")
+        val params = field<WindowManager.LayoutParams>(service, "panelParams")
+        // Ensure the assertion exercises the real chip hierarchy even when
+        // Robolectric has not completed the service's background refresh yet.
+        invoke(service, "setupCategoryChips")
+        root.measure(
+            View.MeasureSpec.makeMeasureSpec(params.width, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(params.height, View.MeasureSpec.EXACTLY)
+        )
+        root.layout(0, 0, params.width, params.height)
         val chips = field<android.widget.LinearLayout>(service, "chipContainer")
-        val chip = (0 until chips.childCount)
-            .map { chips.getChildAt(it) }
-            .first { (it as? android.widget.TextView)?.text?.toString() == "All" }
         val close = field<View>(service, "closeButton")
-        val chipLocation = IntArray(2)
-        val closeLocation = IntArray(2)
-        chip.getLocationOnScreen(chipLocation)
-        close.getLocationOnScreen(closeLocation)
-        val chipRight = chipLocation[0] + chip.width
-        val chipBottom = chipLocation[1] + chip.height
-        val closeRight = closeLocation[0] + close.width
-        val closeBottom = closeLocation[1] + close.height
-        val overlaps = chipLocation[0] < closeRight && closeLocation[0] < chipRight &&
-            chipLocation[1] < closeBottom && closeLocation[1] < chipBottom
-        assertFalse("Category chips must not be covered by the close hit target", overlaps)
+        val closeRect = rectInRoot(close, root)
+        val chipRects = (0 until chips.childCount).map { rectInRoot(chips.getChildAt(it), root) }
+        val overlappingChip = chipRects.firstOrNull { chipRect ->
+            chipRect.left < closeRect.right && closeRect.left < chipRect.right &&
+                chipRect.top < closeRect.bottom && closeRect.top < chipRect.bottom
+        }
+        assertNull("Category chips must not be covered by the close hit target: $overlappingChip", overlappingChip)
     }
 
     @Test
@@ -178,5 +186,17 @@ class OverlayServiceIntegrationTest {
 
     private fun invoke(service: OverlayService, name: String) {
         OverlayService::class.java.getDeclaredMethod(name).apply { isAccessible = true }.invoke(service)
+    }
+
+    private fun rectInRoot(view: View, root: View): android.graphics.Rect {
+        var left = 0
+        var top = 0
+        var current: View = view
+        while (current !== root) {
+            left += current.left
+            top += current.top
+            current = current.parent as View
+        }
+        return android.graphics.Rect(left, top, left + view.width, top + view.height)
     }
 }

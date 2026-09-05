@@ -98,6 +98,17 @@ class OverlayLayoutPolicyTest {
     }
 
     @Test
+    fun closeSafeInsetReservesTheTopHitTargetOnlyWhenTitleIsHidden() {
+        assertEquals(0, OverlayLayoutPolicy.closeSafeTopInsetPx(3f, showTitle = true))
+        assertTrue(
+            OverlayLayoutPolicy.closeSafeTopInsetPx(3f, showTitle = false) >=
+                ((OverlayLayoutPolicy.CLOSE_BUTTON_SIZE_DP +
+                    OverlayLayoutPolicy.CLOSE_BUTTON_TOP_MARGIN_DP +
+                    OverlayLayoutPolicy.CLOSE_SAFE_EXTRA_DP) * 3f).toInt()
+        )
+    }
+
+    @Test
     fun testPanelBoundsClampingGuaranteesWithinViewport() {
         val screenWidth = 1080
         val screenHeight = 2400
