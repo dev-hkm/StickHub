@@ -16,6 +16,31 @@
   [![GitHub Release](https://img.shields.io/badge/GitHub_Release-v5.2.5-238636?style=flat&logo=github&logoColor=white)](https://github.com/dev-hkm/StickHub/releases/tag/v5.2.5)
   [![Download APK](https://img.shields.io/badge/Direct_APK-v5.2.5-007ACC?style=flat&logo=googleplay&logoColor=white)](https://github.com/dev-hkm/StickHub/releases/download/v5.2.5/StickHub-v5.2.5.apk)
 
+  <br /><br />
+
+  <table>
+    <thead>
+      <tr>
+        <th align="center" width="33%"><b>Meme Library & Quick Filters</b></th>
+        <th align="center" width="33%"><b>Custom Packs & Dynamic Grid</b></th>
+        <th align="center" width="33%"><b>Seamless Paste in Chats (Zalo)</b></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td align="center" valign="top">
+          <img src="docs/screenshots/01-library-memes.png" alt="StickHub Meme Collection" width="100%" />
+        </td>
+        <td align="center" valign="top">
+          <img src="docs/screenshots/02-library-foods.png" alt="StickHub Custom Food Stickers" width="100%" />
+        </td>
+        <td align="center" valign="top">
+          <img src="docs/screenshots/03-chat-zalo-demo.png" alt="Seamless Transparent Paste in Zalo" width="100%" />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
 </div>
 
 ---
