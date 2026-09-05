@@ -1,8 +1,57 @@
+STICKHUB PROPRIETARY & SOURCE-AVAILABLE LICENSE
+
 Copyright (c) 2026 Khanh Minh. All rights reserved.
+Author Portfolio: https://khanhminh.web.app
+Project Website:  https://stickhub.web.app
 
-This software, source code, designs, and associated documentation files ("StickHub")
-are proprietary and confidential.
+================================================================================
+1. GRANT OF LIMITED RIGHTS
+================================================================================
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software, source code, designs, and associated documentation files
+(the "Software"), to view, inspect, and evaluate the Software solely for
+personal, educational, and non-commercial security auditing purposes.
 
-Unauthorized copying, distribution, modification, public display, reverse engineering,
-decompilation, or use of this software, via any medium, in whole or in part,
-is strictly prohibited without the express prior written permission of the copyright holder.
+================================================================================
+2. STRICT RESTRICTIONS & PROHIBITIONS
+================================================================================
+Without the express prior written authorization of the copyright holder (Khanh Minh),
+you are STRICTLY PROHIBITED from:
+
+  a. COMMERCIAL USE: Using, integrating, or leveraging the Software, or any
+     portion thereof, for any direct or indirect commercial purpose, paid
+     distribution, or revenue-generating activities.
+
+  b. REDISTRIBUTION & APP STORES: Distributing, publishing, syndicating,
+     re-uploading, or making available binary builds (including APKs, AABs),
+     source code, or forks on Google Play Store, F-Droid, Amazon Appstore,
+     APK Mirror, or any third-party app marketplace or distribution channel.
+
+  c. RE-LICENSING & WHITE-LABELING: Re-licensing, sub-licensing, renting, leasing,
+     selling, or white-labeling the Software or derivative works under your own
+     name, organization, or any other license.
+
+  d. DERIVATIVE WORKS: Creating, publishing, or distributing public derivative
+     works, clones, or adaptations that mimic or replicate the core features,
+     brand identity, or functionality of StickHub.
+
+  e. INTELLECTUAL PROPERTY & TRADEMARKS: Using the "StickHub" name, logo,
+     mascot artwork, icons, vector assets, UI layouts, or distinctive brand
+     elements for any purpose other than truthful attribution to the original author.
+
+================================================================================
+3. RESERVATION OF RIGHTS
+================================================================================
+All title, ownership rights, patents, trademarks, and copyright in and to the
+Software and any copies thereof remain exclusively with Khanh Minh.
+Any rights not expressly granted under this License are fully reserved.
+
+================================================================================
+4. DISCLAIMER OF WARRANTY & LIMITATION OF LIABILITY
+================================================================================
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHOR OR COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
