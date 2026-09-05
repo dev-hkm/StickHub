@@ -2,6 +2,8 @@ package com.hkm.stickhub.service
 
 /** Bound thumbnail decode memory even when a source is extremely wide or tall. */
 object OverlayThumbnailPolicy {
+    fun hasValidBounds(width: Int, height: Int): Boolean = width > 0 && height > 0
+
     fun sampleSize(width: Int, height: Int, targetSize: Int): Int {
         val longest = maxOf(width, height).coerceAtLeast(1)
         val target = targetSize.coerceAtLeast(1)

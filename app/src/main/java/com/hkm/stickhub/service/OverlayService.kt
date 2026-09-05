@@ -43,6 +43,8 @@ import com.hkm.stickhub.ui.theme.ThemePaletteResolver
 import com.hkm.stickhub.ui.theme.ThemePreferences
 import com.hkm.stickhub.util.ClipboardHelper
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -56,7 +58,14 @@ import kotlin.math.max
 
 class OverlayService : Service() {
 
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val serviceScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Main + CoroutineExceptionHandler { _, error ->
+            // Overlay work is optional UI. A stale database snapshot, invalid
+            // legacy preference, or OEM WindowManager exception must never
+            // crash the host process and remove the floating bubble.
+            android.util.Log.e("StickHubOverlay", "Overlay update failed", error)
+        }
+    )
     private lateinit var windowManager: WindowManager
     private lateinit var repository: StickerRepository
 
@@ -175,6 +184,8 @@ class OverlayService : Service() {
     private var searchQuery = ""
     private var searchDebounceJob: Job? = null
     private var openRefreshJob: Job? = null
+    private var categoryUiRefreshPosted = false
+    private var stickerSubmitPosted = false
 
     /** Transient slider previews (never persisted) + the 5s reveal deadline. */
     private val appearanceState = OverlayAppearanceState()
@@ -258,13 +269,19 @@ class OverlayService : Service() {
         serviceScope.launch {
             repository.categoryOrderFlow.collect {
                 if (isPanelOpen && chipScroll?.visibility == View.VISIBLE) {
-                    setupCategoryChips()
+                    scheduleCategoryUiRefresh()
                 }
             }
         }
 
         serviceScope.launch {
-            repository.refresh()
+            try {
+                repository.refresh()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                android.util.Log.e("StickHubOverlay", "Initial overlay refresh failed", error)
+            }
         }
     }
 
@@ -430,8 +447,9 @@ class OverlayService : Service() {
         resizeHandleBg?.setColor(withAlpha(palette.surfaceColor, if (palette.isDark) 190 else 210))
         emptyStateTextView?.setTextColor(palette.mutedTextColor)
 
-        setupCategoryChips()
-        submitStickers()
+        if (isPanelOpen) {
+            scheduleCategoryUiRefresh()
+        }
 
         panelRoot?.let { panel ->
             if (panel.isAttachedToWindow && ::panelParams.isInitialized) {
@@ -1295,22 +1313,38 @@ class OverlayService : Service() {
             // A hidden tag row keeps the configured start filter (default /
             // last-used / custom with safe fallback) instead of forcing All.
             openRefreshJob = serviceScope.launch {
-                repository.refresh()
-                if (panelGeneration != openToken) return@launch
-                // Resolve start filter from policy
-                val categories = repository.categoriesFlow.value.map { it.name }
-                val startMode = OverlayPreferences.startFilterMode(this@OverlayService)
-                val customCat = OverlayPreferences.startCustomCategory(this@OverlayService)
-                val lastUsed = OverlayPreferences.lastUsedFilter(this@OverlayService)
-                selectedCategory = OverlayStartFilterPolicy.resolveActiveFilter(
-                    mode = startMode,
-                    customCategory = customCat,
-                    lastUsedFilter = lastUsed,
-                    availableCategories = categories
-                )
-                if (panelGeneration != openToken) return@launch
-                setupCategoryChips()
-                submitStickers()
+                try {
+                    repository.refresh()
+                    if (panelGeneration != openToken) return@launch
+                    // Resolve start filter from policy
+                    val categories = repository.categoriesFlow.value.map { it.name }
+                    val startMode = OverlayPreferences.startFilterMode(this@OverlayService)
+                    val customCat = OverlayPreferences.startCustomCategory(this@OverlayService)
+                    val lastUsed = OverlayPreferences.lastUsedFilter(this@OverlayService)
+                    selectedCategory = OverlayStartFilterPolicy.resolveActiveFilter(
+                        mode = startMode,
+                        customCategory = customCat,
+                        lastUsedFilter = lastUsed,
+                        availableCategories = categories
+                    )
+                    if (panelGeneration != openToken) return@launch
+                    scheduleCategoryUiRefresh()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    // Opening the optional overlay must remain usable even when
+                    // a legacy library row or refresh fails. Render the latest
+                    // in-memory snapshot instead of allowing the child job to
+                    // tear down the service and remove the bubble.
+                    android.util.Log.e("StickHubOverlay", "Panel refresh failed", error)
+                    if (panelGeneration == openToken) {
+                        selectedCategory = OverlayCategoryPolicy.resolveSelection(
+                            selectedCategory,
+                            repository.categoriesFlow.value.map { it.name }
+                        )
+                        scheduleCategoryUiRefresh()
+                    }
+                }
             }
 
             panelSurfaceView?.alpha = 0f
@@ -1360,16 +1394,42 @@ class OverlayService : Service() {
         }
     }
 
-    private fun setupCategoryChips() {        val group = chipContainer ?: return
+    /**
+     * Coalesces category updates onto a later UI turn. Rebuilding a ViewGroup
+     * and notifying the RecyclerView from inside a chip's click dispatch can
+     * race ViewRoot/RecyclerView layout on some Android versions; the overlay
+     * then disappears even though the service is still alive.
+     */
+    private fun scheduleCategoryUiRefresh() {
+        val group = chipContainer ?: return
+        if (categoryUiRefreshPosted) return
+        categoryUiRefreshPosted = true
+        group.post {
+            categoryUiRefreshPosted = false
+            if (!isPanelOpen || chipScroll?.visibility != View.VISIBLE) return@post
+            try {
+                setupCategoryChips()
+                submitStickers()
+            } catch (error: Exception) {
+                android.util.Log.e("StickHubOverlay", "Category UI refresh failed", error)
+            }
+        }
+    }
+
+    private fun setupCategoryChips() {
+        val group = chipContainer ?: return
         group.removeAllViews()
 
         if (chipScroll?.visibility != View.VISIBLE) return
 
         val palette = currentPalette()
         val density = resources.displayMetrics.density
-        val categories = repository.categoryOrderFlow.value.ifEmpty {
-            listOf("All", "Favorites", "Frequent") + repository.categoriesFlow.value.map { it.name }
-        }
+        val availableCategories = repository.categoriesFlow.value.map { it.name }
+        val categories = OverlayCategoryPolicy.normalize(
+            orderedNames = repository.categoryOrderFlow.value,
+            availableNames = availableCategories
+        )
+        selectedCategory = OverlayCategoryPolicy.resolveSelection(selectedCategory, availableCategories)
 
         for (cat in categories) {
             val isSelected = (selectedCategory == cat)
@@ -1407,14 +1467,20 @@ class OverlayService : Service() {
                     setMargins(0, 0, (5 * density).toInt(), 0)
                 }
 
-                setOnClickListener {
-                    StickHubHaptics.performTick(it)
-                    selectedCategory = cat
+                setOnClickListener { source ->
+                    StickHubHaptics.performTick(source)
+                    selectedCategory = OverlayCategoryPolicy.resolveSelection(cat, availableCategories)
                     // Persist for START_FILTER=LAST_USED; without this the
                     // mode could never observe anything but the default.
-                    OverlayPreferences.setLastUsedFilter(this@OverlayService, cat)
-                    setupCategoryChips()
-                    submitStickers()
+                    try {
+                        OverlayPreferences.setLastUsedFilter(this@OverlayService, selectedCategory)
+                    } catch (error: Exception) {
+                        android.util.Log.e("StickHubOverlay", "Could not persist category selection", error)
+                    }
+                    // Do not mutate the chip hierarchy or RecyclerView while
+                    // this click is being dispatched. The posted refresh also
+                    // coalesces rapid taps and StateFlow emissions.
+                    scheduleCategoryUiRefresh()
                 }
             }
             group.addView(chip)
@@ -1423,6 +1489,17 @@ class OverlayService : Service() {
 
     private fun submitStickers(force: Boolean = false) {
         val adapter = stickerAdapter ?: return
+        val recycler = stickerRecyclerView
+        if (recycler?.isComputingLayout == true) {
+            if (!stickerSubmitPosted) {
+                stickerSubmitPosted = true
+                recycler.post {
+                    stickerSubmitPosted = false
+                    submitStickers(force)
+                }
+            }
+            return
+        }
         val density = resources.displayMetrics.density
         val contentPadding = if (OverlayPreferences.showTitle(this)) (6 * density).toInt() else (4 * density).toInt()
         val cellMargin = (3 * density).toInt()
@@ -1444,7 +1521,26 @@ class OverlayService : Service() {
             isDark = isDarkMode(),
             density = density
         )
-        adapter.submit(filtered, options, force)
+        try {
+            adapter.submit(filtered, options, force)
+        } catch (error: IllegalStateException) {
+            // RecyclerView can still enter a layout pass between the guard and
+            // notifyDataSetChanged(). Retry on the next frame instead of
+            // propagating an exception through the overlay click coroutine.
+            if (!stickerSubmitPosted) {
+                stickerSubmitPosted = true
+                recycler?.post {
+                    stickerSubmitPosted = false
+                    submitStickers(force)
+                }
+            } else {
+                android.util.Log.e("StickHubOverlay", "Sticker list update failed", error)
+            }
+            return
+        } catch (error: Exception) {
+            android.util.Log.e("StickHubOverlay", "Sticker list update failed", error)
+            return
+        }
         emptyStateTextView?.visibility = if (filtered.isEmpty()) View.VISIBLE else View.GONE
     }
 
@@ -1524,6 +1620,9 @@ class OverlayService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         isRunning = false
+        isPanelOpen = false
+        categoryUiRefreshPosted = false
+        stickerSubmitPosted = false
         revealJob?.cancel()
         revealJob = null
         searchDebounceJob?.cancel()

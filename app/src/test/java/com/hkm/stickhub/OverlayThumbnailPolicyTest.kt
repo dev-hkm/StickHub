@@ -26,4 +26,12 @@ class OverlayThumbnailPolicyTest {
         assertEquals(1, OverlayThumbnailPolicy.sampleSize(64, 32, 160))
         assertTrue(OverlayThumbnailPolicy.sampleSize(Int.MAX_VALUE, 1, 1) > 0)
     }
+
+    @Test
+    fun invalidDecoderBoundsAreRejectedBeforeBitmapAllocation() {
+        assertTrue(OverlayThumbnailPolicy.hasValidBounds(1, 1))
+        assertTrue(!OverlayThumbnailPolicy.hasValidBounds(0, 100))
+        assertTrue(!OverlayThumbnailPolicy.hasValidBounds(-1, 100))
+        assertTrue(!OverlayThumbnailPolicy.hasValidBounds(100, -1))
+    }
 }

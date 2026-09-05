@@ -45,9 +45,10 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version 5.2.7: WhatsApp native sticker packs (public tray contract).
-        versionCode = 59
-        versionName = "5.2.7"
+        // Version 5.2.8: resilient Quick Stickers category selection and
+        // thumbnail decoding hardening.
+        versionCode = 60
+        versionName = "5.2.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

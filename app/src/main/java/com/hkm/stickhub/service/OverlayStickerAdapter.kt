@@ -50,7 +50,8 @@ internal class OverlayStickerAdapter(
     }
 
     override fun getItemCount(): Int = stickers.size
-    override fun getItemId(position: Int): Long = stickers[position].id
+    override fun getItemId(position: Int): Long =
+        stickers.getOrNull(position)?.id ?: RecyclerView.NO_ID
 
     fun submit(items: List<StickerItem>, renderOptions: RenderOptions, force: Boolean = false) {
         if (!force && items == stickers && renderOptions == options) return
@@ -98,12 +99,18 @@ internal class OverlayStickerAdapter(
     override fun onBindViewHolder(holder: Holder, position: Int) {
         holder.job?.cancel()
         holder.generation++
-        holder.sticker = stickers[position]
+        val sticker = stickers.getOrNull(position)
+        if (sticker == null) {
+            holder.sticker = null
+            holder.image.setImageDrawable(null)
+            return
+        }
+        holder.sticker = sticker
         holder.frame.findViewWithTag<View>("copied_feedback_badge")?.let(holder.frame::removeView)
         holder.frame.animate().cancel()
         holder.frame.scaleX = 1f
         holder.frame.scaleY = 1f
-        holder.frame.contentDescription = "Copy ${stickers[position].title.ifBlank { "sticker" }}"
+        holder.frame.contentDescription = "Copy ${sticker.title.ifBlank { "sticker" }}"
         holder.frame.layoutParams = RecyclerView.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             options.cellSize + options.cellMargin * 2
@@ -158,6 +165,12 @@ internal class OverlayStickerAdapter(
                         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                         BitmapFactory.decodeFile(file.absolutePath, bounds)
                         ensureActive()
+                        // Corrupt/truncated files can report unknown bounds. Never
+                        // continue with a full-resolution decode in that case:
+                        // an overlay click must not take down the whole app process.
+                        if (!OverlayThumbnailPolicy.hasValidBounds(bounds.outWidth, bounds.outHeight)) {
+                            return@withPermit null
+                        }
                         val decodeOptions = BitmapFactory.Options().apply {
                             inSampleSize = OverlayThumbnailPolicy.sampleSize(bounds.outWidth, bounds.outHeight, render.cellSize)
                             inPreferredConfig = Bitmap.Config.ARGB_8888
@@ -177,6 +190,11 @@ internal class OverlayStickerAdapter(
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
+            } catch (_: OutOfMemoryError) {
+                // A single malformed or unusually large asset must degrade to
+                // the normal unavailable-image placeholder, never crash the
+                // overlay service and remove the floating bubble.
+                null
             } catch (_: Exception) {
                 null
             }

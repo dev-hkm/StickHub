@@ -8,12 +8,16 @@ import android.view.WindowManager
 import com.hkm.stickhub.data.repository.StickerRepository
 import com.hkm.stickhub.service.OverlayPreferences
 import com.hkm.stickhub.service.OverlayService
+import com.hkm.stickhub.service.OverlayStickerFilter
+import com.hkm.stickhub.ui.library.StickerLibraryPreferences
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowSettings
 
@@ -89,6 +93,75 @@ class OverlayServiceIntegrationTest {
         assertTrue(field<Boolean>(service, "isPanelOpen"))
     }
 
+    @Test
+    fun tappingNewCategoryChipKeepsBubblePanelOpen() = withService { service ->
+        val repository = field<StickerRepository>(service, "repository")
+        runBlocking {
+            repository.addCategory("Anime")
+            repository.addCategory("Food")
+            repository.addCategory("Travel")
+        }
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        val bubble = field<View>(service, "bubbleView")
+        assertTrue(bubble.performClick())
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        val chipContainer = field<android.widget.LinearLayout>(service, "chipContainer")
+        val chip = (0 until chipContainer.childCount)
+            .map { chipContainer.getChildAt(it) }
+            .firstOrNull { (it as? android.widget.TextView)?.text?.toString() == "Anime" }
+        assertNotNull("New category must be rendered as a bubble chip", chip)
+        assertTrue(chip!!.performClick())
+        assertTrue("Selecting a category must not dismiss the popup", field<Boolean>(service, "isPanelOpen"))
+    }
+
+    @Test
+    fun categoryChipDoesNotSitUnderCloseControlWhenTitleIsHidden() = withService { service ->
+        OverlayPreferences.setShowTitle(service, false)
+        OverlayPreferences.setShowSearch(service, false)
+        OverlayPreferences.setShowCategories(service, true)
+        invoke(service, "refreshOverlayConfiguration")
+        val bubble = field<View>(service, "bubbleView")
+        assertTrue(bubble.performClick())
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        val chips = field<android.widget.LinearLayout>(service, "chipContainer")
+        val chip = (0 until chips.childCount)
+            .map { chips.getChildAt(it) }
+            .first { (it as? android.widget.TextView)?.text?.toString() == "All" }
+        val close = field<View>(service, "closeButton")
+        val chipLocation = IntArray(2)
+        val closeLocation = IntArray(2)
+        chip.getLocationOnScreen(chipLocation)
+        close.getLocationOnScreen(closeLocation)
+        val chipRight = chipLocation[0] + chip.width
+        val chipBottom = chipLocation[1] + chip.height
+        val closeRight = closeLocation[0] + close.width
+        val closeBottom = closeLocation[1] + close.height
+        val overlaps = chipLocation[0] < closeRight && closeLocation[0] < chipRight &&
+            chipLocation[1] < closeBottom && closeLocation[1] < chipBottom
+        assertFalse("Category chips must not be covered by the close hit target", overlaps)
+    }
+
+    @Test
+    fun addingManyCategoriesWhileBubbleIsOpenKeepsEveryChipActionSafe() = withService { service ->
+        val bubble = field<View>(service, "bubbleView")
+        assertTrue(bubble.performClick())
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        val repository = field<StickerRepository>(service, "repository")
+        runBlocking {
+            (1..24).forEach { repository.addCategory("Category $it") }
+        }
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        val chips = field<android.widget.LinearLayout>(service, "chipContainer")
+        val chipViews = (0 until chips.childCount)
+            .map { chips.getChildAt(it) }
+            .filterIsInstance<android.widget.TextView>()
+        assertTrue("All newly added categories should be rendered", chipViews.any { it.text == "Category 24" })
+        chipViews.forEach { assertTrue("Chip click must remain handled", it.performClick()) }
+        assertTrue("Bubble panel must remain open after category selection", field<Boolean>(service, "isPanelOpen"))
+    }
+
     private fun withService(block: (OverlayService) -> Unit) {
         ShadowSettings.setCanDrawOverlays(true)
         val controller = Robolectric.buildService(OverlayService::class.java).create()
@@ -102,4 +175,8 @@ class OverlayServiceIntegrationTest {
     @Suppress("UNCHECKED_CAST")
     private fun <T> field(service: OverlayService, name: String): T =
         OverlayService::class.java.getDeclaredField(name).apply { isAccessible = true }.get(service) as T
+
+    private fun invoke(service: OverlayService, name: String) {
+        OverlayService::class.java.getDeclaredMethod(name).apply { isAccessible = true }.invoke(service)
+    }
 }
