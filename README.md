@@ -12,7 +12,8 @@
   [![Language](https://img.shields.io/badge/Language-Kotlin_2.0-7F52FF?style=flat&logo=kotlin&logoColor=white)](#)
   [![UI](https://img.shields.io/badge/UI-Jetpack_Compose_Material_3-4285F4?style=flat&logo=jetpackcompose&logoColor=white)](#)
   [![License](https://img.shields.io/badge/License-Proprietary_All_Rights_Reserved-red.svg)](#)
-  [![Download APK](https://img.shields.io/badge/Release-v5.2.5_(APK)-007ACC?style=flat&logo=googleplay&logoColor=white)](https://pub-66aa1ff95abc4f6198b4ab5def83a4a0.r2.dev/StickHub-v5.2.5.apk)
+  [![GitHub Release](https://img.shields.io/badge/GitHub_Release-v5.2.5-238636?style=flat&logo=github&logoColor=white)](https://github.com/dev-hkm/StickHub/releases/tag/v5.2.5)
+  [![Download APK](https://img.shields.io/badge/Direct_APK-v5.2.5-007ACC?style=flat&logo=googleplay&logoColor=white)](https://pub-66aa1ff95abc4f6198b4ab5def83a4a0.r2.dev/StickHub-v5.2.5.apk)
 
 </div>
 
