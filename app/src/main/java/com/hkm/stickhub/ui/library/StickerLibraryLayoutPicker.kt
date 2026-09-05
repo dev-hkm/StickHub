@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -57,6 +59,7 @@ fun StickerLibraryLayoutPickerSheet(
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 28.dp)
                 .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
         ) {
             // Header
             Row(

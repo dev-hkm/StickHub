@@ -36,7 +36,21 @@ object OverlayLayoutPolicy {
     data class CloseOverlayPosition(val x: Int, val y: Int)
 
     /**
-     * Dock the close control on the outside corner of the popup.  The center
+     * Unified layout snapshot capturing panel bounds, outside close button position,
+     * bounds limits, and responsive grid column count.
+     */
+    data class PopupGeometry(
+        val panelBounds: PanelBounds,
+        val closePosition: CloseOverlayPosition,
+        val minWidth: Int,
+        val minHeight: Int,
+        val maxWidth: Int,
+        val maxHeight: Int,
+        val columns: Int
+    )
+
+    /**
+     * Dock the close control on the outside corner of the popup. The center
      * sits on the popup's top-right corner, leaving half of the control above
      * and to the right of the surface instead of consuming content space.
      */
@@ -46,32 +60,41 @@ object OverlayLayoutPolicy {
         panelWidth: Int,
         closeSize: Int,
         screenWidth: Int,
-        screenHeight: Int
+        screenHeight: Int,
+        offsetPx: Int = 4
     ): CloseOverlayPosition {
         val maxX = max(0, screenWidth - closeSize)
         val maxY = max(0, screenHeight - closeSize)
         return CloseOverlayPosition(
-            // Deliberately clear the popup edge by a small visual gap. The
-            // control is not merely overhanging the corner: its center sits
-            // outside the surface on both axes.
-            x = (panelX + panelWidth + 4 - closeSize / 2).coerceIn(0, maxX),
-            y = (panelY - 4 - closeSize / 2).coerceIn(0, maxY)
+            x = (panelX + panelWidth + offsetPx - closeSize / 2).coerceIn(0, maxX),
+            y = (panelY - offsetPx - closeSize / 2).coerceIn(0, maxY)
         )
     }
 
     /**
+     * Dynamically determines column count based on available width.
+     * Guarantees at least 3 columns and scales up smoothly for wider views/tablets.
+     */
+    fun calculateColumns(panelWidthPx: Int, density: Float, targetCellSizeDp: Float = 84f): Int {
+        val widthDp = panelWidthPx / max(0.1f, density)
+        val cols = (widthDp / targetCellSizeDp).toInt()
+        return cols.coerceIn(3, 8)
+    }
+
+    /**
      * Calculates the exact pixel width/height for a square grid cell.
-     * Ensures: 3 * cellSize + (GRID_COLUMNS * 2 * cellMargin) + (2 * horizontalPadding) <= panelWidthPx.
+     * Ensures: columns * cellSize + (columns * 2 * cellMargin) + (2 * horizontalPadding) <= panelWidthPx.
      */
     fun gridCellSize(
         panelWidthPx: Int,
         horizontalContentPaddingPx: Int,
-        cellMarginPx: Int
+        cellMarginPx: Int,
+        columns: Int = GRID_COLUMNS
     ): Int {
         val totalPadding = horizontalContentPaddingPx * 2
-        val totalMargins = GRID_COLUMNS * cellMarginPx * 2
+        val totalMargins = columns * cellMarginPx * 2
         val available = panelWidthPx - totalPadding - totalMargins
-        return max(1, available / GRID_COLUMNS)
+        return max(1, available / max(1, columns))
     }
 
     /**
@@ -87,6 +110,60 @@ object OverlayLayoutPolicy {
                 (GRID_COLUMNS * cellMarginDp * 2) +
                 (horizontalPaddingDp * 2)
         return max(1, (minWidthDp * density).toInt())
+    }
+
+    /**
+     * Computes the complete immutable geometry snapshot for the quick stickers popup.
+     */
+    fun computePopupGeometry(
+        requestedX: Int,
+        requestedY: Int,
+        requestedWidth: Int,
+        requestedHeight: Int,
+        screenWidth: Int,
+        screenHeight: Int,
+        density: Float,
+        showTitle: Boolean,
+        showSearch: Boolean,
+        showCategories: Boolean,
+        closeButtonSizePx: Int,
+        closeOffsetPx: Int = 4
+    ): PopupGeometry {
+        val minW = minPanelWidthPx(density)
+        val minH = minPanelHeightPx(density, showTitle, showSearch, showCategories)
+        val maxW = (screenWidth * 0.94f).toInt()
+        val maxH = (screenHeight * 0.85f).toInt()
+        val panelBounds = clampPanelBounds(
+            x = requestedX,
+            y = requestedY,
+            width = requestedWidth,
+            height = requestedHeight,
+            screenWidth = screenWidth,
+            screenHeight = screenHeight,
+            minWidth = minW,
+            minHeight = minH,
+            maxWidth = maxW,
+            maxHeight = maxH
+        )
+        val closePos = closeOverlayPosition(
+            panelX = panelBounds.x,
+            panelY = panelBounds.y,
+            panelWidth = panelBounds.width,
+            closeSize = closeButtonSizePx,
+            screenWidth = screenWidth,
+            screenHeight = screenHeight,
+            offsetPx = closeOffsetPx
+        )
+        val cols = calculateColumns(panelBounds.width, density)
+        return PopupGeometry(
+            panelBounds = panelBounds,
+            closePosition = closePos,
+            minWidth = minW,
+            minHeight = minH,
+            maxWidth = maxW,
+            maxHeight = maxH,
+            columns = cols
+        )
     }
 
     /**

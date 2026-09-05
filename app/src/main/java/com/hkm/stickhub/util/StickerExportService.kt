@@ -13,7 +13,7 @@ import java.util.UUID
 
 /**
  * Single choke point for every sticker that leaves StickHub, no matter the
- * caller (library tap, overlay tap, cutout copy, detail share, IME insert).
+ * caller (library tap, overlay tap, cutout copy, detail share).
  *
  * Transport contract, stated plainly: StickHub sends a valid transparent
  * image payload (PNG 512x512 compatibility envelope) through public Android
@@ -29,8 +29,7 @@ object StickerExportService {
     /** Why a payload is being produced. Same bytes, same envelope, every path. */
     enum class ExportPurpose {
         CLIPBOARD,
-        SHARE,
-        IME
+        SHARE
     }
 
     /** Today every payload lives under the 24h share-cache TTL. */
@@ -39,7 +38,7 @@ object StickerExportService {
     }
 
     /**
-     * One validated payload ready to hand to clipboard/share/IME.
+     * One validated payload ready to hand to clipboard or share.
      *
      * @property fromOriginal true when the transport encode was unavailable
      * and the untouched original library file is shared instead. Bytes and
@@ -66,8 +65,7 @@ object StickerExportService {
      * Reuse verbatim wherever a target cannot take rich content.
      */
     const val TARGET_DECIDES_MESSAGE =
-        "Ứng dụng đích quyết định hiển thị ảnh hay sticker. " +
-            "Hãy dùng StickHub Keyboard nếu ứng dụng hỗ trợ chèn nội dung trực tiếp."
+        "Ứng dụng đích quyết định hiển thị ảnh hay sticker."
 
     /**
      * Encodes and validates one payload. The library source file is never
@@ -76,8 +74,8 @@ object StickerExportService {
      * bitmaps, zero-byte output or out-of-memory during encode.
      *
      * Heavy bitmap work happens here, so callers must invoke this off the
-     * main thread for large sources (the IME path does; legacy tap-to-copy
-     * keeps its historical main-thread behavior to avoid Zalo regressions).
+     * main thread for large sources (legacy tap-to-copy keeps its historical
+     * main-thread behavior to avoid Zalo regressions).
      */
     fun export(context: Context, source: ExportSource, purpose: ExportPurpose): ExportPayload? {
         val appContext = context.applicationContext

@@ -273,7 +273,7 @@ class StickerTransportTest {
         val payload = StickerExportService.export(
             context,
             StickerExportService.ExportSource.LibraryFile(source),
-            StickerExportService.ExportPurpose.IME
+            StickerExportService.ExportPurpose.SHARE
         )
         assertNotNull(payload)
         payload!!

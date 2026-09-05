@@ -9,9 +9,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.TextButton
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.LifecycleOwner
 import com.hkm.stickhub.service.OverlayStartFilterMode
 import com.hkm.stickhub.service.OverlayAfterCopyAction
 import com.hkm.stickhub.service.OverlayAppearancePreset
@@ -1458,89 +1455,6 @@ fun SettingsScreen(
                 SettingsDivider()
             }
 
-            item(key = "section_keyboard") {
-                SectionHeader("STICKHUB KEYBOARD")
-
-                var imeRefreshTick by remember { mutableStateOf(0) }
-                DisposableEffect(context) {
-                    val owner = context as? LifecycleOwner
-                    val observer = LifecycleEventObserver { _, event ->
-                        if (event == Lifecycle.Event.ON_RESUME) imeRefreshTick++
-                    }
-                    owner?.lifecycle?.addObserver(observer)
-                    onDispose { owner?.lifecycle?.removeObserver(observer) }
-                }
-                val imeStatus = remember(imeRefreshTick) {
-                    com.hkm.stickhub.ime.StickerImeStatus.read(context)
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            painter = painterResource(LucideR.drawable.lucide_ic_keyboard),
-                            contentDescription = null,
-                            tint = if (imeStatus.enabled) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "StickHub Keyboard",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = when {
-                                    imeStatus.active -> "Active keyboard"
-                                    imeStatus.enabled -> "Enabled — switch to it from any keyboard"
-                                    else -> "Not enabled"
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        FilledTonalButton(
-                            onClick = {
-                                haptics.performTick()
-                                try {
-                                    context.startActivity(
-                                        Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)
-                                    )
-                                } catch (_: Exception) {
-                                }
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Text("Open settings", style = MaterialTheme.typography.labelMedium)
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "Insert stickers directly into apps that support rich " +
-                        "content. Other apps still receive a copied image — " +
-                        "whether it shows compact or large is decided by each app.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                )
-
-                SettingsDivider()
-            }
 
             item(key = "section_whatsapp") {
                 SectionHeader("WHATSAPP STICKERS")

@@ -266,4 +266,50 @@ class OverlayLayoutPolicyTest {
         assertEquals(500, inBounds.x)
         assertEquals(1000, inBounds.y)
     }
+
+    @Test
+    fun testCalculateColumnsScalesDynamically() {
+        val density = 2.0f
+        // 240dp -> 3 cols min
+        assertEquals(3, OverlayLayoutPolicy.calculateColumns((240 * density).toInt(), density))
+        // 320dp -> 3 cols
+        assertEquals(3, OverlayLayoutPolicy.calculateColumns((320 * density).toInt(), density))
+        // 420dp -> 4 or 5 cols
+        val cols420 = OverlayLayoutPolicy.calculateColumns((420 * density).toInt(), density)
+        assertTrue(cols420 in 4..5)
+        // 600dp -> 6 or 7 cols
+        val cols600 = OverlayLayoutPolicy.calculateColumns((600 * density).toInt(), density)
+        assertTrue(cols600 >= 6)
+    }
+
+    @Test
+    fun testComputePopupGeometryReturnsConsistentSnapshot() {
+        val density = 2.5f
+        val geometry = OverlayLayoutPolicy.computePopupGeometry(
+            requestedX = 100,
+            requestedY = 200,
+            requestedWidth = 800,
+            requestedHeight = 1000,
+            screenWidth = 1080,
+            screenHeight = 2400,
+            density = density,
+            showTitle = true,
+            showSearch = true,
+            showCategories = true,
+            closeButtonSizePx = (42 * density).toInt(),
+            closeOffsetPx = (4 * density).toInt()
+        )
+
+        assertTrue(geometry.panelBounds.width in geometry.minWidth..geometry.maxWidth)
+        assertTrue(geometry.panelBounds.height in geometry.minHeight..geometry.maxHeight)
+        assertTrue(geometry.panelBounds.x + geometry.panelBounds.width <= 1080)
+        assertTrue(geometry.panelBounds.y + geometry.panelBounds.height <= 2400)
+        assertTrue(geometry.columns >= 3)
+        // Close button center should dock on the outside corner
+        val closeSize = (42 * density).toInt()
+        val closeCenterX = geometry.closePosition.x + closeSize / 2
+        val closeCenterY = geometry.closePosition.y + closeSize / 2
+        assertTrue(closeCenterX >= geometry.panelBounds.x + geometry.panelBounds.width)
+        assertTrue(closeCenterY <= geometry.panelBounds.y)
+    }
 }

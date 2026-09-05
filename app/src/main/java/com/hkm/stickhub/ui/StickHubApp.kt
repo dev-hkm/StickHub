@@ -181,6 +181,16 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+private sealed interface ModalRoute {
+    object None : ModalRoute
+    object SourceChooser : ModalRoute
+    object ClipboardReview : ModalRoute
+    data class SubjectCutout(val uri: Uri) : ModalRoute
+    data class StickerDetail(val stickerId: Long) : ModalRoute
+    data class StickerStudio(val sticker: StickerItem) : ModalRoute
+    object LibraryLayout : ModalRoute
+}
+
 enum class AppRoute {
     LIBRARY,
     SETTINGS,
@@ -255,28 +265,21 @@ fun StickHubApp(
     var showBatchMoveMenu by remember { mutableStateOf(false) }
     var showBatchDeleteConfirm by remember { mutableStateOf(false) }
 
-    // Detail & Studio BottomSheets
-    // The detail sheet holds only an id and resolves the live row every
-    // composition, so edits/favorites landing mid-session never go stale.
-    var detailStickerId by remember { mutableStateOf<Long?>(null) }
+    // Modal Coordinator
+    var activeModalRoute by remember { mutableStateOf<ModalRoute>(ModalRoute.None) }
+
     val detailSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    var selectedStickerForStudio by remember { mutableStateOf<StickerItem?>(null) }
     val studioSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    // Subject Cutout Sheet
-    var activeCutoutUri by remember { mutableStateOf<Uri?>(null) }
     val cutoutSheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
         confirmValueChange = { target -> target != SheetValue.Hidden }
     )
+    val libraryLayoutPickerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // Library View Mode
     var libraryViewMode by remember {
         mutableStateOf(StickerLibraryPreferences.getViewMode(context))
     }
-    val libraryLayoutPickerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var showLibraryLayoutPicker by remember { mutableStateOf(false) }
     var pendingLibraryLayoutMode by remember { mutableStateOf<StickerLibraryViewMode?>(null) }
     var isDismissingLibraryPicker by remember { mutableStateOf(false) }
 
@@ -287,7 +290,9 @@ fun StickHubApp(
             try {
                 libraryLayoutPickerSheetState.hide()
             } finally {
-                showLibraryLayoutPicker = false
+                if (activeModalRoute is ModalRoute.LibraryLayout) {
+                    activeModalRoute = ModalRoute.None
+                }
                 pendingLibraryLayoutMode = null
                 isDismissingLibraryPicker = false
             }
@@ -307,7 +312,9 @@ fun StickHubApp(
             try {
                 libraryLayoutPickerSheetState.hide()
             } finally {
-                showLibraryLayoutPicker = false
+                if (activeModalRoute is ModalRoute.LibraryLayout) {
+                    activeModalRoute = ModalRoute.None
+                }
                 pendingLibraryLayoutMode = null
                 isDismissingLibraryPicker = false
                 libraryViewMode = newMode
@@ -341,9 +348,6 @@ fun StickHubApp(
     }
 
     // Back handlers
-    BackHandler(enabled = showLibraryLayoutPicker) {
-        dismissLibraryLayoutPicker()
-    }
     BackHandler(enabled = currentRoute == AppRoute.CATEGORY_MANAGEMENT) {
         if (navigator.requestPop()) {
             currentRoute = navigator.currentRoute
@@ -375,7 +379,6 @@ fun StickHubApp(
     // Dialogs
     var showAddCategoryDialog by remember { mutableStateOf(false) }
     var categoryToDelete by remember { mutableStateOf<CategoryItem?>(null) }
-    var showCreateSourceDialog by remember { mutableStateOf(false) }
 
     var isOverlayRunning by remember { mutableStateOf(OverlayService.isRunning) }
     var overlayBubbleSizeDp by remember { mutableStateOf(OverlayPreferences.bubbleSizeDp(context)) }
@@ -470,7 +473,6 @@ fun StickHubApp(
     var clipboardOffer by remember { mutableStateOf<ClipboardBatchSnapshot?>(null) }
     var clipboardOfferState by remember { mutableStateOf(ClipboardOfferReducer.State()) }
     var clipboardGeneration by remember { mutableLongStateOf(0L) }
-    var showClipboardPicker by remember { mutableStateOf(false) }
     var stagedClipboardItems by remember { mutableStateOf<List<StagedClipboardItem>>(emptyList()) }
     var isStagingClipboard by remember { mutableStateOf(false) }
     var isImportingClipboard by remember { mutableStateOf(false) }
@@ -501,7 +503,7 @@ fun StickHubApp(
     fun checkClipboardOffer() {
         val snapshot = ClipboardHelper.captureClipboardBatch(context, ++clipboardGeneration)
         if (snapshot == null) {
-            if (!showClipboardPicker) {
+            if (activeModalRoute !is ModalRoute.ClipboardReview) {
                 clipboardOffer = null
                 clipboardImageUris = emptyList()
                 clipboardSkippedCount = 0
@@ -515,7 +517,7 @@ fun StickHubApp(
         val offer = clipboardOffer ?: return
         if (offer.candidates.isEmpty() || isStagingClipboard || isImportingClipboard) return
         reduceClipboard(ClipboardOfferReducer.Event.ReviewOpened)
-        showClipboardPicker = true
+        activeModalRoute = ModalRoute.ClipboardReview
         stagedClipboardItems = emptyList()
         clipboardStageProgress = 0 to offer.candidates.size
         isStagingClipboard = true
@@ -524,7 +526,7 @@ fun StickHubApp(
                 scope.launch { clipboardStageProgress = done to total }
             }
             // The sheet is intentionally frozen to its opening snapshot.
-            if (showClipboardPicker && clipboardOffer?.generation == offer.generation) {
+            if (activeModalRoute is ModalRoute.ClipboardReview && clipboardOffer?.generation == offer.generation) {
                 stagedClipboardItems = staged
             } else {
                 staged.filterIsInstance<StagedClipboardItem.Ready>().forEach { it.file.delete() }
@@ -539,7 +541,9 @@ fun StickHubApp(
             ClipboardOfferReducer.Event.ReviewClosed
         )
         clipboardOfferState = next
-        showClipboardPicker = false
+        if (activeModalRoute is ModalRoute.ClipboardReview) {
+            activeModalRoute = ModalRoute.None
+        }
         isStagingClipboard = false
         isImportingClipboard = false
         clipboardStageProgress = 0 to 0
@@ -552,6 +556,34 @@ fun StickHubApp(
             clipboardOffer = null
             clipboardImageUris = emptyList()
             clipboardSkippedCount = 0
+        }
+    }
+
+    BackHandler(enabled = activeModalRoute !is ModalRoute.None) {
+        when (activeModalRoute) {
+            ModalRoute.None -> {}
+            ModalRoute.LibraryLayout -> dismissLibraryLayoutPicker()
+            ModalRoute.SourceChooser -> activeModalRoute = ModalRoute.None
+            ModalRoute.ClipboardReview -> closeClipboardReview(consumeCurrent = false)
+            is ModalRoute.SubjectCutout -> activeModalRoute = ModalRoute.None
+            is ModalRoute.StickerDetail -> {
+                scope.launch {
+                    try {
+                        detailSheetState.hide()
+                    } finally {
+                        activeModalRoute = ModalRoute.None
+                    }
+                }
+            }
+            is ModalRoute.StickerStudio -> {
+                scope.launch {
+                    try {
+                        studioSheetState.hide()
+                    } finally {
+                        activeModalRoute = ModalRoute.None
+                    }
+                }
+            }
         }
     }
 
@@ -672,14 +704,14 @@ fun StickHubApp(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         if (uri != null) {
-            activeCutoutUri = uri
+            activeModalRoute = ModalRoute.SubjectCutout(uri)
         }
     }
 
     // Handle incoming shared image
     LaunchedEffect(incomingSharedUri) {
         incomingSharedUri?.let { uri ->
-            activeCutoutUri = uri
+            activeModalRoute = ModalRoute.SubjectCutout(uri)
             onClearSharedUri()
         }
     }
@@ -984,7 +1016,7 @@ fun StickHubApp(
     // which detector fires); this callback only flips state.
     val onItemLongClick: (StickerItem) -> Unit = { item ->
         if (isSelectionMode) {
-            detailStickerId = item.id
+            activeModalRoute = ModalRoute.StickerDetail(item.id)
         } else {
             isSelectionMode = true
             selectedStickerIds = setOf(item.id)
@@ -1020,7 +1052,7 @@ fun StickHubApp(
                                         onClick = {
                                             haptics.performTap()
                                             checkClipboardOffer()
-                                            showCreateSourceDialog = true
+                                            activeModalRoute = ModalRoute.SourceChooser
                                         },
                                         containerColor = MaterialTheme.colorScheme.primary,
                                         contentColor = MaterialTheme.colorScheme.onPrimary
@@ -1106,7 +1138,7 @@ fun StickHubApp(
                                                 onToggleOverlay = { toggleOverlay() },
                                                 onOpenSettings = { if (navigator.requestPush(AppRoute.SETTINGS)) currentRoute = navigator.currentRoute },
                                                 libraryViewMode = libraryViewMode,
-                                                onOpenLayoutPicker = { showLibraryLayoutPicker = true },
+                                                onOpenLayoutPicker = { activeModalRoute = ModalRoute.LibraryLayout },
                                                 filteredStickersCount = filteredStickers.size,
                                                 showLibraryCategoryFilters = showLibraryCategoryFilters,
                                                 selectedCategory = selectedCategory,
@@ -1242,7 +1274,7 @@ fun StickHubApp(
                                                 onToggleOverlay = { toggleOverlay() },
                                                 onOpenSettings = { if (navigator.requestPush(AppRoute.SETTINGS)) currentRoute = navigator.currentRoute },
                                                 libraryViewMode = libraryViewMode,
-                                                onOpenLayoutPicker = { showLibraryLayoutPicker = true },
+                                                onOpenLayoutPicker = { activeModalRoute = ModalRoute.LibraryLayout },
                                                 filteredStickersCount = filteredStickers.size,
                                                 showLibraryCategoryFilters = showLibraryCategoryFilters,
                                                 selectedCategory = selectedCategory,
@@ -1457,7 +1489,7 @@ fun StickHubApp(
                                                 onToggleOverlay = { toggleOverlay() },
                                                 onOpenSettings = { if (navigator.requestPush(AppRoute.SETTINGS)) currentRoute = navigator.currentRoute },
                                                 libraryViewMode = libraryViewMode,
-                                                onOpenLayoutPicker = { showLibraryLayoutPicker = true },
+                                                onOpenLayoutPicker = { activeModalRoute = ModalRoute.LibraryLayout },
                                                 filteredStickersCount = filteredStickers.size,
                                                 showLibraryCategoryFilters = showLibraryCategoryFilters,
                                                 selectedCategory = selectedCategory,
@@ -1590,7 +1622,7 @@ fun StickHubApp(
                                                 onToggleOverlay = { toggleOverlay() },
                                                 onOpenSettings = { if (navigator.requestPush(AppRoute.SETTINGS)) currentRoute = navigator.currentRoute },
                                                 libraryViewMode = libraryViewMode,
-                                                onOpenLayoutPicker = { showLibraryLayoutPicker = true },
+                                                onOpenLayoutPicker = { activeModalRoute = ModalRoute.LibraryLayout },
                                                 filteredStickersCount = filteredStickers.size,
                                                 showLibraryCategoryFilters = showLibraryCategoryFilters,
                                                 selectedCategory = selectedCategory,
@@ -1673,16 +1705,6 @@ fun StickHubApp(
                             }
                         }
                     }
-            if (showLibraryLayoutPicker) {
-                StickerLibraryLayoutPickerSheet(
-                    currentMode = libraryViewMode,
-                    pendingMode = pendingLibraryLayoutMode,
-                    sheetState = libraryLayoutPickerSheetState,
-                    isDismissing = isDismissingLibraryPicker,
-                    onSelectMode = { selectLibraryLayoutMode(it) },
-                    onDismissRequest = { dismissLibraryLayoutPicker() }
-                )
-            }
         }
 
         // Layer 1: Settings Screen (zIndex = 1f)
@@ -1998,216 +2020,254 @@ fun StickHubApp(
         }
     }
 
-    // The Create FAB must expose the retained Google-Photos clipboard workflow explicitly.
-    if (showCreateSourceDialog) {
-        AlertDialog(
-            onDismissRequest = { showCreateSourceDialog = false },
-            title = { Text("Create sticker") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = "Choose how you want to create it.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Button(
-                        onClick = {
-                            if (clipboardImageUris.isEmpty()) return@Button
-                            showCreateSourceDialog = false
-                            importSingleClipboardSticker()
-                        },
-                        enabled = clipboardImageUris.isNotEmpty(),
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(LucideR.drawable.lucide_ic_save),
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+    // Unified Modal Coordinator
+    when (val route = activeModalRoute) {
+        ModalRoute.None -> {}
+
+        ModalRoute.SourceChooser -> {
+            AlertDialog(
+                onDismissRequest = { activeModalRoute = ModalRoute.None },
+                title = { Text("Create sticker") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
+                            text = "Choose how you want to create it.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Button(
+                            onClick = {
+                                if (clipboardImageUris.isEmpty()) return@Button
+                                activeModalRoute = ModalRoute.None
+                                importSingleClipboardSticker()
+                            },
+                            enabled = clipboardImageUris.isNotEmpty(),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(LucideR.drawable.lucide_ic_save),
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
                                 text = if (clipboardImageUris.isEmpty()) {
                                     "No image currently on clipboard"
                                 } else {
                                     "Import copied image"
                                 }
-                        )
-                    }
-                    Button(
-                        onClick = {
-                            showCreateSourceDialog = false
-                            photoPickerLauncher.launch(
-                                androidx.activity.result.PickVisualMediaRequest(
-                                    ActivityResultContracts.PickVisualMedia.ImageOnly
-                                )
                             )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(LucideR.drawable.lucide_ic_folder_open),
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Pick photo from device")
+                        }
+                        Button(
+                            onClick = {
+                                activeModalRoute = ModalRoute.None
+                                photoPickerLauncher.launch(
+                                    androidx.activity.result.PickVisualMediaRequest(
+                                        ActivityResultContracts.PickVisualMedia.ImageOnly
+                                    )
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(LucideR.drawable.lucide_ic_folder_open),
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Pick photo from device")
+                        }
+                    }
+                },
+                confirmButton = {},
+                dismissButton = {
+                    TextButton(onClick = { activeModalRoute = ModalRoute.None }) {
+                        Text("Cancel")
                     }
                 }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showCreateSourceDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
+            )
+        }
 
-    // Multi-image clipboard review sheet
-    if (showClipboardPicker) {
-        ClipboardImportSheet(
-            stagedItems = stagedClipboardItems,
-            skippedCount = clipboardSkippedCount,
-            isStaging = isStagingClipboard,
-            stageProgress = clipboardStageProgress,
-            isImporting = isImportingClipboard,
-            onImportSelected = { importClipboardStickers(it) },
-            onDismiss = { closeClipboardReview(consumeCurrent = false) }
-        )
-    }
+        ModalRoute.ClipboardReview -> {
+            ClipboardImportSheet(
+                stagedItems = stagedClipboardItems,
+                skippedCount = clipboardSkippedCount,
+                isStaging = isStagingClipboard,
+                stageProgress = clipboardStageProgress,
+                isImporting = isImportingClipboard,
+                onImportSelected = { importClipboardStickers(it) },
+                onDismiss = { closeClipboardReview(consumeCurrent = false) }
+            )
+        }
 
-    // Subject Cutout Sheet
-    activeCutoutUri?.let { uri ->        SubjectCutoutSheet(
-            imageUri = uri,
-            sheetState = cutoutSheetState,
-            categories = categories,
-            onDismiss = { activeCutoutUri = null },
-            onSaveSticker = { bitmap, title, category, tags ->
-                // Suspend contract: the sheet only dismisses on true, so the URI must
-                // stay alive across failures for retry.
-                val saved = repository.saveStickerBitmap(bitmap, title, category, tags)
-                if (saved != null) {
-                    activeCutoutUri = null
-                    flashSnackbar("Sticker created successfully!")
-                    true
-                } else {
-                    flashSnackbar("Failed to create sticker")
-                    false
-                }
-            },
-            onCopySticker = { bitmap ->
-                // Encoding/cropping can touch a multi-megapixel bitmap. Keep
-                // it off Compose's main dispatcher so the sheet animation and
-                // progress indicator stay responsive.
-                val copied = withContext(Dispatchers.IO) {
-                    ClipboardHelper.copyBitmapToClipboard(context, bitmap)
-                }
-                if (copied) {
-                    haptics.performConfirm()
-                    flashSnackbar("Sticker copied to clipboard.")
-                } else {
-                    haptics.performReject()
-                    flashSnackbar("Couldn't copy sticker.")
-                }
-                copied
-            },
-            onChangeImage = {
-                activeCutoutUri = null
-                photoPickerLauncher.launch(
-                    androidx.activity.result.PickVisualMediaRequest(
-                        ActivityResultContracts.PickVisualMedia.ImageOnly
-                    )
-                )
-            }
-        )
-    }
-
-    // Sticker Detail BottomSheet
-    detailStickerId?.let { detailId ->
-        // Live resolve: a favorite toggle or rename that lands while the sheet is
-        // open updates the form source instead of stranding a stale snapshot.
-        allStickers.find { it.id == detailId }?.let { sticker ->
-        StickerDetailBottomSheet(
-            sticker = sticker,
-            sheetState = detailSheetState,
-            categories = categories,
-            onDismiss = { detailStickerId = null },
-            onCopy = {
-                if (ClipboardHelper.copyStickerToClipboard(context, it)) {
-                    haptics.performConfirm()
-                    scope.launch {
-                        repository.recordUsage(it.id)
-                        flashSnackbar("Copied to clipboard!")
+        is ModalRoute.SubjectCutout -> {
+            SubjectCutoutSheet(
+                imageUri = route.uri,
+                sheetState = cutoutSheetState,
+                categories = categories,
+                onDismiss = { activeModalRoute = ModalRoute.None },
+                onSaveSticker = { bitmap, title, category, tags ->
+                    val saved = repository.saveStickerBitmap(bitmap, title, category, tags)
+                    if (saved != null) {
+                        activeModalRoute = ModalRoute.None
+                        flashSnackbar("Sticker created successfully!")
+                        true
+                    } else {
+                        flashSnackbar("Failed to create sticker")
+                        false
                     }
-                } else {
-                    haptics.performReject()
-                    scope.launch {
+                },
+                onCopySticker = { bitmap ->
+                    val copied = withContext(Dispatchers.IO) {
+                        ClipboardHelper.copyBitmapToClipboard(context, bitmap)
+                    }
+                    if (copied) {
+                        haptics.performConfirm()
+                        flashSnackbar("Sticker copied to clipboard.")
+                    } else {
+                        haptics.performReject()
                         flashSnackbar("Couldn't copy sticker.")
                     }
-                }
-            },
-            onToggleFavorite = { id ->
-                scope.launch {
-                    repository.toggleFavorite(id)
-                    haptics.performTick()
-                }
-            },
-            onDelete = { id ->
-                scope.launch {
-                    repository.deleteSticker(id)
-                    detailStickerId = null
-                    haptics.performTick()
-                    flashSnackbar("Sticker deleted")
-                }
-            },
-            onUpdateDetails = { id, title, category, tags ->
-                scope.launch {
-                    repository.updateSticker(id, title, category, tags)
-                    haptics.performTick()
-                    flashSnackbar("Updated successfully")
-                }
-            },
-            onOpenStudio = {
-                val targetSticker = sticker
-                detailStickerId = null
-                selectedStickerForStudio = targetSticker
-            }
-        )
-        }
-    }
-
-    // Sticker Studio BottomSheet
-    selectedStickerForStudio?.let { sticker ->
-        StickerStudioBottomSheet(
-            sticker = sticker,
-            sheetState = studioSheetState,
-            onDismiss = { selectedStickerForStudio = null },
-            onSaveNew = { editedBitmap ->
-                scope.launch {
-                    val saved = repository.saveStickerBitmap(
-                        bitmap = editedBitmap,
-                        title = "${sticker.title} (Edited)",
-                        category = sticker.category,
-                        tags = sticker.tags
+                    copied
+                },
+                onChangeImage = {
+                    activeModalRoute = ModalRoute.None
+                    photoPickerLauncher.launch(
+                        androidx.activity.result.PickVisualMediaRequest(
+                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                        )
                     )
-                    selectedStickerForStudio = null
-                    if (saved != null) {
-                        flashSnackbar("Sticker saved to studio copy!")
-                    }
                 }
-            },
-            onOverwrite = { editedBitmap ->
-                scope.launch {
-                    val ok = repository.overwriteStickerBitmap(sticker.id, editedBitmap)
-                    selectedStickerForStudio = null
-                    if (ok) {
-                        flashSnackbar("Sticker updated successfully!")
+            )
+        }
+
+        is ModalRoute.StickerDetail -> {
+            allStickers.find { it.id == route.stickerId }?.let { sticker ->
+                StickerDetailBottomSheet(
+                    sticker = sticker,
+                    sheetState = detailSheetState,
+                    categories = categories,
+                    onDismiss = {
+                        scope.launch {
+                            try {
+                                detailSheetState.hide()
+                            } finally {
+                                activeModalRoute = ModalRoute.None
+                            }
+                        }
+                    },
+                    onCopy = {
+                        if (ClipboardHelper.copyStickerToClipboard(context, it)) {
+                            haptics.performConfirm()
+                            scope.launch {
+                                repository.recordUsage(it.id)
+                                flashSnackbar("Copied to clipboard!")
+                            }
+                        } else {
+                            haptics.performReject()
+                            scope.launch {
+                                flashSnackbar("Couldn't copy sticker.")
+                            }
+                        }
+                    },
+                    onToggleFavorite = { id ->
+                        scope.launch {
+                            repository.toggleFavorite(id)
+                            haptics.performTick()
+                        }
+                    },
+                    onDelete = { id ->
+                        scope.launch {
+                            try {
+                                detailSheetState.hide()
+                            } finally {
+                                activeModalRoute = ModalRoute.None
+                            }
+                            repository.deleteSticker(id)
+                            haptics.performTick()
+                            flashSnackbar("Sticker deleted")
+                        }
+                    },
+                    onUpdateDetails = { id, title, category, tags ->
+                        scope.launch {
+                            repository.updateSticker(id, title, category, tags)
+                            haptics.performTick()
+                            flashSnackbar("Updated successfully")
+                        }
+                    },
+                    onOpenStudio = {
+                        val targetSticker = sticker
+                        scope.launch {
+                            try {
+                                detailSheetState.hide()
+                            } finally {
+                                activeModalRoute = ModalRoute.StickerStudio(targetSticker)
+                            }
+                        }
                     }
-                }
+                )
             }
-        )
+        }
+
+        is ModalRoute.StickerStudio -> {
+            StickerStudioBottomSheet(
+                sticker = route.sticker,
+                sheetState = studioSheetState,
+                onDismiss = {
+                    scope.launch {
+                        try {
+                            studioSheetState.hide()
+                        } finally {
+                            activeModalRoute = ModalRoute.None
+                        }
+                    }
+                },
+                onSaveNew = { editedBitmap ->
+                    scope.launch {
+                        try {
+                            studioSheetState.hide()
+                        } finally {
+                            activeModalRoute = ModalRoute.None
+                        }
+                        val saved = repository.saveStickerBitmap(
+                            bitmap = editedBitmap,
+                            title = "${route.sticker.title} (Edited)",
+                            category = route.sticker.category,
+                            tags = route.sticker.tags
+                        )
+                        if (saved != null) {
+                            flashSnackbar("Sticker saved to studio copy!")
+                        }
+                    }
+                },
+                onOverwrite = { editedBitmap ->
+                    scope.launch {
+                        try {
+                            studioSheetState.hide()
+                        } finally {
+                            activeModalRoute = ModalRoute.None
+                        }
+                        val ok = repository.overwriteStickerBitmap(route.sticker.id, editedBitmap)
+                        if (ok) {
+                            flashSnackbar("Sticker updated successfully!")
+                        }
+                    }
+                }
+            )
+        }
+
+        ModalRoute.LibraryLayout -> {
+            StickerLibraryLayoutPickerSheet(
+                currentMode = libraryViewMode,
+                pendingMode = pendingLibraryLayoutMode,
+                sheetState = libraryLayoutPickerSheetState,
+                isDismissing = isDismissingLibraryPicker,
+                onSelectMode = { selectLibraryLayoutMode(it) },
+                onDismissRequest = { dismissLibraryLayoutPicker() }
+            )
+        }
     }
 
 

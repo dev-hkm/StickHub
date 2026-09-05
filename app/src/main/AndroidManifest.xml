@@ -77,23 +77,6 @@
                 android:value="Sticker quick access overlay" />
         </service>
 
-        <!-- StickHub Keyboard: opt-in rich-content insertion via the public
-             Commit Content API. exported=true so the system can bind it;
-             nothing enables it by default and it needs no special permission
-             beyond BIND_INPUT_METHOD. -->
-        <service
-            android:name=".ime.StickerInputMethodService"
-            android:label="@string/sticker_ime_label"
-            android:icon="@mipmap/ic_launcher"
-            android:permission="android.permission.BIND_INPUT_METHOD"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.view.InputMethod" />
-            </intent-filter>
-            <meta-data
-                android:name="android.view.im"
-                android:resource="@xml/sticker_ime" />
-        </service>
     </application>
 
 </manifest>

@@ -34,6 +34,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -182,6 +185,7 @@ fun SubjectCutoutSheet(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp)
+                .navigationBarsPadding()
                 .imePadding()
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -248,7 +252,8 @@ fun SubjectCutoutSheet(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(
                             modifier = Modifier
-                                .size(240.dp)
+                                .sizeIn(minWidth = 140.dp, minHeight = 140.dp, maxWidth = 240.dp, maxHeight = 240.dp)
+                                .aspectRatio(1f)
                                 .clip(RoundedCornerShape(20.dp))
                                 .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(20.dp)),
                             contentAlignment = Alignment.Center
@@ -458,7 +463,7 @@ fun SubjectCutoutSheet(
                         }
                         // Phase: Checking model
                         CutoutState.Idle, CutoutState.CheckingModel -> {
-                            AnalyzingSkeletonView(statusText = "Checking AI cutout model...")
+                            AnalyzingSkeletonView(statusText = "Preparing cutout model...")
                         }
                         // Phase: Waiting/downloading/paused/installing model
                         is CutoutState.DownloadingModel -> {
@@ -573,7 +578,7 @@ private fun CutoutInteractionModeSelector(
                 label = { Text("Auto detect") },
                 leadingIcon = {
                     Icon(
-                        painter = painterResource(LucideR.drawable.lucide_ic_sparkles),
+                        painter = painterResource(LucideR.drawable.lucide_ic_layers),
                         contentDescription = null,
                         modifier = Modifier.size(16.dp)
                     )

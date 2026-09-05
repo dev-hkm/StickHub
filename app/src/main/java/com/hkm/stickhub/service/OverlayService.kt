@@ -69,6 +69,14 @@ class OverlayService : Service() {
     private lateinit var windowManager: WindowManager
     private lateinit var repository: StickerRepository
 
+    enum class PanelLifecycleState {
+        CLOSED,
+        OPENING,
+        OPEN,
+        CLOSING
+    }
+
+    private var panelState = PanelLifecycleState.CLOSED
     private var bubbleView: View? = null
     private var isPanelOpen = false
 
@@ -572,36 +580,28 @@ class OverlayService : Service() {
             val showSearch = OverlayPreferences.showSearch(this)
             val showCategories = OverlayPreferences.showCategories(this)
 
-            val minW = OverlayLayoutPolicy.minPanelWidthPx(density)
-            val minH = OverlayLayoutPolicy.minPanelHeightPx(
+            val geometry = OverlayLayoutPolicy.computePopupGeometry(
+                requestedX = panelParams.x,
+                requestedY = panelParams.y,
+                requestedWidth = panelParams.width,
+                requestedHeight = panelParams.height,
+                screenWidth = screenW,
+                screenHeight = screenH,
                 density = density,
                 showTitle = showTitle,
                 showSearch = showSearch,
-                showCategories = showCategories
+                showCategories = showCategories,
+                closeButtonSizePx = closeOverlaySizePx,
+                closeOffsetPx = (4 * density).toInt().coerceAtLeast(4)
             )
-            val maxW = (screenW * 0.94f).toInt()
-            val maxH = (screenH * 0.85f).toInt()
+            panelParams.x = geometry.panelBounds.x
+            panelParams.y = geometry.panelBounds.y
+            panelParams.width = geometry.panelBounds.width
+            panelParams.height = geometry.panelBounds.height
 
-            val clamped = OverlayLayoutPolicy.clampPanelBounds(
-                x = panelParams.x,
-                y = panelParams.y,
-                width = panelParams.width,
-                height = panelParams.height,
-                screenWidth = screenW,
-                screenHeight = screenH,
-                minWidth = minW,
-                minHeight = minH,
-                maxWidth = maxW,
-                maxHeight = maxH
-            )
-            panelParams.x = clamped.x
-            panelParams.y = clamped.y
-            panelParams.width = clamped.width
-            panelParams.height = clamped.height
-
-            OverlayPreferences.setPanelPosition(this, clamped.x, clamped.y)
-            OverlayPreferences.setPanelWidthPx(this, clamped.width)
-            OverlayPreferences.setPanelHeightPx(this, clamped.height)
+            OverlayPreferences.setPanelPosition(this, geometry.panelBounds.x, geometry.panelBounds.y)
+            OverlayPreferences.setPanelWidthPx(this, geometry.panelBounds.width)
+            OverlayPreferences.setPanelHeightPx(this, geometry.panelBounds.height)
 
             panelRoot?.let { panel ->
                 if (panel.isAttachedToWindow) {
@@ -875,11 +875,7 @@ class OverlayService : Service() {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
-            ).apply {
-                // Leave a slim transparent corner dock so the X reads as an
-                // external control instead of consuming popup content space.
-                setMargins(0, (6 * density).toInt(), (6 * density).toInt(), 0)
-            }
+            )
             alpha = effectiveSurfaceOpacity()
         }
         panelSurfaceView = surfaceLayer
@@ -962,7 +958,7 @@ class OverlayService : Service() {
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding((6 * density).toInt(), (2 * density).toInt(), (34 * density).toInt(), (4 * density).toInt())
+            setPadding((8 * density).toInt(), (4 * density).toInt(), (8 * density).toInt(), (4 * density).toInt())
             visibility = if (showTitle) View.VISIBLE else View.GONE
             setOnTouchListener(panelDragListener)
         }
@@ -1090,7 +1086,7 @@ class OverlayService : Service() {
         if (!showTitle) {
             root.setOnTouchListener { _, event ->
                 val topRimHeight = (22 * density).toInt()
-                if (event.y <= topRimHeight && event.x < (root.width - (34 * density).toInt())) {
+                if (event.y <= topRimHeight) {
                     panelDragListener.onTouch(root, event)
                 } else {
                     false
@@ -1106,8 +1102,8 @@ class OverlayService : Service() {
         val closeBtn = ImageView(this).apply {
             setImageDrawable(ContextCompat.getDrawable(this@OverlayService, LucideR.drawable.lucide_ic_x))
             setColorFilter(palette.textColor)
-            val btnSize = (30 * density).toInt()
-            val pad = (7 * density).toInt()
+            val btnSize = (42 * density).toInt()
+            val pad = (11 * density).toInt()
             setPadding(pad, pad, pad, pad)
             val btnBg = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
@@ -1135,7 +1131,7 @@ class OverlayService : Service() {
         val closeLongPress = Runnable {
             if (closePressActive && !closeGestureCancelled) {
                 movingFromClose = true
-                StickHubHaptics.performLongPress(closeBtn)
+                StickHubHaptics.performTick(closeBtn)
                 closeBtn.animate().scaleX(0.9f).scaleY(0.9f).alpha(0.8f).setDuration(120).start()
             }
         }
@@ -1268,6 +1264,8 @@ class OverlayService : Service() {
                     panelParams.height = clamped.height
                     panelParams.x = clamped.x
                     panelParams.y = clamped.y
+                    val liveCols = OverlayLayoutPolicy.calculateColumns(clamped.width, density)
+                    (stickerRecyclerView?.layoutManager as? androidx.recyclerview.widget.GridLayoutManager)?.spanCount = liveCols
                     windowManager.updateViewLayout(root, panelParams)
                     updateCloseOverlayLayout()
                     true
@@ -1303,7 +1301,10 @@ class OverlayService : Service() {
         openRefreshJob?.cancel()
         openRefreshJob = null
 
-        if (isPanelOpen) {
+        val closing = (panelState == PanelLifecycleState.OPEN || panelState == PanelLifecycleState.OPENING || isPanelOpen)
+        if (closing) {
+            panelState = PanelLifecycleState.CLOSING
+            isPanelOpen = false
             if (searchBox?.hasFocus() == true) {
                 val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
                 imm?.hideSoftInputFromWindow(searchBox?.windowToken, 0)
@@ -1323,14 +1324,18 @@ class OverlayService : Service() {
                 .setDuration(220)
                 .setInterpolator(DecelerateInterpolator())
                 .withEndAction {
-                    if (panelGeneration == currentToken && panel.isAttachedToWindow) {
+                    if (panelGeneration == currentToken) {
                         removeCloseOverlay()
-                        windowManager.removeView(panel)
+                        if (panel.isAttachedToWindow) {
+                            windowManager.removeView(panel)
+                        }
+                        panelState = PanelLifecycleState.CLOSED
                     }
                 }
                 .start()
-            isPanelOpen = false
         } else {
+            panelState = PanelLifecycleState.OPENING
+            isPanelOpen = true
             panel.animate().cancel()
             // A superseded open must never publish: capture the generation and
             // bail if another toggle stole the panel meanwhile.
@@ -1411,8 +1416,12 @@ class OverlayService : Service() {
                 .translationY(0f)
                 .setDuration(260)
                 .setInterpolator(DecelerateInterpolator())
+                .withEndAction {
+                    if (panelGeneration == currentToken) {
+                        panelState = PanelLifecycleState.OPEN
+                    }
+                }
                 .start()
-            isPanelOpen = true
         }
     }
 
@@ -1464,7 +1473,8 @@ class OverlayService : Service() {
             panelWidth = panelParams.width,
             closeSize = closeOverlaySizePx,
             screenWidth = screenW,
-            screenHeight = screenH
+            screenHeight = screenH,
+            offsetPx = (4 * resources.displayMetrics.density).toInt().coerceAtLeast(4)
         )
         closeOverlayParams.x = position.x
         closeOverlayParams.y = position.y
@@ -1586,10 +1596,13 @@ class OverlayService : Service() {
         val density = resources.displayMetrics.density
         val contentPadding = if (OverlayPreferences.showTitle(this)) (6 * density).toInt() else (4 * density).toInt()
         val cellMargin = (3 * density).toInt()
+        val cols = OverlayLayoutPolicy.calculateColumns(panelParams.width, density)
+        (recycler?.layoutManager as? androidx.recyclerview.widget.GridLayoutManager)?.spanCount = cols
         val itemSize = OverlayLayoutPolicy.gridCellSize(
             panelWidthPx = panelParams.width,
             horizontalContentPaddingPx = contentPadding,
-            cellMarginPx = cellMargin
+            cellMarginPx = cellMargin,
+            columns = cols
         )
 
         val filtered = OverlayStickerFilter.filter(
@@ -1703,6 +1716,7 @@ class OverlayService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         isRunning = false
+        panelState = PanelLifecycleState.CLOSED
         isPanelOpen = false
         categoryUiRefreshPosted = false
         stickerSubmitPosted = false

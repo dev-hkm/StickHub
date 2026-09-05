@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -89,6 +91,7 @@ fun StickerDetailBottomSheet(
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 32.dp)
+                .navigationBarsPadding()
                 .imePadding()
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -97,7 +100,7 @@ fun StickerDetailBottomSheet(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(220.dp)
+                    .heightIn(min = 150.dp, max = 220.dp)
                     .clip(RoundedCornerShape(24.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
                     .padding(12.dp),
@@ -114,7 +117,7 @@ fun StickerDetailBottomSheet(
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(190.dp)
+                        .heightIn(min = 120.dp, max = 190.dp)
                 )
 
                 IconButton(
@@ -184,7 +187,7 @@ fun StickerDetailBottomSheet(
                     shape = RoundedCornerShape(14.dp)
                 ) {
                     Icon(
-                        painter = painterResource(LucideR.drawable.lucide_ic_sparkles),
+                        painter = painterResource(LucideR.drawable.lucide_ic_pencil),
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
