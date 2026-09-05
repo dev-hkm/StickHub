@@ -45,10 +45,10 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version 5.2.9: reserve a safe hit area for the popup close control
-        // so category chips can never dismiss the overlay.
-        versionCode = 61
-        versionName = "5.2.9"
+        // Version 5.2.10: compact corner-docked close control with safe chip
+        // touch forwarding.
+        versionCode = 62
+        versionName = "5.2.10"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

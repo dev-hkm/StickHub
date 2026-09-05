@@ -116,7 +116,7 @@ class OverlayServiceIntegrationTest {
     }
 
     @Test
-    fun categoryChipDoesNotSitUnderCloseControlWhenTitleIsHidden() = withService { service ->
+    fun compactPopupDoesNotReserveAnArtificialTopRowForCloseControl() = withService { service ->
         val repository = field<StickerRepository>(service, "repository")
         runBlocking {
             (1..12).forEach { repository.addCategory("Category $it") }
@@ -141,14 +141,59 @@ class OverlayServiceIntegrationTest {
         )
         root.layout(0, 0, params.width, params.height)
         val chips = field<android.widget.LinearLayout>(service, "chipContainer")
+        val content = field<android.widget.LinearLayout>(service, "panelContent")
+        val density = service.resources.displayMetrics.density
+        assertEquals("Compact mode must not reserve a blank close row", (6 * density).toInt(), content.paddingTop)
+    }
+
+    @Test
+    fun tappingChipUnderCloseHitTargetIsForwardedInsteadOfClosingPopup() = withService { service ->
+        val repository = field<StickerRepository>(service, "repository")
+        runBlocking {
+            (1..12).forEach { repository.addCategory("Category $it") }
+        }
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        OverlayPreferences.setShowTitle(service, false)
+        OverlayPreferences.setShowSearch(service, false)
+        OverlayPreferences.setShowCategories(service, true)
+        invoke(service, "refreshOverlayConfiguration")
+        val bubble = field<View>(service, "bubbleView")
+        assertTrue(bubble.performClick())
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+
+        val root = field<android.widget.FrameLayout>(service, "panelRoot")
+        val params = field<WindowManager.LayoutParams>(service, "panelParams")
+        invoke(service, "setupCategoryChips")
+        root.measure(
+            View.MeasureSpec.makeMeasureSpec(params.width, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(params.height, View.MeasureSpec.EXACTLY)
+        )
+        root.layout(0, 0, params.width, params.height)
+        val chips = field<android.widget.LinearLayout>(service, "chipContainer")
         val close = field<View>(service, "closeButton")
         val closeRect = rectInRoot(close, root)
-        val chipRects = (0 until chips.childCount).map { rectInRoot(chips.getChildAt(it), root) }
-        val overlappingChip = chipRects.firstOrNull { chipRect ->
-            chipRect.left < closeRect.right && closeRect.left < chipRect.right &&
-                chipRect.top < closeRect.bottom && closeRect.top < chipRect.bottom
+        val target = (0 until chips.childCount)
+            .map { chips.getChildAt(it) }
+            .first { chip ->
+                val rect = rectInRoot(chip, root)
+                rect.left < closeRect.right && closeRect.left < rect.right &&
+                    rect.top < closeRect.bottom && closeRect.top < rect.bottom
+            }
+        val targetRect = rectInRoot(target, root)
+        val x = (targetRect.left + targetRect.right) / 2f
+        val y = (targetRect.top + targetRect.bottom) / 2f
+        val down = android.view.MotionEvent.obtain(0L, 1L, android.view.MotionEvent.ACTION_DOWN, x, y, 0)
+        val up = android.view.MotionEvent.obtain(0L, 2L, android.view.MotionEvent.ACTION_UP, x, y, 0)
+        try {
+            close.dispatchTouchEvent(down)
+            close.dispatchTouchEvent(up)
+        } finally {
+            down.recycle()
+            up.recycle()
         }
-        assertNull("Category chips must not be covered by the close hit target: $overlappingChip", overlappingChip)
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        assertTrue("A chip tap must not close the popup", field<Boolean>(service, "isPanelOpen"))
+        assertEquals((target as android.widget.TextView).text.toString(), field<String>(service, "selectedCategory"))
     }
 
     @Test

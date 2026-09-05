@@ -426,18 +426,13 @@ class OverlayService : Service() {
         searchBg?.setColor(withAlpha(palette.surfaceVariantColor, if (palette.isDark) 140 else 200))
         categoryScrollView?.visibility = if (showCategories) View.VISIBLE else View.GONE
 
-        // Chrome visibility can change while the same popup view is alive.
-        // Re-apply the top safe inset here as well as during construction;
-        // otherwise disabling the title would move the category row back
-        // underneath the floating close hit-target.
+        // Keep the popup compact when optional chrome changes at runtime.
+        // The close control is handled independently below, so no artificial
+        // blank top row is required for it.
         panelContent?.let { content ->
             val isGridOnly = !showTitle && !showSearch && !showCategories
             val outerPad = if (isGridOnly) (4 * density).toInt() else (6 * density).toInt()
-            val safeTop = max(
-                outerPad,
-                OverlayLayoutPolicy.closeSafeTopInsetPx(density, showTitle)
-            )
-            content.setPadding(outerPad, safeTop, outerPad, outerPad)
+            content.setPadding(outerPad, outerPad, outerPad, outerPad)
         }
 
         // Hidden rows must not keep filtering invisibly. Clearing the EditText
@@ -847,7 +842,12 @@ class OverlayService : Service() {
         val palette = currentPalette()
 
         // 1. Root popup FrameLayout: translucent container holding independent layers
-        val root = FrameLayout(this)
+        val root = FrameLayout(this).apply {
+            // The close control intentionally overhangs the visual surface at
+            // its top-right corner; do not clip that decorative overhang.
+            clipChildren = false
+            clipToPadding = false
+        }
 
         // 2. Layer 1: Dedicated Background / Surface View (has its own opacity).
         // NOTE: elevation must stay on the SAME plane as content + floating
@@ -869,7 +869,11 @@ class OverlayService : Service() {
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
-            )
+            ).apply {
+                // Leave a slim transparent corner dock so the X reads as an
+                // external control instead of consuming popup content space.
+                setMargins(0, (6 * density).toInt(), (6 * density).toInt(), 0)
+            }
             alpha = effectiveSurfaceOpacity()
         }
         panelSurfaceView = surfaceLayer
@@ -887,16 +891,7 @@ class OverlayService : Service() {
             )
             elevation = 12f
             val outerPad = if (isGridOnly) (4 * density).toInt() else (6 * density).toInt()
-            // The close button is a floating 36dp hit target at the
-            // top-end of the root. When the title is hidden, reserve a
-            // complete vertical safe area so the first visible row (and
-            // especially the right-most category chip) can never sit
-            // underneath that button.
-            val safeTop = max(
-                outerPad,
-                OverlayLayoutPolicy.closeSafeTopInsetPx(density, showTitle)
-            )
-            setPadding(outerPad, safeTop, outerPad, outerPad)
+            setPadding(outerPad, outerPad, outerPad, outerPad)
         }
 
         // Chrome Container (Header, Search, Categories) with its own opacity.
@@ -1120,9 +1115,24 @@ class OverlayService : Service() {
         var movingFromClose = false
         var closeGestureCancelled = false
         var closePressActive = false
+        var forwardedChip: View? = null
+        fun chipAtRawPoint(rawX: Float, rawY: Float): View? {
+            val pointX = rawX.toInt()
+            val pointY = rawY.toInt()
+            for (index in 0 until chipsGroup.childCount) {
+                val candidate = chipsGroup.getChildAt(index)
+                val rect = android.graphics.Rect()
+                if (candidate.isShown && candidate.getGlobalVisibleRect(rect) && rect.contains(pointX, pointY)) {
+                    return candidate
+                }
+            }
+            return null
+        }
         val closeLongPress = Runnable {
             if (closePressActive && !closeGestureCancelled) {
                 movingFromClose = true
+                forwardedChip?.isPressed = false
+                forwardedChip = null
                 StickHubHaptics.performLongPress(closeBtn)
                 closeBtn.animate().scaleX(0.9f).scaleY(0.9f).alpha(0.8f).setDuration(120).start()
             }
@@ -1137,6 +1147,8 @@ class OverlayService : Service() {
                     movingFromClose = false
                     closeGestureCancelled = false
                     closePressActive = true
+                    forwardedChip = chipAtRawPoint(event.rawX, event.rawY)
+                    forwardedChip?.isPressed = true
                     view.postDelayed(closeLongPress, ViewConfiguration.getLongPressTimeout().toLong())
                     true
                 }
@@ -1146,6 +1158,8 @@ class OverlayService : Service() {
                     if (!movingFromClose && (abs(dx) > touchSlop || abs(dy) > touchSlop)) {
                         closeGestureCancelled = true
                         view.removeCallbacks(closeLongPress)
+                        forwardedChip?.isPressed = false
+                        forwardedChip = null
                     }
                     if (movingFromClose) {
                         val (currentW, currentH) = currentOverlayBounds()
@@ -1159,7 +1173,15 @@ class OverlayService : Service() {
                     view.removeCallbacks(closeLongPress)
                     closePressActive = false
                     closeBtn.animate().scaleX(1f).scaleY(1f).alpha(effectiveCloseOpacity()).setDuration(160).start()
-                    if (movingFromClose) {
+                    val chip = forwardedChip
+                    forwardedChip = null
+                    chip?.isPressed = false
+                    if (chip != null && !movingFromClose && !closeGestureCancelled && event.actionMasked == MotionEvent.ACTION_UP) {
+                        // The close hit box may geometrically overlap a chip
+                        // in a compact layout. Forward that tap to the chip
+                        // rather than accidentally toggling the popup closed.
+                        chip.performClick()
+                    } else if (movingFromClose) {
                         OverlayPreferences.setPanelPosition(this@OverlayService, panelParams.x, panelParams.y)
                     } else if (!closeGestureCancelled && event.actionMasked == MotionEvent.ACTION_UP) {
                         // Route through click for TalkBack/switch access parity.

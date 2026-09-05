@@ -1,6 +1,5 @@
 package com.hkm.stickhub.service
 
-import kotlin.math.ceil
 import kotlin.math.max
 
 /**
@@ -25,9 +24,6 @@ object OverlayLayoutPolicy {
     const val CHROME_TITLE_HEIGHT_DP = 36f
     const val CHROME_SEARCH_HEIGHT_DP = 46f
     const val CHROME_CATEGORIES_HEIGHT_DP = 38f
-    const val CLOSE_BUTTON_SIZE_DP = 36f
-    const val CLOSE_BUTTON_TOP_MARGIN_DP = 2f
-    const val CLOSE_SAFE_EXTRA_DP = 2f
 
     data class PanelBounds(
         val x: Int,
@@ -84,17 +80,6 @@ object OverlayLayoutPolicy {
     }
 
     /**
-     * Vertical inset required when the title row is hidden. The close control
-     * is a top-end overlay with a 36dp hit target; without this inset the first
-     * visible row can sit underneath it and a chip tap is interpreted as close.
-     */
-    fun closeSafeTopInsetPx(density: Float, showTitle: Boolean): Int {
-        if (showTitle) return 0
-        val safeDp = CLOSE_BUTTON_SIZE_DP + CLOSE_BUTTON_TOP_MARGIN_DP + CLOSE_SAFE_EXTRA_DP
-        return ceil(safeDp * density).toInt()
-    }
-
-    /**
      * Minimum height required: at least 2 rows of stickers + enabled chrome.
      * Grid-only mode requires at least 2 rows of stickers without any fixed footer.
      */
@@ -109,8 +94,7 @@ object OverlayLayoutPolicy {
     ): Int {
         val twoRowsDp = (2 * minCellDp) + (2 * cellMarginDp * 2) + (verticalPaddingDp * 2)
         val chromePx = chromeHeightPx(density, showTitle, showSearch, showCategories)
-        val closeInsetPx = closeSafeTopInsetPx(density, showTitle)
-        return (twoRowsDp * density).toInt() + chromePx + closeInsetPx
+        return (twoRowsDp * density).toInt() + chromePx
     }
 
     /**
