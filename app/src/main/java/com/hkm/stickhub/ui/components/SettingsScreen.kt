@@ -169,6 +169,9 @@ fun SettingsScreen(
     onNavigateToCategoryManagement: () -> Unit,
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
+    whatsappPacks: List<com.hkm.stickhub.util.WhatsAppPackSummary>,
+    preparingWhatsAppPackId: String?,
+    onAddWhatsAppPack: (String) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1535,6 +1538,80 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 4.dp)
                 )
+
+                SettingsDivider()
+            }
+
+            item(key = "section_whatsapp") {
+                SectionHeader("WHATSAPP STICKERS")
+
+                Text(
+                    text = "Add a category as a native sticker pack inside " +
+                        "WhatsApp's own tray. WhatsApp asks you to confirm " +
+                        "there; StickHub cannot add packs silently.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .padding(horizontal = 4.dp)
+                        .padding(bottom = 8.dp)
+                )
+
+                if (whatsappPacks.isEmpty()) {
+                    Text(
+                        text = "Add at least 3 stickers to a category to offer it as a pack.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        whatsappPacks.forEach { pack ->
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = pack.displayName,
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "${pack.stickerCount} stickers · native tray pack",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    val preparing = preparingWhatsAppPackId == pack.packId
+                                    FilledTonalButton(
+                                        onClick = {
+                                            if (!preparing) {
+                                                haptics.performTick()
+                                                onAddWhatsAppPack(pack.packId)
+                                            }
+                                        },
+                                        enabled = !preparing,
+                                        shape = RoundedCornerShape(8.dp),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                    ) {
+                                        Text(
+                                            if (preparing) "Preparing…" else "Add to WhatsApp",
+                                            style = MaterialTheme.typography.labelMedium
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
 
                 SettingsDivider()
             }

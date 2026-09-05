@@ -759,6 +759,32 @@ fun StickHubApp(
         }
     }
 
+    // WhatsApp native packs: summaries are pure grouping (no I/O); encoding
+    // happens per tap on IO. Pack files persist so WhatsApp can re-read them.
+    val whatsappPackItems = remember(allStickers) {
+        allStickers.groupBy { it.category.ifBlank { "General" } }
+            .mapKeys { com.hkm.stickhub.util.WhatsAppPackBuilder.packIdentifier(it.key) }
+    }
+    val whatsappPacks = remember(allStickers) {
+        com.hkm.stickhub.util.WhatsAppPackBuilder.summarize(allStickers)
+    }
+    var preparingWhatsAppPackId by remember { mutableStateOf<String?>(null) }
+    val whatsappAddLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        // WhatsApp shows its own confirm dialog; on return, report only a
+        // confirmed add and stay silent on cancel.
+        scope.launch(Dispatchers.IO) {
+            val added = whatsappPacks.any { pack ->
+                com.hkm.stickhub.util.WhatsAppPackIntents.isPackAdded(context, pack.packId) == true
+            }
+            if (added) {
+                haptics.performConfirm()
+                flashSnackbar("Added to WhatsApp")
+            }
+        }
+    }
+
     // Single consumer for rotation-safe backup outcomes.
     LaunchedEffect(backupWorkState) {
         when (val work = backupWorkState) {
@@ -1855,6 +1881,42 @@ fun StickHubApp(
                 },
                 onImportBackup = {
                     importLauncher.launch(arrayOf("*/*"))
+                },
+                whatsappPacks = whatsappPacks,
+                preparingWhatsAppPackId = preparingWhatsAppPackId,
+                onAddWhatsAppPack = { packId ->
+                    if (preparingWhatsAppPackId != null) return@SettingsScreen
+                    preparingWhatsAppPackId = packId
+                    scope.launch {
+                        val items = whatsappPackItems[packId].orEmpty()
+                        val built = withContext(Dispatchers.IO) {
+                            val appContext = context.applicationContext
+                            com.hkm.stickhub.util.WhatsAppPackBuilder.pruneExcept(
+                                appContext,
+                                whatsappPackItems.keys
+                            )
+                            com.hkm.stickhub.util.WhatsAppPackBuilder.buildPack(
+                                appContext,
+                                packId,
+                                whatsappPacks.firstOrNull { it.packId == packId }?.displayName ?: packId,
+                                items
+                            )
+                        }
+                        preparingWhatsAppPackId = null
+                        if (built == null) {
+                            haptics.performReject()
+                            flashSnackbar("Couldn't prepare this pack")
+                            return@launch
+                        }
+                        try {
+                            whatsappAddLauncher.launch(
+                                com.hkm.stickhub.util.WhatsAppPackIntents.enableIntent(built.pack)
+                            )
+                        } catch (_: android.content.ActivityNotFoundException) {
+                            haptics.performReject()
+                            flashSnackbar("WhatsApp is not installed")
+                        }
+                    }
                 },
                 onBack = {
                     if (navigator.requestPop()) {

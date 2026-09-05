@@ -43,8 +43,41 @@ object StickerTransport {
      * Returns null for a missing, corrupt, or fully transparent source.
      */
     fun prepare(context: Context, source: File): Payload? {
+        val bitmap = renderEnvelope(source) ?: return null
+        return try {
+            val directory = File(context.cacheDir, CACHE_DIR).apply { mkdirs() }
+            cleanup(directory)
+            val target = File(directory, "share_${System.currentTimeMillis()}_${UUID.randomUUID()}.png")
+            val encoded = FileOutputStream(target).use { stream ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream).also { stream.flush() }
+            }
+            if (!encoded || target.length() <= 0L) {
+                target.delete()
+                null
+            } else {
+                Payload(target)
+            }
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
+    /**
+     * Shared envelope renderer: decodes [source] bounded, crops to visible
+     * alpha and composes the 512x512 transparent canvas. The caller owns the
+     * returned bitmap and must recycle it. Null means missing, corrupt or
+     * fully transparent source. Used by the PNG transport path and by the
+     * WhatsApp WebP pack encoder so both flows share identical pixels.
+     */
+    fun renderEnvelope(source: File): Bitmap? {
         if (!source.isFile || source.length() <= 0L) return null
-        val bitmap = decodeBounded(source) ?: return null
+        val bitmap = try {
+            decodeBounded(source)
+        } catch (_: OutOfMemoryError) {
+            null
+        } catch (_: Exception) {
+            null
+        } ?: return null
         return try {
             val visibleBounds = alphaBounds(bitmap) ?: return null
             val paddedBounds = paddedBounds(visibleBounds, bitmap.width, bitmap.height)
@@ -86,21 +119,10 @@ object StickerTransport {
                     if (scaled !== cropped) scaled.recycle()
                     if (cropped !== bitmap) cropped.recycle()
                 }
-
-                val directory = File(context.cacheDir, CACHE_DIR).apply { mkdirs() }
-                cleanup(directory)
-                val target = File(directory, "share_${System.currentTimeMillis()}_${UUID.randomUUID()}.png")
-                val encoded = FileOutputStream(target).use { stream ->
-                    output.compress(Bitmap.CompressFormat.PNG, 100, stream).also { stream.flush() }
-                }
-                if (!encoded || target.length() <= 0L) {
-                    target.delete()
-                    null
-                } else {
-                    Payload(target)
-                }
-            } finally {
+                output
+            } catch (_: Exception) {
                 output.recycle()
+                null
             }
         } finally {
             bitmap.recycle()

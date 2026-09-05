@@ -57,6 +57,17 @@
             android:exported="true"
             android:grantUriPermissions="true" />
 
+        <!-- WhatsApp third-party sticker packs (public WhatsApp/stickers
+             contract). exported + readPermission are REQUIRED exactly like
+             this or WhatsApp cannot read packs; containment lives in the
+             provider's manifest-allowlisted paths, not in obscurity. -->
+        <provider
+            android:name=".data.provider.WhatsAppStickerProvider"
+            android:authorities="com.hkm.stickhub.whatsappstickers"
+            android:enabled="true"
+            android:exported="true"
+            android:readPermission="com.whatsapp.sticker.READ" />
+
         <service
             android:name=".service.OverlayService"
             android:exported="false"
