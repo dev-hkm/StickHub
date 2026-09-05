@@ -256,6 +256,14 @@ class OverlayService : Service() {
         }
 
         serviceScope.launch {
+            repository.categoryOrderFlow.collect {
+                if (isPanelOpen && chipScroll?.visibility == View.VISIBLE) {
+                    setupCategoryChips()
+                }
+            }
+        }
+
+        serviceScope.launch {
             repository.refresh()
         }
     }
@@ -1359,7 +1367,9 @@ class OverlayService : Service() {
 
         val palette = currentPalette()
         val density = resources.displayMetrics.density
-        val categories = listOf("All", "Favorites", "Frequent") + repository.categoriesFlow.value.map { it.name }
+        val categories = repository.categoryOrderFlow.value.ifEmpty {
+            listOf("All", "Favorites", "Frequent") + repository.categoriesFlow.value.map { it.name }
+        }
 
         for (cat in categories) {
             val isSelected = (selectedCategory == cat)

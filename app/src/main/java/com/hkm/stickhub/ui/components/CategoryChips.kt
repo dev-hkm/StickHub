@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.composables.icons.lucide.R as LucideR
 import com.hkm.stickhub.data.model.CategoryItem
+import com.hkm.stickhub.data.repository.StickerRepository
 import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
 import com.hkm.stickhub.ui.library.CategoryDragSession
 import com.hkm.stickhub.ui.theme.StickHubMotion
@@ -54,18 +55,21 @@ private data class LibraryFilter(
     val key: String,
     val label: String,
     val iconRes: Int? = null,
-    val category: CategoryItem? = null
+    val category: CategoryItem? = null,
+    val isSystem: Boolean = false
 )
 
-/** A compact, animated filter rail rather than a mixture of legacy chip styles. */
+/** A compact, animated filter rail allowing reordering of all categories and smart filters. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun CategoryChips(
     categories: List<CategoryItem>,
+    categoryOrder: List<String> = emptyList(),
     selectedCategory: String,
     onSelectCategory: (String) -> Unit,
     onAddCategoryClick: () -> Unit,
     onCategoryLongClick: ((CategoryItem) -> Unit)? = null,
+    onReorderCategories: ((List<String>) -> Unit)? = null,
     onReorderCustomCategories: ((List<String>) -> Unit)? = null,
     contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
     modifier: Modifier = Modifier
@@ -73,45 +77,53 @@ fun CategoryChips(
     val haptics = rememberStickHubHaptics()
     val scope = rememberCoroutineScope()
 
-    // System filters stay pinned; custom categories are freely arrangeable.
-    val fixedFilters = listOf(
-        LibraryFilter("All", "All"),
-        LibraryFilter("Favorites", "Favorites", LucideR.drawable.lucide_ic_heart),
-        LibraryFilter("Frequent", "Frequent", LucideR.drawable.lucide_ic_gauge)
+    val systemFilterMap = mapOf(
+        "all" to LibraryFilter("All", "All", isSystem = true),
+        "favorites" to LibraryFilter("Favorites", "Favorites", LucideR.drawable.lucide_ic_heart, isSystem = true),
+        "frequent" to LibraryFilter("Frequent", "Frequent", LucideR.drawable.lucide_ic_gauge, isSystem = true)
     )
-    // General stays pinned first and is never draggable; the drag session owns the
-    // arrangement of the rest. Rendered order always intersects the live flow so a
-    // deleted chip can never resurrect from a stale preview.
-    val customNames = categories.map { it.name }
-    val generalHeads = customNames.filter { it.equals("General", ignoreCase = true) }
-    val restNames = customNames.filterNot { it.equals("General", ignoreCase = true) }
-    val dragSession = remember { CategoryDragSession(restNames) }
-    LaunchedEffect(categories) { dragSession.syncExternal(restNames) }
-    val orderedCustoms = generalHeads.mapNotNull { head ->
-        categories.find { it.name.equals(head, ignoreCase = true) }
-    } + dragSession.order.mapNotNull { name ->
-        categories.find { it.name.equals(name, ignoreCase = true) }
-    } + categories.filter { cat ->
-        (generalHeads + dragSession.order).none { it.equals(cat.name, ignoreCase = true) }
-    }
-    val filters = fixedFilters + orderedCustoms.map { category ->
-        LibraryFilter(category.name, category.name, LucideR.drawable.lucide_ic_folder, category)
+
+    val allKnownNames = StickerRepository.SYSTEM_CATEGORIES + categories.map { it.name }
+    val effectiveOrder = if (categoryOrder.isNotEmpty()) {
+        categoryOrder.filter { name -> allKnownNames.any { it.equals(name, ignoreCase = true) } } +
+            allKnownNames.filter { name -> categoryOrder.none { it.equals(name, ignoreCase = true) } }
+    } else {
+        StickerRepository.SYSTEM_CATEGORIES + categories.sortedBy { it.displayOrder }.map { it.name }
     }
 
+    val seen = mutableSetOf<String>()
+    val uniqueOrder = effectiveOrder.filter { seen.add(it.lowercase()) }
+
+    val dragSession = remember { CategoryDragSession(uniqueOrder) }
+    LaunchedEffect(uniqueOrder) { dragSession.syncExternal(uniqueOrder) }
+
+    val customMap = categories.associateBy { it.name.lowercase() }
+
+    fun resolveFilter(key: String): LibraryFilter {
+        val lower = key.lowercase()
+        systemFilterMap[lower]?.let { return it }
+        val cat = customMap[lower]
+        return LibraryFilter(
+            key = cat?.name ?: key,
+            label = cat?.name ?: key,
+            iconRes = LucideR.drawable.lucide_ic_folder,
+            category = cat,
+            isSystem = false
+        )
+    }
+
+    val filters = dragSession.order.map { resolveFilter(it) } +
+        uniqueOrder.filter { name -> dragSession.order.none { it.equals(name, ignoreCase = true) } }.map { resolveFilter(it) }
+
     val listState = rememberLazyListState()
-    // Absolute follow: the finger offset inside the chip is grabbed once, then the
-    // translation is recomputed from the live item offset every event — no drift.
     var dragGrabDX by remember { mutableFloatStateOf(0f) }
     var dragTranslateX by remember { mutableFloatStateOf(0f) }
     var dragMoved by remember { mutableStateOf(false) }
     val draggedKey = dragSession.draggedKey
 
-    // Stable gesture block: callbacks and row data flow through updated state so a
-    // recomposition (selection, rename) never restarts an in-flight drag.
     val latestFilters by rememberUpdatedState(filters)
-    val latestCustoms by rememberUpdatedState(orderedCustoms)
-    val latestHeads by rememberUpdatedState(generalHeads)
-    val latestReorder by rememberUpdatedState(onReorderCustomCategories)
+    val latestReorderCategories by rememberUpdatedState(onReorderCategories)
+    val latestReorderCustoms by rememberUpdatedState(onReorderCustomCategories)
     val latestLongClick by rememberUpdatedState(onCategoryLongClick)
 
     LazyRow(
@@ -119,12 +131,9 @@ fun CategoryChips(
         modifier = modifier.pointerInput(Unit) {
             detectDragGesturesAfterLongPress(
                 onDragStart = { touch ->
-                    // Only custom chips (past the pinned trio) start a drag; the
-                    // pinned General head is not in the session so start() refuses it.
                     val current = latestFilters
                     val hit = listState.layoutInfo.visibleItemsInfo.firstOrNull { info ->
-                        info.index >= fixedFilters.size &&
-                            touch.x >= info.offset && touch.x <= info.offset + info.size
+                        touch.x >= info.offset && touch.x <= info.offset + info.size
                     }
                     val key = hit?.let { current.getOrNull(it.index)?.key }
                     if (key != null && dragSession.start(key)) {
@@ -145,14 +154,12 @@ fun CategoryChips(
                         if (abs(dragTranslateX) > 4f) dragMoved = true
                         val draggedCenter = itemInfo.offset + dragTranslateX + itemInfo.size / 2f
                         val target = listState.layoutInfo.visibleItemsInfo.firstOrNull { info ->
-                            info.index >= fixedFilters.size &&
-                                draggedCenter >= info.offset && draggedCenter <= info.offset + info.size
+                            draggedCenter >= info.offset && draggedCenter <= info.offset + info.size
                         }?.let { current.getOrNull(it.index)?.key }
                         if (target != null && dragSession.moveTo(target)) {
                             haptics.performTick()
                         }
                     }
-                    // Edge auto-scroll while dragging.
                     val viewportEnd = listState.layoutInfo.viewportEndOffset.toFloat()
                     scope.launch {
                         when {
@@ -165,10 +172,9 @@ fun CategoryChips(
                     val key = dragSession.draggedKey
                     dragTranslateX = 0f
                     if (key != null && !dragMoved) {
-                        // Treated as a long-press tap: legacy delete shortcut,
-                        // never offered for the pinned General head.
-                        val category = latestCustoms.find { it.name == key }
-                        if (category != null && !category.name.equals("General", ignoreCase = true)) {
+                        val filter = latestFilters.find { it.key == key }
+                        val category = filter?.category
+                        if (category != null && !category.name.equals("General", ignoreCase = true) && !filter.isSystem) {
                             latestLongClick?.let {
                                 haptics.performLongPress()
                                 it(category)
@@ -177,12 +183,16 @@ fun CategoryChips(
                     } else if (key != null) {
                         haptics.performTick()
                     }
-                    // Persist only on a real drop; a tap or a no-op releases nothing.
-                    dragSession.finish()?.let { latestReorder?.invoke(latestHeads + it) }
+                    dragSession.finish()?.let { newOrder ->
+                        if (latestReorderCategories != null) {
+                            latestReorderCategories?.invoke(newOrder)
+                        } else if (latestReorderCustoms != null) {
+                            val nonSystem = newOrder.filterNot { StickerRepository.SYSTEM_CATEGORIES.any { sys -> sys.equals(it, ignoreCase = true) } }
+                            latestReorderCustoms?.invoke(nonSystem)
+                        }
+                    }
                 },
                 onDragCancel = {
-                    // Roll back the preview and persist nothing — a canceled
-                    // gesture must never write an order.
                     dragSession.cancel()
                     dragTranslateX = 0f
                 }
@@ -193,7 +203,7 @@ fun CategoryChips(
         verticalAlignment = Alignment.CenterVertically
     ) {
         items(filters, key = { it.key }) { filter ->
-            val isSelected = selectedCategory == filter.key
+            val isSelected = selectedCategory.equals(filter.key, ignoreCase = true)
             val isDragged = draggedKey == filter.key
             val containerColor by animateColorAsState(
                 targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer
@@ -233,9 +243,7 @@ fun CategoryChips(
                             }
                         },
                         onLongClick = {
-                            // Long-press without drag keeps the legacy shortcut,
-                            // but only when the reorder gesture is disabled.
-                            if (onReorderCustomCategories == null) {
+                            if (onReorderCategories == null && onReorderCustomCategories == null) {
                                 val category = filter.category
                                 if (category != null && onCategoryLongClick != null) {
                                     haptics.performLongPress()

@@ -14,6 +14,7 @@ import com.hkm.stickhub.util.ClipboardContentHasher
 import com.hkm.stickhub.util.ClipboardImportPolicy
 import com.hkm.stickhub.util.StagedClipboardItem
 import com.hkm.stickhub.util.StickerMimeTypes
+import com.hkm.stickhub.ui.library.StickerLibraryPreferences
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -67,6 +68,8 @@ class StickerRepository(private val context: Context) {
     data class BackupRestoreOutcome(val imported: Int, val alreadyPresent: Int)
 
     companion object {
+        val SYSTEM_CATEGORIES = listOf("All", "Favorites", "Frequent")
+
         @Volatile
         private var sharedInstance: StickerRepository? = null
 
@@ -121,6 +124,10 @@ class StickerRepository(private val context: Context) {
 
     private val _categoriesFlow = MutableStateFlow<List<CategoryItem>>(emptyList())
     val categoriesFlow: StateFlow<List<CategoryItem>> = _categoriesFlow.asStateFlow()
+
+    private val _categoryOrderFlow = MutableStateFlow<List<String>>(emptyList())
+    val categoryOrderFlow: StateFlow<List<String>> = _categoryOrderFlow.asStateFlow()
+
     private val clipboardImportMutex = Mutex()
     private val backupMutex = Mutex()
 
@@ -130,8 +137,36 @@ class StickerRepository(private val context: Context) {
 
     suspend fun refresh() = withContext(Dispatchers.IO) {
         _stickersFlow.value = getAllStickersInternal()
-        _categoriesFlow.value = getAllCategoriesInternal()
+        val cats = getAllCategoriesInternal()
+        _categoriesFlow.value = cats
+        _categoryOrderFlow.value = reconcileCategoryOrder(cats)
         refreshListener?.invoke()
+    }
+
+    private fun reconcileCategoryOrder(dbCats: List<CategoryItem>): List<String> {
+        val saved = StickerLibraryPreferences.getCategoryTabOrder(context)
+        val allKnown = SYSTEM_CATEGORIES + dbCats.map { it.name }
+
+        val order = if (saved.isNullOrEmpty()) {
+            allKnown
+        } else {
+            val seen = mutableSetOf<String>()
+            val result = mutableListOf<String>()
+            for (savedName in saved) {
+                val matched = allKnown.firstOrNull { it.equals(savedName, ignoreCase = true) }
+                if (matched != null && seen.add(matched.lowercase())) {
+                    result.add(matched)
+                }
+            }
+            for (known in allKnown) {
+                if (seen.add(known.lowercase())) {
+                    result.add(known)
+                }
+            }
+            result
+        }
+        StickerLibraryPreferences.setCategoryTabOrder(context, order)
+        return order
     }
 
     private fun getAllStickersInternal(): List<StickerItem> {
@@ -164,7 +199,7 @@ class StickerRepository(private val context: Context) {
             null,
             null,
             null,
-            "CASE WHEN ${StickHubDbHelper.COL_CAT_NAME} = 'General' THEN 0 ELSE 1 END ASC, ${StickHubDbHelper.COL_CAT_DISPLAY_ORDER} ASC, ${StickHubDbHelper.COL_CAT_ID} ASC"
+            "${StickHubDbHelper.COL_CAT_DISPLAY_ORDER} ASC, ${StickHubDbHelper.COL_CAT_ID} ASC"
         )
         cursor.use { c ->
             val orderCol = c.getColumnIndex(StickHubDbHelper.COL_CAT_DISPLAY_ORDER)
@@ -1064,6 +1099,12 @@ class StickerRepository(private val context: Context) {
             cv,
             android.database.sqlite.SQLiteDatabase.CONFLICT_IGNORE
         )
+        if (id != -1L) {
+            val currentOrder = StickerLibraryPreferences.getCategoryTabOrder(context)
+            if (currentOrder != null && currentOrder.none { it.equals(trimmed, ignoreCase = true) }) {
+                StickerLibraryPreferences.setCategoryTabOrder(context, currentOrder + trimmed)
+            }
+        }
         refresh()
         id != -1L
     }
@@ -1087,21 +1128,28 @@ class StickerRepository(private val context: Context) {
             db.update(
                 StickHubDbHelper.TABLE_CATEGORIES,
                 catCv,
-                "${StickHubDbHelper.COL_CAT_NAME} = ?",
+                "${StickHubDbHelper.COL_CAT_NAME} = ? COLLATE NOCASE",
                 arrayOf(trimmedOld)
             )
 
-            val stickCv = ContentValues().apply {
+            val stickerCv = ContentValues().apply {
                 put(StickHubDbHelper.COL_CATEGORY, trimmedNew)
             }
             db.update(
                 StickHubDbHelper.TABLE_STICKERS,
-                stickCv,
-                "${StickHubDbHelper.COL_CATEGORY} = ?",
+                stickerCv,
+                "${StickHubDbHelper.COL_CATEGORY} = ? COLLATE NOCASE",
                 arrayOf(trimmedOld)
             )
 
             db.setTransactionSuccessful()
+            val currentOrder = StickerLibraryPreferences.getCategoryTabOrder(context)
+            if (currentOrder != null) {
+                val updatedOrder = currentOrder.map {
+                    if (it.equals(trimmedOld, ignoreCase = true)) trimmedNew else it
+                }
+                StickerLibraryPreferences.setCategoryTabOrder(context, updatedOrder)
+            }
         } finally {
             db.endTransaction()
         }
@@ -1135,14 +1183,14 @@ class StickerRepository(private val context: Context) {
             db.update(
                 StickHubDbHelper.TABLE_STICKERS,
                 updateCv,
-                "${StickHubDbHelper.COL_CATEGORY} = ?",
+                "${StickHubDbHelper.COL_CATEGORY} = ? COLLATE NOCASE",
                 arrayOf(category.name)
             )
 
             // Delete the category — every category is deletable now.
             db.delete(
                 StickHubDbHelper.TABLE_CATEGORIES,
-                "${StickHubDbHelper.COL_CAT_NAME} = ?",
+                "${StickHubDbHelper.COL_CAT_NAME} = ? COLLATE NOCASE",
                 arrayOf(category.name)
             )
 
@@ -1153,7 +1201,7 @@ class StickerRepository(private val context: Context) {
             ).use { if (it.moveToFirst()) it.getInt(0) else 0 }
             if (remaining == 0) {
                 val cv = ContentValues().apply {
-                    put(StickHubDbHelper.COL_CAT_NAME, "General")
+                    put(StickHubDbHelper.COL_CAT_NAME, CategoryItem.FALLBACK_NAME)
                     put(StickHubDbHelper.COL_CAT_IS_DEFAULT, 1)
                     put(StickHubDbHelper.COL_CAT_DISPLAY_ORDER, 0)
                 }
@@ -1165,6 +1213,11 @@ class StickerRepository(private val context: Context) {
                 )
             }
             db.setTransactionSuccessful()
+            val currentOrder = StickerLibraryPreferences.getCategoryTabOrder(context)
+            if (currentOrder != null) {
+                val updatedOrder = currentOrder.filterNot { it.equals(category.name, ignoreCase = true) }
+                StickerLibraryPreferences.setCategoryTabOrder(context, updatedOrder)
+            }
         } finally {
             db.endTransaction()
         }
@@ -1177,7 +1230,6 @@ class StickerRepository(private val context: Context) {
         val db = dbHelper.writableDatabase
         db.beginTransaction()
         try {
-            // Every category participates in ordering now (General included).
             var orderIndex = 0
             for (name in orderedNames) {
                 val cv = ContentValues().apply {
@@ -1186,7 +1238,7 @@ class StickerRepository(private val context: Context) {
                 db.update(
                     StickHubDbHelper.TABLE_CATEGORIES,
                     cv,
-                    "${StickHubDbHelper.COL_CAT_NAME} = ?",
+                    "${StickHubDbHelper.COL_CAT_NAME} = ? COLLATE NOCASE",
                     arrayOf(name)
                 )
             }
@@ -1194,6 +1246,7 @@ class StickerRepository(private val context: Context) {
         } finally {
             db.endTransaction()
         }
+        StickerLibraryPreferences.setCategoryTabOrder(context, orderedNames)
         refresh()
         true
     }

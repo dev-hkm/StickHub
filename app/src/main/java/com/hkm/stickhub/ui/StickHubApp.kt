@@ -209,6 +209,7 @@ fun StickHubApp(
 
     val allStickers by repository.stickersFlow.collectAsState()
     val categories by repository.categoriesFlow.collectAsState()
+    val categoryOrder by repository.categoryOrderFlow.collectAsState()
     val startupRefreshPolicy = remember(repository) { LibraryStartupRefreshPolicy() }
     var librarySnapshotState by remember(repository) {
         mutableStateOf<LibrarySnapshotState>(LibrarySnapshotState.Loading)
@@ -1083,19 +1084,13 @@ fun StickHubApp(
                                                 filteredStickersCount = filteredStickers.size,
                                                 showLibraryCategoryFilters = showLibraryCategoryFilters,
                                                 selectedCategory = selectedCategory,
+                                                categoryOrder = categoryOrder,
                                                 onSelectCategory = { selectedCategory = it },
                                                 onAddCategoryClick = { showAddCategoryDialog = true },
                                                 onCategoryLongClick = { cat -> categoryToDelete = cat },
-                                                onReorderCustomCategories = { customsInNewOrder ->
+                                                onReorderCategories = { newOrder ->
                                                     scope.launch {
-                                                        val generalFirst = categories
-                                                            .filter { it.name.equals("General", ignoreCase = true) }
-                                                            .map { it.name }
-                                                        val rest = categories.map { it.name }.filter { name ->
-                                                            customsInNewOrder.none { it.equals(name, ignoreCase = true) } &&
-                                                                !name.equals("General", ignoreCase = true)
-                                                        }
-                                                        repository.reorderCategories(generalFirst + customsInNewOrder + rest)
+                                                        repository.reorderCategories(newOrder)
                                                     }
                                                 },
                                                 clipboardImageUris = clipboardImageUris,
@@ -1225,19 +1220,13 @@ fun StickHubApp(
                                                 filteredStickersCount = filteredStickers.size,
                                                 showLibraryCategoryFilters = showLibraryCategoryFilters,
                                                 selectedCategory = selectedCategory,
+                                                categoryOrder = categoryOrder,
                                                 onSelectCategory = { selectedCategory = it },
                                                 onAddCategoryClick = { showAddCategoryDialog = true },
                                                 onCategoryLongClick = { cat -> categoryToDelete = cat },
-                                                onReorderCustomCategories = { customsInNewOrder ->
+                                                onReorderCategories = { newOrder ->
                                                     scope.launch {
-                                                        val generalFirst = categories
-                                                            .filter { it.name.equals("General", ignoreCase = true) }
-                                                            .map { it.name }
-                                                        val rest = categories.map { it.name }.filter { name ->
-                                                            customsInNewOrder.none { it.equals(name, ignoreCase = true) } &&
-                                                                !name.equals("General", ignoreCase = true)
-                                                        }
-                                                        repository.reorderCategories(generalFirst + customsInNewOrder + rest)
+                                                        repository.reorderCategories(newOrder)
                                                     }
                                                 },
                                                 clipboardImageUris = clipboardImageUris,
@@ -1446,19 +1435,13 @@ fun StickHubApp(
                                                 filteredStickersCount = filteredStickers.size,
                                                 showLibraryCategoryFilters = showLibraryCategoryFilters,
                                                 selectedCategory = selectedCategory,
+                                                categoryOrder = categoryOrder,
                                                 onSelectCategory = { selectedCategory = it },
                                                 onAddCategoryClick = { showAddCategoryDialog = true },
                                                 onCategoryLongClick = { cat -> categoryToDelete = cat },
-                                                onReorderCustomCategories = { customsInNewOrder ->
+                                                onReorderCategories = { newOrder ->
                                                     scope.launch {
-                                                        val generalFirst = categories
-                                                            .filter { it.name.equals("General", ignoreCase = true) }
-                                                            .map { it.name }
-                                                        val rest = categories.map { it.name }.filter { name ->
-                                                            customsInNewOrder.none { it.equals(name, ignoreCase = true) } &&
-                                                                !name.equals("General", ignoreCase = true)
-                                                        }
-                                                        repository.reorderCategories(generalFirst + customsInNewOrder + rest)
+                                                        repository.reorderCategories(newOrder)
                                                     }
                                                 },
                                                 clipboardImageUris = clipboardImageUris,
@@ -1585,19 +1568,13 @@ fun StickHubApp(
                                                 filteredStickersCount = filteredStickers.size,
                                                 showLibraryCategoryFilters = showLibraryCategoryFilters,
                                                 selectedCategory = selectedCategory,
+                                                categoryOrder = categoryOrder,
                                                 onSelectCategory = { selectedCategory = it },
                                                 onAddCategoryClick = { showAddCategoryDialog = true },
                                                 onCategoryLongClick = { cat -> categoryToDelete = cat },
-                                                onReorderCustomCategories = { customsInNewOrder ->
+                                                onReorderCategories = { newOrder ->
                                                     scope.launch {
-                                                        val generalFirst = categories
-                                                            .filter { it.name.equals("General", ignoreCase = true) }
-                                                            .map { it.name }
-                                                        val rest = categories.map { it.name }.filter { name ->
-                                                            customsInNewOrder.none { it.equals(name, ignoreCase = true) } &&
-                                                                !name.equals("General", ignoreCase = true)
-                                                        }
-                                                        repository.reorderCategories(generalFirst + customsInNewOrder + rest)
+                                                        repository.reorderCategories(newOrder)
                                                     }
                                                 },
                                                 clipboardImageUris = clipboardImageUris,
@@ -1904,6 +1881,7 @@ fun StickHubApp(
         ) {
             CategoryManagementScreen(
                 categories = categories,
+                categoryOrder = categoryOrder,
                 stickers = allStickers,
                 onAddCategory = { name ->
                     scope.launch {
@@ -2277,6 +2255,7 @@ private fun LibraryHeadersContent(
     showBatchMoveMenu: Boolean,
     onToggleBatchMoveMenu: (Boolean) -> Unit,
     categories: List<CategoryItem>,
+    categoryOrder: List<String> = emptyList(),
     onBatchSetCategory: (String) -> Unit,
     onBatchDelete: () -> Unit,
     showLibrarySearch: Boolean,
@@ -2293,7 +2272,8 @@ private fun LibraryHeadersContent(
     onSelectCategory: (String) -> Unit,
     onAddCategoryClick: () -> Unit,
     onCategoryLongClick: (CategoryItem) -> Unit,
-    onReorderCustomCategories: (List<String>) -> Unit,
+    onReorderCategories: ((List<String>) -> Unit)? = null,
+    onReorderCustomCategories: (List<String>) -> Unit = {},
     clipboardImageUris: List<Uri>,
     onImportClipboard: () -> Unit,
     onDismissClipboard: () -> Unit,
@@ -2508,10 +2488,12 @@ private fun LibraryHeadersContent(
         if (!isSelectionMode && showLibraryCategoryFilters) {
             CategoryChips(
                 categories = categories,
+                categoryOrder = categoryOrder,
                 selectedCategory = selectedCategory,
                 onSelectCategory = onSelectCategory,
                 onAddCategoryClick = onAddCategoryClick,
                 onCategoryLongClick = onCategoryLongClick,
+                onReorderCategories = onReorderCategories,
                 onReorderCustomCategories = onReorderCustomCategories,
                 contentPadding = PaddingValues(horizontal = 0.dp, vertical = 6.dp)
             )

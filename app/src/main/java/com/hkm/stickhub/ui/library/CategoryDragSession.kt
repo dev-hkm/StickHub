@@ -36,15 +36,23 @@ class CategoryDragSession(initialOrder: List<String>) {
     }
 
     /**
-     * Reconciles with the category flow (add/rename/delete from elsewhere). New names
-     * append, missing names drop. A drag whose chip vanished ends silently; an active
-     * drag otherwise keeps its pre-drag baseline so cancel() still rolls back.
+     * Reconciles with external category changes.
+     * If no drag is active, adopts the external order directly.
+     * If a drag is in-flight, preserves the dragged item's position and reconciles other items.
      */
     fun syncExternal(current: List<String>) {
-        order = order.filter { it in current } + current.filter { it !in order }
-        if (draggedKey == null || draggedKey !in order) {
-            draggedKey = null
+        if (draggedKey == null) {
+            order = current.toList()
             startingOrder = order
+        } else {
+            // Keep in-flight drag order, drop vanished items, append newly added items
+            val filtered = order.filter { it in current }
+            val added = current.filter { it !in order }
+            order = filtered + added
+            if (draggedKey !in order) {
+                draggedKey = null
+                startingOrder = order
+            }
         }
     }
 
