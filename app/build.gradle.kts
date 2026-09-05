@@ -47,8 +47,8 @@ android {
         targetSdk = 35
         // Version 5.2.10: compact corner-docked close control with safe chip
         // touch forwarding.
-        versionCode = 63
-        versionName = "5.2.11"
+        versionCode = 64
+        versionName = "5.2.12"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -51,8 +51,11 @@ object OverlayLayoutPolicy {
         val maxX = max(0, screenWidth - closeSize)
         val maxY = max(0, screenHeight - closeSize)
         return CloseOverlayPosition(
-            x = (panelX + panelWidth - closeSize / 2).coerceIn(0, maxX),
-            y = (panelY - closeSize / 2).coerceIn(0, maxY)
+            // Deliberately clear the popup edge by a small visual gap. The
+            // control is not merely overhanging the corner: its center sits
+            // outside the surface on both axes.
+            x = (panelX + panelWidth + closeSize / 4).coerceIn(0, maxX),
+            y = (panelY - closeSize / 2 - closeSize / 4).coerceIn(0, maxY)
         )
     }
 

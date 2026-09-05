@@ -903,6 +903,10 @@ class OverlayService : Service() {
         // Chrome Container (Header, Search, Categories) with its own opacity.
         val chrome = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            // Chrome is a transparent interaction layer, never a second
+            // toolbar surface. Stickers remain visually continuous beneath it.
+            setBackgroundColor(Color.TRANSPARENT)
+            elevation = 0f
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -1023,11 +1027,15 @@ class OverlayService : Service() {
         // C. Category Chips HorizontalScrollView (shown only when showCategories is true)
         val chipsScroll = HorizontalScrollView(this).apply {
             isHorizontalScrollBarEnabled = false
+            setBackgroundColor(Color.TRANSPARENT)
+            elevation = 0f
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                setMargins(0, 0, 0, (6 * density).toInt())
+                // Give the chip rail deliberate breathing room from the
+                // popup edge; it should read as floating content, not a topbar.
+                setMargins(0, (6 * density).toInt(), 0, (6 * density).toInt())
             }
             visibility = if (showCategories) View.VISIBLE else View.GONE
         }
