@@ -45,9 +45,9 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version 5.2.3: optimize monochrome adaptive icon face cutouts.
-        versionCode = 55
-        versionName = "5.2.3"
+        // Version 5.2.4: fix monochrome adaptive icon cutouts across all launcher layers.
+        versionCode = 56
+        versionName = "5.2.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
