@@ -40,7 +40,9 @@ class StickerImeControllerTest {
         var connection: InputConnection? = FakeConnection(),
         var commitResult: Boolean = true,
         var commitThrows: Throwable? = null,
-        var fallbackResult: Boolean = true
+        var fallbackResult: Boolean = true,
+        var currentSessionSnapshot: StickerImeInsertController.InputSessionSnapshot? = null,
+        var isAlive: Boolean = true
     ) : StickerImeInsertController.Gateway {
         val commits = AtomicInteger(0)
         val fallbacks = AtomicInteger(0)
@@ -49,6 +51,9 @@ class StickerImeControllerTest {
         override fun sdkInt(): Int = sdk
         override fun editorContentMimes(): Array<String>? = mimes
         override fun inputConnection(): InputConnection? = connection
+        override fun currentSession(): StickerImeInsertController.InputSessionSnapshot? = currentSessionSnapshot
+        override fun isServiceAlive(): Boolean = isAlive
+
         override fun commitImage(connection: InputConnection, uri: Uri, mimeType: String): Boolean {
             commits.incrementAndGet()
             gate?.await(5, TimeUnit.SECONDS)
@@ -229,5 +234,65 @@ class StickerImeControllerTest {
         assertTrue(!StickerImeInsertController.editorSupportsImage(arrayOf("image/jpeg")))
         assertTrue(!StickerImeInsertController.editorSupportsImage(null))
         assertTrue(!StickerImeInsertController.editorSupportsImage(arrayOf()))
+    }
+
+    @Test
+    fun caseInsensitiveAndWhitespaceMimesHandled() {
+        assertTrue(StickerImeInsertController.editorSupportsImage(arrayOf("  image/png  ")))
+        assertTrue(StickerImeInsertController.editorSupportsImage(arrayOf("IMAGE/PNG")))
+        assertTrue(StickerImeInsertController.editorSupportsImage(arrayOf(" IMAGE/* ")))
+        assertFalse(StickerImeInsertController.editorSupportsImage(arrayOf("sticker/png")))
+        assertFalse(StickerImeInsertController.editorSupportsImage(arrayOf("IMAGE/JPEG")))
+        assertFalse(StickerImeInsertController.editorSupportsImage(arrayOf("   ")))
+    }
+
+    @Test
+    fun illegalArgumentFailureSurfacesExplicitly() {
+        val gateway = FakeGateway(commitThrows = IllegalArgumentException("malformed input content"))
+        val outcome = StickerImeInsertController(gateway).insertSticker(payload)
+        assertFalse(outcome.committed)
+        assertTrue(outcome.fallbackUsed)
+        assertEquals(StickerImeInsertController.CommitFailure.ILLEGAL_ARGUMENT, outcome.failure)
+    }
+
+    @Test
+    fun staleSessionPreventsCommit() {
+        val gateway = FakeGateway(
+            currentSessionSnapshot = StickerImeInsertController.InputSessionSnapshot(sessionId = 200L)
+        )
+        val sessionAtTap = StickerImeInsertController.InputSessionSnapshot(sessionId = 100L)
+        val outcome = StickerImeInsertController(gateway).insertSticker(payload, sessionAtTap)
+        assertFalse(outcome.committed)
+        assertFalse(outcome.fallbackUsed)
+        assertTrue(outcome.stale)
+        assertEquals(StickerImeInsertController.CommitFailure.STALE_SESSION, outcome.failure)
+        assertEquals(0, gateway.commits.get())
+        assertEquals(0, gateway.fallbacks.get())
+    }
+
+    @Test
+    fun matchingSessionPermitsCommit() {
+        val currentSession = StickerImeInsertController.InputSessionSnapshot(
+            sessionId = 100L,
+            acceptedMimes = arrayOf("image/png")
+        )
+        val gateway = FakeGateway(currentSessionSnapshot = currentSession)
+        val outcome = StickerImeInsertController(gateway).insertSticker(payload, currentSession)
+        assertTrue(outcome.committed)
+        assertFalse(outcome.fallbackUsed)
+        assertFalse(outcome.stale)
+        assertEquals(1, gateway.commits.get())
+        assertEquals(0, gateway.fallbacks.get())
+    }
+
+    @Test
+    fun destroyedServiceRejectsCommitWithoutFallback() {
+        val gateway = FakeGateway(isAlive = false)
+        val outcome = StickerImeInsertController(gateway).insertSticker(payload)
+        assertFalse(outcome.committed)
+        assertFalse(outcome.fallbackUsed)
+        assertEquals(StickerImeInsertController.CommitFailure.SERVICE_DESTROYED, outcome.failure)
+        assertEquals(0, gateway.commits.get())
+        assertEquals(0, gateway.fallbacks.get())
     }
 }
