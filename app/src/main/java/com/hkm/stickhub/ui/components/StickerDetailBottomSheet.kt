@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -38,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,6 +57,9 @@ import com.composables.icons.lucide.R as LucideR
 import com.hkm.stickhub.data.model.CategoryItem
 import com.hkm.stickhub.data.model.StickerItem
 import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
+import com.hkm.stickhub.util.AsyncActionGate
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,7 +69,7 @@ fun StickerDetailBottomSheet(
     sheetState: SheetState,
     categories: List<CategoryItem>,
     onDismiss: () -> Unit,
-    onCopy: (StickerItem) -> Unit,
+    onCopy: suspend (StickerItem) -> Boolean,
     onToggleFavorite: (Long) -> Unit,
     onDelete: (Long) -> Unit,
     onUpdateDetails: (Long, String, String, String) -> Unit,
@@ -72,6 +77,9 @@ fun StickerDetailBottomSheet(
 ) {
     val context = LocalContext.current
     val haptics = rememberStickHubHaptics()
+    val scope = rememberCoroutineScope()
+    val copyGate = remember(sticker.id) { AsyncActionGate() }
+    var isCopying by remember(sticker.id) { mutableStateOf(false) }
 
     // Keyed on the stable id: live updates (favorite toggle, rename from elsewhere)
     // refresh the rendered row without wiping the user's in-progress edits.
@@ -146,9 +154,24 @@ fun StickerDetailBottomSheet(
             // Primary Action: Copy to Clipboard
             Button(
                 onClick = {
-                    onCopy(sticker)
-                    onDismiss()
+                    if (!copyGate.tryAcquire()) return@Button
+                    isCopying = true
+                    scope.launch {
+                        try {
+                            try {
+                                onCopy(sticker)
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (_: Exception) {
+                                haptics.performReject()
+                            }
+                        } finally {
+                            isCopying = false
+                            copyGate.release()
+                        }
+                    }
                 },
+                enabled = !isCopying,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -157,16 +180,25 @@ fun StickerDetailBottomSheet(
                     containerColor = MaterialTheme.colorScheme.primary
                 )
             ) {
-                Icon(
-                    painter = painterResource(LucideR.drawable.lucide_ic_copy),
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
+                if (isCopying) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(
+                        painter = painterResource(LucideR.drawable.lucide_ic_copy),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Copy Sticker to Clipboard",
+                    text = if (isCopying) "Copying…" else "Copy Sticker to Clipboard",
                     fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
 

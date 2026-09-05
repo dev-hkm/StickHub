@@ -38,6 +38,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -101,6 +102,7 @@ import com.hkm.stickhub.data.cutout.SubjectCutoutProcessor
 import com.hkm.stickhub.data.model.CategoryItem
 import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
 import com.hkm.stickhub.ui.theme.StickHubMotion
+import com.hkm.stickhub.util.AsyncActionGate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -130,7 +132,7 @@ fun SubjectCutoutSheet(
     val saveState by saveSession.state.collectAsState()
     val isSaving = saveState == CutoutSaveState.Saving
     var isCopying by remember(imageUri) { mutableStateOf(false) }
-    val isBusy = isSaving || isCopying
+    val copyGate = remember(imageUri) { AsyncActionGate() }
     val readyState = cutoutState as? CutoutState.CandidatesReady
 
     var interactionMode by remember(imageUri) { mutableStateOf(CutoutInteractionMode.Auto) }
@@ -175,7 +177,7 @@ fun SubjectCutoutSheet(
     }
 
     ModalBottomSheet(
-        onDismissRequest = { if (!isBusy) onDismiss() },
+        onDismissRequest = { if (!isSaving) onDismiss() },
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = MaterialTheme.colorScheme.surface
@@ -202,7 +204,7 @@ fun SubjectCutoutSheet(
                     fontWeight = FontWeight.Bold
                 )
 
-                IconButton(onClick = onDismiss, enabled = !isBusy) {
+                IconButton(onClick = onDismiss, enabled = !isSaving) {
                     Icon(
                         painter = painterResource(LucideR.drawable.lucide_ic_x),
                         contentDescription = "Close",
@@ -220,7 +222,7 @@ fun SubjectCutoutSheet(
             if (canChooseCutoutMode) {
                 CutoutInteractionModeSelector(
                     selectedMode = interactionMode,
-                    enabled = !isBusy,
+                    enabled = !isSaving,
                     onModeSelected = { mode ->
                         if (mode == interactionMode) return@CutoutInteractionModeSelector
                         haptics.performTick()
@@ -276,7 +278,7 @@ fun SubjectCutoutSheet(
                         OutlinedTextField(
                             value = title,
                             onValueChange = { title = it },
-                            enabled = !isBusy,
+                            enabled = !isSaving,
                             label = { Text("Title") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
@@ -293,7 +295,7 @@ fun SubjectCutoutSheet(
                             OutlinedTextField(
                                 value = selectedCategory,
                                 onValueChange = {},
-                                enabled = !isBusy,
+                                enabled = !isSaving,
                                 readOnly = true,
                                 label = { Text("Category") },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryDropdownExpanded) },
@@ -323,7 +325,7 @@ fun SubjectCutoutSheet(
                         OutlinedTextField(
                             value = tags,
                             onValueChange = { tags = it },
-                            enabled = !isBusy,
+                            enabled = !isSaving,
                             label = { Text("Tags (comma separated)") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
@@ -352,11 +354,12 @@ fun SubjectCutoutSheet(
                                     selectedCandidate = null
                                     transparentBitmap = null
                                 },
-                                enabled = !isBusy,
+                                enabled = !isSaving,
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(14.dp)
+                                shape = RoundedCornerShape(14.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp)
                             ) {
-                                Text("Back")
+                                Text("Back", maxLines = 1, softWrap = false)
                             }
 
                             OutlinedButton(
@@ -365,31 +368,35 @@ fun SubjectCutoutSheet(
                                         haptics.performReject()
                                         return@OutlinedButton
                                     }
-                                    if (bmp.isRecycled || isBusy) {
+                                    if (bmp.isRecycled || isSaving || isCopying) {
                                         haptics.performReject()
                                         return@OutlinedButton
                                     }
+                                    if (!copyGate.tryAcquire()) return@OutlinedButton
                                     isCopying = true
                                     scope.launch {
-                                         val copied = try {
-                                             onCopySticker(bmp)
-                                         } catch (cancelled: CancellationException) {
-                                             throw cancelled
-                                         } catch (_: Exception) {
-                                            haptics.performReject()
-                                            false
+                                        try {
+                                            try {
+                                                onCopySticker(bmp)
+                                            } catch (cancelled: CancellationException) {
+                                                throw cancelled
+                                            } catch (_: Exception) {
+                                                haptics.performReject()
+                                            }
+                                            // Copy is a non-destructive action. Keep the sheet
+                                            // open so the user can still edit metadata or save;
+                                            // closing here used to make the UI look frozen and
+                                            // also raced the sheet dismissal animation.
+                                        } finally {
+                                            isCopying = false
+                                            copyGate.release()
                                         }
-                                        isCopying = false
-                                        // The host callback owns the normal success/failure
-                                        // acknowledgement; only unexpected callback throws
-                                        // are acknowledged locally above. This prevents a
-                                        // failure from producing two consecutive buzzes.
-                                        if (copied) onDismiss()
                                     }
                                 },
-                                enabled = !isBusy,
+                                enabled = !isSaving && !isCopying,
                                 modifier = Modifier.weight(1.1f),
-                                shape = RoundedCornerShape(14.dp)
+                                shape = RoundedCornerShape(14.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp)
                             ) {
                                 if (isCopying) {
                                     CircularProgressIndicator(
@@ -404,7 +411,7 @@ fun SubjectCutoutSheet(
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(5.dp))
-                                Text("Copy", fontWeight = FontWeight.SemiBold)
+                                Text("Copy", fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                             }
 
                             Button(
@@ -413,7 +420,7 @@ fun SubjectCutoutSheet(
                                         haptics.performReject()
                                         return@Button
                                     }
-                                    if (bmp.isRecycled || isBusy) {
+                                    if (bmp.isRecycled || isSaving || isCopying) {
                                         haptics.performReject()
                                         return@Button
                                     }
@@ -431,9 +438,10 @@ fun SubjectCutoutSheet(
                                         }
                                     }
                                 },
-                                enabled = !isBusy,
+                                enabled = !isSaving,
                                 modifier = Modifier.weight(1.75f),
-                                shape = RoundedCornerShape(14.dp)
+                                shape = RoundedCornerShape(14.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp)
                             ) {
                                 if (isSaving) {
                                     CircularProgressIndicator(
@@ -450,7 +458,9 @@ fun SubjectCutoutSheet(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     if (isSaving) "Saving…" else "Save to Hub",
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }
@@ -489,7 +499,7 @@ fun SubjectCutoutSheet(
                                 candidates = state.candidates,
                                 selectedCandidate = selectedCandidate,
                                 interactionMode = interactionMode,
-                                selectionEnabled = !isBusy,
+                                selectionEnabled = !isSaving,
                                 onSelectCandidate = { candidate ->
                                     haptics.performTick()
                                     selectedCandidate = candidate
@@ -589,27 +599,7 @@ private fun CutoutInteractionModeSelector(
                 selected = selectedMode == CutoutInteractionMode.Manual,
                 onClick = { onModeSelected(CutoutInteractionMode.Manual) },
                 enabled = enabled,
-                label = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
-                    ) {
-                        Text("Choose subject")
-                        Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            shape = RoundedCornerShape(6.dp)
-                        ) {
-                            Text(
-                                text = "BETA",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                            )
-                        }
-                    }
-                },
+                label = { Text("Choose subject", maxLines = 1, softWrap = false) },
                 leadingIcon = {
                     Icon(
                         painter = painterResource(LucideR.drawable.lucide_ic_move_diagonal_2),
@@ -617,7 +607,26 @@ private fun CutoutInteractionModeSelector(
                         modifier = Modifier.size(16.dp)
                     )
                 },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                trailingIcon = {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        shape = RoundedCornerShape(6.dp),
+                        modifier = Modifier.width(34.dp)
+                    ) {
+                        Text(
+                            text = "BETA",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 2.dp, vertical = 2.dp)
+                        )
+                    }
+                }
             )
         }
         Text(

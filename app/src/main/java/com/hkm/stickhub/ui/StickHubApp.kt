@@ -75,7 +75,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -270,11 +269,21 @@ fun StickHubApp(
 
     val detailSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val studioSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val cutoutSheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true,
-        confirmValueChange = { target -> target != SheetValue.Hidden }
-    )
+    val cutoutSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val libraryLayoutPickerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    fun dismissCutoutSheet(afterHidden: (() -> Unit)? = null) {
+        scope.launch {
+            try {
+                cutoutSheetState.hide()
+            } finally {
+                if (activeModalRoute is ModalRoute.SubjectCutout) {
+                    activeModalRoute = ModalRoute.None
+                }
+                afterHidden?.invoke()
+            }
+        }
+    }
 
     // Library View Mode
     var libraryViewMode by remember {
@@ -565,7 +574,7 @@ fun StickHubApp(
             ModalRoute.LibraryLayout -> dismissLibraryLayoutPicker()
             ModalRoute.SourceChooser -> activeModalRoute = ModalRoute.None
             ModalRoute.ClipboardReview -> closeClipboardReview(consumeCurrent = false)
-            is ModalRoute.SubjectCutout -> activeModalRoute = ModalRoute.None
+            is ModalRoute.SubjectCutout -> dismissCutoutSheet()
             is ModalRoute.StickerDetail -> {
                 scope.launch {
                     try {
@@ -2107,11 +2116,10 @@ fun StickHubApp(
                 imageUri = route.uri,
                 sheetState = cutoutSheetState,
                 categories = categories,
-                onDismiss = { activeModalRoute = ModalRoute.None },
+                onDismiss = { dismissCutoutSheet() },
                 onSaveSticker = { bitmap, title, category, tags ->
                     val saved = repository.saveStickerBitmap(bitmap, title, category, tags)
                     if (saved != null) {
-                        activeModalRoute = ModalRoute.None
                         flashSnackbar("Sticker created successfully!")
                         true
                     } else {
@@ -2133,12 +2141,13 @@ fun StickHubApp(
                     copied
                 },
                 onChangeImage = {
-                    activeModalRoute = ModalRoute.None
-                    photoPickerLauncher.launch(
-                        androidx.activity.result.PickVisualMediaRequest(
-                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                    dismissCutoutSheet {
+                        photoPickerLauncher.launch(
+                            androidx.activity.result.PickVisualMediaRequest(
+                                ActivityResultContracts.PickVisualMedia.ImageOnly
+                            )
                         )
-                    )
+                    }
                 }
             )
         }
@@ -2158,19 +2167,19 @@ fun StickHubApp(
                             }
                         }
                     },
-                    onCopy = {
-                        if (ClipboardHelper.copyStickerToClipboard(context, it)) {
+                    onCopy = { stickerToCopy ->
+                        val copied = withContext(Dispatchers.IO) {
+                            ClipboardHelper.copyStickerToClipboard(context, stickerToCopy)
+                        }
+                        if (copied) {
                             haptics.performConfirm()
-                            scope.launch {
-                                repository.recordUsage(it.id)
-                                flashSnackbar("Copied to clipboard!")
-                            }
+                            repository.recordUsage(stickerToCopy.id)
+                            flashSnackbar("Copied to clipboard!")
                         } else {
                             haptics.performReject()
-                            scope.launch {
-                                flashSnackbar("Couldn't copy sticker.")
-                            }
+                            flashSnackbar("Couldn't copy sticker.")
                         }
+                        copied
                     },
                     onToggleFavorite = { id ->
                         scope.launch {
