@@ -14,7 +14,7 @@
   [![License](https://img.shields.io/badge/License-Proprietary_All_Rights_Reserved-red.svg)](#)
   [![Website](https://img.shields.io/badge/Website-stickhub.web.app-FFB703?style=flat&logo=firebase&logoColor=black)](https://stickhub.web.app)
   [![GitHub Release](https://img.shields.io/badge/GitHub_Release-v5.2.5-238636?style=flat&logo=github&logoColor=white)](https://github.com/dev-hkm/StickHub/releases/tag/v5.2.5)
-  [![Download APK](https://img.shields.io/badge/Direct_APK-v5.2.5-007ACC?style=flat&logo=googleplay&logoColor=white)](https://pub-66aa1ff95abc4f6198b4ab5def83a4a0.r2.dev/StickHub-v5.2.5.apk)
+  [![Download APK](https://img.shields.io/badge/Direct_APK-v5.2.5-007ACC?style=flat&logo=googleplay&logoColor=white)](https://github.com/dev-hkm/StickHub/releases/download/v5.2.5/StickHub-v5.2.5.apk)
 
 </div>
 
@@ -99,7 +99,7 @@ StickHub/
 The latest signed Release APK is available for download:
 
 * **Version:** 5.2.5 (versionCode 57)
-* **Direct Download:** [StickHub-v5.2.5.apk](https://pub-66aa1ff95abc4f6198b4ab5def83a4a0.r2.dev/StickHub-v5.2.5.apk)
+* **Direct Download:** [StickHub-v5.2.5.apk](https://github.com/dev-hkm/StickHub/releases/download/v5.2.5/StickHub-v5.2.5.apk)
 * **Android Requirement:** Android 8.0 (API level 26) or higher.
 
 ---
