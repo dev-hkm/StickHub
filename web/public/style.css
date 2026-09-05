@@ -79,56 +79,56 @@
 }
 
 [data-theme="light"] {
-  /* Warm Vintage Kraft Light Mode Palette */
-  --bg-page: #FAF6EF;
-  --bg-surface: #F3ECE0;
-  --bg-card: #FFFFFF;
-  --bg-card-alt: #F7F1E6;
-  --bg-tag: #EFE6D8;
+  /* Warm Vintage Cream Kraft Paper Palette (Ngả vàng kem ấm áp, không trắng!) */
+  --bg-page: #F5EEDB;
+  --bg-surface: #EDE2CA;
+  --bg-card: #FAF4E5;
+  --bg-card-alt: #F0E5CC;
+  --bg-tag: #E6D8BA;
 
-  --text-heading: #261D16;
-  --text-body: #4E4035;
-  --text-muted: #7D6E61;
-  --text-subtle: #A89B8F;
+  --text-heading: #261B12;
+  --text-body: #4A3A2C;
+  --text-muted: #756554;
+  --text-subtle: #998572;
 
   --golden-earth: #B87319;
-  --golden-earth-hover: #CE8420;
+  --golden-earth-hover: #CF8420;
   --golden-earth-active: #9A5E10;
-  --golden-earth-soft: rgba(184, 115, 25, 0.12);
-  --golden-earth-border: rgba(184, 115, 25, 0.35);
-  --golden-glow: 0 0 25px rgba(184, 115, 25, 0.18);
+  --golden-earth-soft: rgba(184, 115, 25, 0.14);
+  --golden-earth-border: rgba(184, 115, 25, 0.38);
+  --golden-glow: 0 0 25px rgba(184, 115, 25, 0.2);
 
   --sage-green: #3F6B38;
-  --sage-soft: rgba(63, 107, 56, 0.12);
-  --sage-border: rgba(63, 107, 56, 0.3);
+  --sage-soft: rgba(63, 107, 56, 0.14);
+  --sage-border: rgba(63, 107, 56, 0.32);
 
-  --border-subtle: #E3D9CC;
-  --border-dashed: #CFBEAA;
-  --border-dark: #261D16;
+  --border-subtle: #D8C7A8;
+  --border-dashed: #C4B08F;
+  --border-dark: #261B12;
 
-  --shadow-card: 0 8px 24px rgba(78, 64, 53, 0.07), 0 1px 3px rgba(78, 64, 53, 0.04);
-  --shadow-card-hover: 0 16px 36px rgba(78, 64, 53, 0.12), 0 0 20px rgba(184, 115, 25, 0.12);
-  --shadow-golden: 0 8px 20px rgba(184, 115, 25, 0.28);
-  --shadow-popup: 0 20px 50px rgba(78, 64, 53, 0.22), 0 0 30px rgba(184, 115, 25, 0.12);
+  --shadow-card: 0 8px 24px rgba(74, 58, 44, 0.08), 0 1px 3px rgba(74, 58, 44, 0.05);
+  --shadow-card-hover: 0 16px 36px rgba(74, 58, 44, 0.14), 0 0 20px rgba(184, 115, 25, 0.15);
+  --shadow-golden: 0 8px 20px rgba(184, 115, 25, 0.3);
+  --shadow-popup: 0 20px 50px rgba(74, 58, 44, 0.25), 0 0 30px rgba(184, 115, 25, 0.15);
 
-  --header-bg: rgba(250, 246, 239, 0.94);
-  --sticky-bg: rgba(250, 246, 239, 0.96);
-  --footer-bg: #EFE7DA;
-  --mockup-bg: #FCFAF7;
-  --mockup-border: #D8CABE;
-  --mockup-notch: #3B2E24;
-  --mockup-statusbar: #F3ECE0;
-  --mockup-header: #F7F1E6;
-  --mockup-chatbg: #FAF6EF;
+  --header-bg: rgba(245, 238, 219, 0.94);
+  --sticky-bg: rgba(245, 238, 219, 0.96);
+  --footer-bg: #E7DBBE;
+  --mockup-bg: #FAF3E3;
+  --mockup-border: #D2C0A0;
+  --mockup-notch: #3A2B1E;
+  --mockup-statusbar: #EDE2CA;
+  --mockup-header: #F5EEDB;
+  --mockup-chatbg: #FAF4E5;
   --mockup-incoming: #FFFFFF;
-  --mockup-incoming-text: #261D16;
-  --mockup-panel: rgba(255, 255, 255, 0.98);
-  --mockup-card: #F4EFE6;
-  --bubble-bg: #FFFFFF;
-  --oldway-bg: #F7F1E6;
-  --newway-bg: #FFFDF9;
-  --body-pattern-1: #E5DBD0;
-  --body-pattern-2: #EDE4D8;
+  --mockup-incoming-text: #261B12;
+  --mockup-panel: rgba(250, 244, 230, 0.98);
+  --mockup-card: #EDE2CA;
+  --bubble-bg: #FAF4E5;
+  --oldway-bg: #EDE2CA;
+  --newway-bg: #FAF4E5;
+  --body-pattern-1: #DECCA9;
+  --body-pattern-2: #E8D8B6;
   --primary-btn-text: #FFFFFF;
   --card-washi: rgba(184, 115, 25, 0.35);
 }
@@ -903,17 +903,29 @@ body {
   border-color: var(--golden-earth);
 }
 
-/* 3x2 Grid for the 6 Cutout Meme Stickers (No scrollbars!) */
+/* Scrollable Grid for 14 Cutout Meme Stickers */
 .panel-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.55rem;
-  padding: 0.45rem 0 0.2rem;
-  scrollbar-width: none;
+  padding: 0.45rem 0.25rem 0.2rem 0.1rem;
+  max-height: 245px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--golden-earth) transparent;
 }
 
 .panel-grid::-webkit-scrollbar {
-  display: none;
+  width: 4px;
+}
+
+.panel-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.panel-grid::-webkit-scrollbar-thumb {
+  background: var(--golden-earth-border);
+  border-radius: 4px;
 }
 
 .sim-sticker-card {
@@ -1043,12 +1055,12 @@ body {
 
 .scrapbook-card.old-way {
   border-style: dashed;
-  background: #1C1611;
+  background: var(--oldway-bg);
 }
 
 .scrapbook-card.new-way {
   border-color: var(--golden-earth-border);
-  background: #241C16;
+  background: var(--newway-bg);
 }
 
 .card-title {
@@ -1136,7 +1148,7 @@ body {
 .bento-card:hover .bento-icon-box {
   transform: rotate(-8deg) scale(1.1);
   background: var(--golden-earth);
-  color: #171109;
+  color: var(--primary-btn-text);
 }
 
 .bento-card h3 {
@@ -1465,22 +1477,29 @@ body {
   color: var(--golden-earth-hover);
 }
 
-/* Reveal Animations */
+/* Ultra-Smooth Awwwards Reveal Engine */
 .reveal-on-scroll {
   opacity: 0;
-  transform: translateY(28px) scale(0.98);
-  transition: opacity 0.85s var(--ease-out-expo), transform 0.85s var(--ease-out-expo);
-  will-change: opacity, transform;
+  filter: blur(8px);
+  transform: translateY(38px) scale(0.97) rotateX(3deg);
+  transition: 
+    opacity 0.95s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.95s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.95s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform, filter;
+  perspective: 1000px;
 }
 
 .reveal-on-scroll.revealed {
   opacity: 1;
-  transform: translateY(0) scale(1);
+  filter: blur(0px);
+  transform: translateY(0) scale(1) rotateX(0deg);
 }
 
 .delay-1 { transition-delay: 0.12s; }
-.delay-2 { transition-delay: 0.24s; }
-.delay-3 { transition-delay: 0.36s; }
+.delay-2 { transition-delay: 0.22s; }
+.delay-3 { transition-delay: 0.32s; }
+.delay-4 { transition-delay: 0.42s; }
 
 /* ==========================================================================
    MOBILE-FIRST DEEP POLISH (< 768px, < 640px, < 480px)

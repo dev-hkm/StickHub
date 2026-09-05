@@ -42,11 +42,11 @@
       simChatOutgoing: 'Chờ xíu nè, mở StickHub thả chiếc meme hủy diệt này liền...',
       bubbleHint: 'Chạm mở popup!',
       panelTitle: 'STICKHUB POPUP',
-      chipAll: 'Tất cả',
+      chipAll: 'Tất cả (14)',
       chipPepe: 'Pepe',
-      chipCheems: 'Cheems',
-      chipCat: 'Mèo Bựa',
-      chipTroll: 'Troll',
+      chipCheems: 'Doge & Cheems',
+      chipCat: 'Mèo',
+      chipTroll: 'Memes',
       simToastText: 'Đã dán sticker vào chat!',
 
       // Problem vs Solution
@@ -174,11 +174,11 @@
       simChatOutgoing: 'Hold on a second, opening StickHub to send a killer meme...',
       bubbleHint: 'Tap for popup!',
       panelTitle: 'STICKHUB POPUP',
-      chipAll: 'All',
+      chipAll: 'All (14)',
       chipPepe: 'Pepe',
-      chipCheems: 'Cheems',
+      chipCheems: 'Doge & Cheems',
       chipCat: 'Cats',
-      chipTroll: 'Troll',
+      chipTroll: 'Memes',
       simToastText: 'Pasted sticker to chat!',
 
       // Problem vs Solution
@@ -370,11 +370,19 @@
 
   const memeStickers = [
     { id: 1, cat: 'pepe', name: 'Pepe The Frog', img: 'stickers/pepe.png' },
-    { id: 2, cat: 'cheems', name: 'Cheems Doge', img: 'stickers/cheems.png' },
-    { id: 3, cat: 'troll', name: 'Trollface', img: 'stickers/trollface.png' },
+    { id: 2, cat: 'doge', name: 'Cheems Doge', img: 'stickers/cheems.png' },
+    { id: 3, cat: 'meme', name: 'Trollface', img: 'stickers/trollface.png' },
     { id: 4, cat: 'cat', name: 'Mèo Crying Scream', img: 'stickers/catscream.png' },
     { id: 5, cat: 'cat', name: 'Mèo Đeo Kính Cool', img: 'stickers/kewlcat.png' },
-    { id: 6, cat: 'cheems', name: 'Doge Classic', img: 'stickers/doge.png' }
+    { id: 6, cat: 'doge', name: 'Doge Classic', img: 'stickers/doge.png' },
+    { id: 7, cat: 'pepe', name: 'Pepe Tức Giận', img: 'stickers/angrypepe.png' },
+    { id: 8, cat: 'cat', name: 'Mèo Ngố Squidge', img: 'stickers/catsquidge.png' },
+    { id: 9, cat: 'meme', name: 'Not Stonks', img: 'stickers/notstonks.png' },
+    { id: 10, cat: 'pepe', name: 'Pepe Hoang Mang', img: 'stickers/confusedpepe.png' },
+    { id: 11, cat: 'cat', name: 'Mèo Gõ Phím', img: 'stickers/catkeyboard.png' },
+    { id: 12, cat: 'doge', name: 'Doge Toát Mồ Hôi', img: 'stickers/dogepanic.png' },
+    { id: 13, cat: 'meme', name: 'Khỉ Khóc Ôm Đầu', img: 'stickers/cryingmonkey.png' },
+    { id: 14, cat: 'doge', name: 'Baby Doge Ngơ Ngác', img: 'stickers/babydoge.png' }
   ];
 
   function renderStickers(category) {
@@ -430,19 +438,52 @@
       // Simulate Friend / Group chat reaction (Zero Emojis!)
       clearTimeout(botReplyTimer);
       botReplyTimer = setTimeout(() => {
-        const viReactions = [
-          'Ủa meme Cheems này cắt nền chuẩn zậy! Xin link tải app gấp haha!',
-          'Trollface kinh điển luôn trời ơi!! Đỉnh thật sự!',
-          'Ủa bấm cái dán liền luôn hả?? StickHub nổi trên màn hình xịn thế!',
-          'Con mèo gào khóc đúng tâm trạng tui lúc này luôn haha!'
-        ];
-        const enReactions = [
-          'Whoa that Cheems cutout is so clean!! Send me the download link!',
-          'Classic Trollface OMG!! That hit hard!',
-          'Wait, one tap and you pasted it right away?? StickHub overlay is so cool!',
-          'That screaming cat meme is literally my mood right now haha!'
-        ];
-        const pool = currentLang === 'vi' ? viReactions : enReactions;
+        const viReactions = {
+          pepe: [
+            'Pepe này biểu cảm đỉnh chóp luôn haha!',
+            'Ủa sticker Pepe cắt nền nét căng vậy! Cho xin link app với!',
+            'Gửi Pepe là hết nước chấm rồi!'
+          ],
+          doge: [
+            'Ủa meme Cheems Doge này cắt nền chuẩn zậy! Xin link tải app gấp haha!',
+            'Nhìn mặt con Doge bất lực thật sự, cười xỉu!',
+            'Doge này huyền thoại luôn trời ơi!'
+          ],
+          cat: [
+            'Con mèo này đúng tâm trạng tui lúc này luôn haha!',
+            'Mèo ngố dễ thương xỉu! Chạm cái dán liền tiện ghê!',
+            'Mặt con mèo cưng quá má ơi haha!'
+          ],
+          meme: [
+            'Trollface với Not Stonks kinh điển luôn trời ơi!! Đỉnh thật sự!',
+            'Meme hủy diệt cuộc trò chuyện luôn haha!',
+            'Ủa bấm cái dán liền luôn hả?? StickHub nổi trên màn hình xịn thế!'
+          ]
+        };
+        const enReactions = {
+          pepe: [
+            'That Pepe expression is priceless haha!',
+            'Whoa that Pepe cutout is crisp! Send me the app link!',
+            'Pepe drop hits just right!'
+          ],
+          doge: [
+            'Whoa that Cheems/Doge cutout is so clean!! Send me the download link!',
+            'Doge looks completely helpless, dying laughing haha!',
+            'Legendary Doge reaction!'
+          ],
+          cat: [
+            'That cat meme is literally my mood right now haha!',
+            'The cat is so derpy and cute! Instant paste is amazing!',
+            'Aww that cat face killed me haha!'
+          ],
+          meme: [
+            'Classic meme OMG!! That hit hard!',
+            'Conversation-ender meme haha!',
+            'Wait, one tap and you pasted it right away?? StickHub overlay is so cool!'
+          ]
+        };
+        const reactionsMap = currentLang === 'vi' ? viReactions : enReactions;
+        const pool = reactionsMap[item.cat] || reactionsMap.meme;
         const text = pool[Math.floor(Math.random() * pool.length)];
 
         const incomingMsg = document.createElement('div');
