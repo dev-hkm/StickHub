@@ -1,18 +1,20 @@
-﻿/* ==========================================================================
-   StickHub Landing Page — Vintage Golden Earth Dark Mode Engine
-   Real Cutout Memes, WindowManager Floating Popup, Smart Auto-Hide Topbar
+/* ==========================================================================
+   StickHub Landing Page — Vintage Golden Earth Dual Theme Engine
+   Dark/Light Mode Switcher, Bilingual Support, WindowManager Popup Simulator
    ========================================================================== */
 
 (function () {
   'use strict';
 
   // ==========================================================================
-  // 1. Comprehensive Bilingual Dictionary (100% Coverage)
+  // 1. Comprehensive Bilingual Dictionary (100% Emoji-Free)
   // ==========================================================================
   const translations = {
     vi: {
-      langBtn: '🇻🇳 Tiếng Việt',
+      langLabel: 'Tiếng Việt',
       langToggleTooltip: 'Chuyển sang English',
+      themeToggleLight: 'Chuyển sang giao diện sáng',
+      themeToggleDark: 'Chuyển sang giao diện tối',
       pageTitle: 'StickHub — Sổ Sticker Nổi Cho Android | Giữ Trọn Cuộc Trò Chuyện',
       metaDesc: 'StickHub mang cả cuốn sổ sticker & meme bạn yêu thích bay lượn trên Messenger, Telegram, Zalo, WhatsApp. Chạm nhẹ là dán, ấm áp và không gián đoạn!',
       
@@ -25,7 +27,7 @@
 
       // Hero
       heroBadge: 'Bản Cập Nhật v5.2.5 • Sổ Tay Android Mến Yêu',
-      heroTitle: 'Kho Sticker Nổi.<br><span class="highlight-ink">Thả Cảm Xúc</span> Ấm Áp<br>Không Rời Cuộc Vui.',
+      heroTitle: 'Kho Sticker Nổi.<br><span class=\"highlight-ink\">Thả Cảm Xúc</span> Ấm Áp<br>Không Rời Cuộc Vui.',
       heroSubtitle: 'StickHub mang cả cuốn sổ sticker & meme bạn yêu thích bay lơ lửng trên Messenger, Telegram, Zalo hay WhatsApp. Chạm nhẹ là dán ngay, giữ trọn từng khoảnh khắc kết nối!',
       btnPrimaryCta: 'Tải APK Miễn Phí',
       btnExploreFeatures: 'Khám Phá Tính Năng',
@@ -35,17 +37,17 @@
 
       // Phone Simulator
       simChatTitle: 'Hội Bạn Cũ & Crush',
-      simChatStatus: '● Đang online',
-      simChatIncoming: 'Tối nay đi cà phê acoustic không mn ơi? Ai gửi meme chốt kèo nào! ☕✨',
+      simChatStatus: 'Đang online',
+      simChatIncoming: 'Tối nay đi cà phê acoustic không mn ơi? Ai gửi meme chốt kèo nào!',
       simChatOutgoing: 'Chờ xíu nè, mở StickHub thả chiếc meme hủy diệt này liền...',
-      bubbleHint: 'Chạm mở popup! 👉',
-      panelTitle: 'STICKHUB POPUP ✨',
+      bubbleHint: 'Chạm mở popup!',
+      panelTitle: 'STICKHUB POPUP',
       chipAll: 'Tất cả',
-      chipPepe: 'Pepe 🐸',
-      chipCheems: 'Cheems 🐶',
-      chipCat: 'Mèo Bựa 🐱',
-      chipTroll: 'Troll 😂',
-      simToastText: 'Đã dán sticker vào chat! ✨',
+      chipPepe: 'Pepe',
+      chipCheems: 'Cheems',
+      chipCat: 'Mèo Bựa',
+      chipTroll: 'Troll',
+      simToastText: 'Đã dán sticker vào chat!',
 
       // Problem vs Solution
       problemTag: '// CHUYỆN CŨ & NỖI NIỀM',
@@ -96,9 +98,9 @@
       pillPrivacy: '#BảoMậtRiêngTư',
 
       feat6Title: 'Giao Diện Vintage Mộc Mạc, Ấm Áp',
-      feat6Desc: 'Tông màu giấy kraft, mực cà phê và vàng đất nung ấm áp. Tương thích chế độ Dark Mode nhẹ nhàng, êm dịu cho đôi mắt mỗi đêm.',
+      feat6Desc: 'Tông màu giấy kraft, mực cà phê và vàng đất nung ấm áp. Hỗ trợ chuyển đổi giao diện Sáng / Tối dịu nhẹ cho đôi mắt.',
       pillVintageAesthetic: '#VintageẤmÁp',
-      pillDarkMode: '#ÊmMắtĐêm',
+      pillDarkMode: '#ChếĐộSángTối',
 
       // Install Steps
       installTag: '// 3 BƯỚC ĐƠN GIẢN',
@@ -109,7 +111,7 @@
       step1Desc: 'Nhấn nút tải từ máy chủ đám mây tốc độ cao. Gói cài đặt nhỏ gọn, chỉ 13.4 MB.',
       step2Num: '02',
       step2Title: 'Mở & Cấp Quyền Cài Đặt',
-      step2Desc: 'Mở tệp đã tải và bấm Cài đặt. Cho phép "Cài đặt từ nguồn này" nếu máy bạn hỏi lần đầu.',
+      step2Desc: 'Mở tệp đã tải và bấm Cài đặt. Cho phép \"Cài đặt từ nguồn này\" nếu máy bạn hỏi lần đầu.',
       step3Num: '03',
       step3Title: 'Bật Bong Bóng & Bắt Đầu',
       step3Desc: 'Mở StickHub, cấp quyền hiển thị nổi trên màn hình và thả hồn vào những cuộc trò chuyện!',
@@ -119,11 +121,11 @@
       faqTitle: 'Những Điều Bạn Thắc Mắc, Chúng Mình Chia Sẻ',
       faqDesc: 'Câu trả lời chân thành và minh bạch nhất từ người tạo ra StickHub.',
       faq1Q: 'Tại sao StickHub chưa có mặt trên Google Play Store?',
-      faq1A: 'Thành thật tâm sự cùng bạn: Mình là học sinh và hiện tại chưa có đủ 25$ để đóng phí mở tài khoản Google Play Developer! 😅 Tuy nhiên, file APK được đóng gói hoàn toàn sạch sẽ, không chèn mã theo dõi hay quảng cáo rác. Bạn có thể an tâm tải về sử dụng.',
+      faq1A: 'Thành thật tâm sự cùng bạn: Mình là học sinh và hiện tại chưa có đủ 25$ để đóng phí mở tài khoản Google Play Developer! Tuy nhiên, file APK được đóng gói hoàn toàn sạch sẽ, không chèn mã theo dõi hay quảng cáo rác. Bạn có thể an tâm tải về sử dụng.',
       faq2Q: 'Cài đặt trực tiếp file APK có an toàn cho điện thoại không?',
       faq2A: 'Tuyệt đối an toàn. StickHub hoạt động hoàn toàn offline, không yêu cầu các quyền nhạy cảm như danh bạ hay vị trí. Ứng dụng chỉ cần quyền hiển thị bong bóng nổi và lưu trữ sticker cục bộ.',
       faq3Q: 'StickHub dùng được trên những ứng dụng trò chuyện nào?',
-      faq3A: 'Tất cả mọi ứng dụng! Nhờ cơ chế bong bóng nổi trên hệ thống, khi bạn chạm chọn sticker, ảnh sẽ được đưa vào Clipboard chuẩn. Bạn chỉ cần mở bàn phím ở Messenger, Zalo, Telegram, WhatsApp hay Instagram rồi nhấn "Dán".',
+      faq3A: 'Tất cả mọi ứng dụng! Nhờ cơ chế bong bóng nổi trên hệ thống, khi bạn chạm chọn sticker, ảnh sẽ được đưa vào Clipboard chuẩn. Bạn chỉ cần mở bàn phím ở Messenger, Zalo, Telegram, WhatsApp hay Instagram rồi nhấn \"Dán\".',
       faq4Q: 'Bong bóng nổi có gây hao pin hay làm chậm máy không?',
       faq4A: 'Không hề nha! Ứng dụng được viết bằng Kotlin tối ưu sâu. Khi ở dạng bong bóng nhỏ, ứng dụng gần như tiêu thụ 0% CPU và chỉ tải bộ nhớ khi bạn chạm mở sổ chọn sticker.',
 
@@ -141,8 +143,10 @@
       footerAuthor: 'Được phát triển bởi'
     },
     en: {
-      langBtn: '🇬🇧 English',
+      langLabel: 'English',
       langToggleTooltip: 'Switch to Vietnamese',
+      themeToggleLight: 'Switch to Light Mode',
+      themeToggleDark: 'Switch to Dark Mode',
       pageTitle: 'StickHub — Cozy Floating Sticker Scrapbook for Android',
       metaDesc: 'StickHub brings your favorite sticker & meme scrapbook to hover over Messenger, Telegram, Zalo, WhatsApp. One tap to paste, cozy & interruption-free!',
 
@@ -155,7 +159,7 @@
 
       // Hero
       heroBadge: 'Update v5.2.5 • Cherished Android Scrapbook',
-      heroTitle: 'Floating Sticker Album.<br><span class="highlight-ink">Drop Reactions</span><br>Without Leaving Chats.',
+      heroTitle: 'Floating Sticker Album.<br><span class=\"highlight-ink\">Drop Reactions</span><br>Without Leaving Chats.',
       heroSubtitle: 'StickHub brings your favorite sticker & meme scrapbook to hover gracefully over Messenger, Telegram, Zalo, or WhatsApp. One gentle tap to paste, keeping conversations lively and warm!',
       btnPrimaryCta: 'Download Free APK',
       btnExploreFeatures: 'Explore Features',
@@ -165,17 +169,17 @@
 
       // Phone Simulator
       simChatTitle: 'Best Friends & Crush',
-      simChatStatus: '● Online now',
-      simChatIncoming: 'Coffee & acoustic songs tonight anyone? Send a meme to lock it in! ☕✨',
+      simChatStatus: 'Online now',
+      simChatIncoming: 'Coffee & acoustic songs tonight anyone? Send a meme to lock it in!',
       simChatOutgoing: 'Hold on a second, opening StickHub to send a killer meme...',
-      bubbleHint: 'Tap for popup! 👉',
-      panelTitle: 'STICKHUB POPUP ✨',
+      bubbleHint: 'Tap for popup!',
+      panelTitle: 'STICKHUB POPUP',
       chipAll: 'All',
-      chipPepe: 'Pepe 🐸',
-      chipCheems: 'Cheems 🐶',
-      chipCat: 'Cats 🐱',
-      chipTroll: 'Troll 😂',
-      simToastText: 'Pasted sticker to chat! ✨',
+      chipPepe: 'Pepe',
+      chipCheems: 'Cheems',
+      chipCat: 'Cats',
+      chipTroll: 'Troll',
+      simToastText: 'Pasted sticker to chat!',
 
       // Problem vs Solution
       problemTag: '// THE STRUGGLE & THE COZY WAY',
@@ -225,10 +229,10 @@
       pillOffline: '#100%Offline',
       pillPrivacy: '#ZeroTracking',
 
-      feat6Title: 'Warm Vintage & Dark Mode Harmony',
-      feat6Desc: 'Cozy kraft paper tones, coffee ink, and golden earth accents. Perfectly soothing for late night conversations in Dark Mode.',
+      feat6Title: 'Warm Vintage & Dual Theme Harmony',
+      feat6Desc: 'Cozy kraft paper tones, coffee ink, and golden earth accents. Seamlessly switch between Warm Dark and Vintage Light modes.',
       pillVintageAesthetic: '#VintageWarmth',
-      pillDarkMode: '#EyeCareNight',
+      pillDarkMode: '#DualTheme',
 
       // Install Steps
       installTag: '// 3 EASY STEPS',
@@ -239,7 +243,7 @@
       step1Desc: 'Tap the download button from our fast Cloudflare CDN. The APK file is only 13.4 MB.',
       step2Num: '02',
       step2Title: 'Open & Grant Permission',
-      step2Desc: 'Open the downloaded file and choose Install. Allow "Install unknown apps" if prompted for the first time.',
+      step2Desc: 'Open the downloaded file and choose Install. Allow \"Install unknown apps\" if prompted for the first time.',
       step3Num: '03',
       step3Title: 'Enable Bubble & Enjoy!',
       step3Desc: 'Launch StickHub, grant overlay permission, and let your cherished stickers flow into any conversation!',
@@ -249,11 +253,11 @@
       faqTitle: 'Frequently Asked Questions, Answered Honestly',
       faqDesc: 'Candid and transparent answers directly from the student creator of StickHub.',
       faq1Q: 'Why is StickHub not on the Google Play Store yet?',
-      faq1A: 'Being completely transparent: I am a student and currently don’t have the $25 fee to open a Google Play Developer account! 😅 However, the APK is 100% clean, contains zero tracking code or ads, and is safe to use. When finances allow, StickHub will definitely arrive on Play Store!',
+      faq1A: 'Being completely transparent: I am a student and currently don’t have the  fee to open a Google Play Developer account! However, the APK is 100% clean, contains zero tracking code or ads, and is safe to use. When finances allow, StickHub will definitely arrive on Play Store!',
       faq2Q: 'Is installing this APK directly safe for my phone?',
       faq2A: 'Completely safe. StickHub operates 100% offline and requires no sensitive permissions like Contacts or Location. It only asks for floating overlay permission and local storage to keep your stickers safe.',
       faq3Q: 'Which chat apps does StickHub support?',
-      faq3A: 'All of them! Because StickHub uses a system-level overlay, selecting any sticker copies it to the Android standard Clipboard. Simply tap "Paste" inside Messenger, Zalo, Telegram, WhatsApp, Discord, or Instagram.',
+      faq3A: 'All of them! Because StickHub uses a system-level overlay, selecting any sticker copies it to the Android standard Clipboard. Simply tap \"Paste\" inside Messenger, Zalo, Telegram, WhatsApp, Discord, or Instagram.',
       faq4Q: 'Does the floating bubble drain battery or lag the phone?',
       faq4A: 'Not at all! The app is written in optimized Kotlin. When minimized as a tiny bubble, it consumes practically 0% CPU and only loads memory when you actively tap to open the sticker picker.',
 
@@ -272,7 +276,9 @@
     }
   };
 
-  // Language Detection & Persistence
+  // ==========================================================================
+  // 2. Language & Theme State
+  // ==========================================================================
   let currentLang = 'vi';
   const savedLang = localStorage.getItem('stickhub_lang');
   if (savedLang && (savedLang === 'vi' || savedLang === 'en')) {
@@ -282,14 +288,40 @@
     currentLang = browserLang.startsWith('vi') ? 'vi' : 'en';
   }
 
-  // Apply Language to DOM
+  let currentTheme = localStorage.getItem('stickhub_theme') || 'dark';
+
+  function applyTheme(theme) {
+    currentTheme = theme;
+    localStorage.setItem('stickhub_theme', theme);
+    document.documentElement.setAttribute('data-theme', theme);
+
+    const themeBtn = document.getElementById('themeToggleBtn');
+    if (themeBtn) {
+      themeBtn.innerHTML = theme === 'dark'
+        ? '<i data-lucide=\"sun\" style=\"width:16px;height:16px;\"></i>'
+        : '<i data-lucide=\"moon\" style=\"width:16px;height:16px;\"></i>';
+      themeBtn.title = theme === 'dark'
+        ? translations[currentLang].themeToggleLight
+        : translations[currentLang].themeToggleDark;
+    }
+
+    const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+    if (themeColorMeta) {
+      themeColorMeta.setAttribute('content', theme === 'dark' ? '#130F0C' : '#FAF6EF');
+    }
+
+    if (window.lucide) {
+      lucide.createIcons();
+    }
+  }
+
   function applyLanguage(lang) {
     currentLang = lang;
     localStorage.setItem('stickhub_lang', lang);
     document.documentElement.lang = lang;
     document.title = translations[lang].pageTitle;
 
-    const metaDesc = document.querySelector('meta[name="description"]');
+    const metaDesc = document.querySelector('meta[name=\"description\"]');
     if (metaDesc) metaDesc.setAttribute('content', translations[lang].metaDesc);
 
     // Update all data-i18n elements
@@ -301,16 +333,32 @@
       }
     });
 
-    // Update lang toggle button text
-    const langBtn = document.getElementById('langSwitcherBtn');
-    if (langBtn) {
-      langBtn.textContent = translations[lang].langBtn;
-      langBtn.title = translations[lang].langToggleTooltip;
+    // Update lang switcher label without wiping out icon
+    const langLabel = document.getElementById('langLabel');
+    const langSwitcherBtn = document.getElementById('langSwitcherBtn');
+    if (langLabel) {
+      langLabel.textContent = translations[lang].langLabel;
+    }
+    if (langSwitcherBtn) {
+      langSwitcherBtn.title = translations[lang].langToggleTooltip;
+    }
+
+    // Update theme toggle tooltip
+    const themeBtn = document.getElementById('themeToggleBtn');
+    if (themeBtn) {
+      themeBtn.title = currentTheme === 'dark'
+        ? translations[lang].themeToggleLight
+        : translations[lang].themeToggleDark;
+    }
+
+    // Refresh icons
+    if (window.lucide) {
+      lucide.createIcons();
     }
   }
 
   // ==========================================================================
-  // 2. Real Transparent Meme Cutouts & Floating Popup Logic
+  // 3. Phone Simulator & Transparent Cutout Memes
   // ==========================================================================
   const simBubbleBtn = document.getElementById('simBubbleBtn');
   const simPanel = document.getElementById('simPanel');
@@ -320,7 +368,6 @@
   const simToast = document.getElementById('simToast');
   const simChipsRail = document.getElementById('simChipsRail');
 
-  // Real Transparent Meme Stickers (Downloaded into public/stickers)
   const memeStickers = [
     { id: 1, cat: 'pepe', name: 'Pepe The Frog', img: 'stickers/pepe.png' },
     { id: 2, cat: 'cheems', name: 'Cheems Doge', img: 'stickers/cheems.png' },
@@ -380,20 +427,20 @@
       simChatBody.appendChild(stickerMsg);
       simChatBody.scrollTop = simChatBody.scrollHeight;
 
-      // Simulate Friend / Crush instant reaction
+      // Simulate Friend / Group chat reaction (Zero Emojis!)
       clearTimeout(botReplyTimer);
       botReplyTimer = setTimeout(() => {
         const viReactions = [
-          'Ủa meme Cheems này cắt nền chuẩn zậy! Xin link tải app gấp haha 🤣🔥',
-          'Trollface kinh điển luôn trời ơi!! Đỉnh vcl 👏✨',
-          'Ủa bấm cái dán liền luôn hả?? StickHub nổi trên màn hình xịn thế! 💯',
-          'Con mèo gào khóc đúng tâm trạng tui lúc này luôn haha! 😂❤️'
+          'Ủa meme Cheems này cắt nền chuẩn zậy! Xin link tải app gấp haha!',
+          'Trollface kinh điển luôn trời ơi!! Đỉnh thật sự!',
+          'Ủa bấm cái dán liền luôn hả?? StickHub nổi trên màn hình xịn thế!',
+          'Con mèo gào khóc đúng tâm trạng tui lúc này luôn haha!'
         ];
         const enReactions = [
-          'Whoa that Cheems cutout is so clean!! Send me the download link! 🤣🔥',
-          'Classic Trollface OMG!! That hit hard 👏✨',
-          'Wait, one tap and you pasted it right away?? StickHub overlay is so cool! 💯',
-          'That screaming cat meme is literally my mood right now haha! 😂❤️'
+          'Whoa that Cheems cutout is so clean!! Send me the download link!',
+          'Classic Trollface OMG!! That hit hard!',
+          'Wait, one tap and you pasted it right away?? StickHub overlay is so cool!',
+          'That screaming cat meme is literally my mood right now haha!'
         ];
         const pool = currentLang === 'vi' ? viReactions : enReactions;
         const text = pool[Math.floor(Math.random() * pool.length)];
@@ -440,9 +487,16 @@
   // Initial render of stickers
   renderStickers('all');
 
-  // ==========================================================================
-  // 3. Language Switcher Button Listener
-  // ==========================================================================
+  // Theme Switcher Button Listener
+  const themeToggleBtn = document.getElementById('themeToggleBtn');
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+      const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      applyTheme(nextTheme);
+    });
+  }
+
+  // Language Switcher Button Listener
   const langSwitcherBtn = document.getElementById('langSwitcherBtn');
   if (langSwitcherBtn) {
     langSwitcherBtn.addEventListener('click', () => {
@@ -451,7 +505,8 @@
     });
   }
 
-  // Run initial language setup
+  // Run initial setups
+  applyTheme(currentTheme);
   applyLanguage(currentLang);
 
   // ==========================================================================
@@ -566,5 +621,5 @@
     }
   });
 
-  console.log('📖 StickHub Dark Mode loaded in ' + currentLang.toUpperCase());
+  console.log('StickHub Engine initialized. Theme: ' + currentTheme + ', Lang: ' + currentLang);
 })();

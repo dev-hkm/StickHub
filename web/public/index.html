@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
-  <title>StickHub — Sổ Sticker Nổi Cho Android | Giữ Trọn Cuộc Trò Chuyện</title>
+  <title>StickHub — Kho Sticker Nổi Cho Android | Giữ Trọn Cuộc Trò Chuyện</title>
   
   <!-- SEO & Social Meta -->
   <meta name="description" content="StickHub mang cả cuốn sổ sticker & meme bạn yêu thích bay lượn trên Messenger, Telegram, Zalo, WhatsApp. Chạm nhẹ là dán, ấm áp và không gián đoạn!" />
@@ -11,16 +11,28 @@
   <meta name="author" content="Khanh Minh" />
   <meta name="theme-color" content="#130F0C" />
 
-  <!-- Open Graph -->
+  <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://stickhub.web.app/" />
-  <meta property="og:title" content="StickHub — Sổ Sticker Nổi Ấm Áp Cho Android" />
+  <meta property="og:title" content="StickHub — Kho Sticker Nổi Độc Quyền Cho Android" />
   <meta property="og:description" content="Thả sticker và meme siêu tốc trên mọi app nhắn tin bằng bong bóng nổi sổ tay. 100% Offline, sạch, không quảng cáo!" />
-  <meta property="og:image" content="https://stickhub.web.app/icon.png" />
+  <meta property="og:image" content="https://stickhub.web.app/og-preview.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:url" content="https://stickhub.web.app/" />
+  <meta name="twitter:title" content="StickHub — Kho Sticker Nổi Độc Quyền Cho Android" />
+  <meta name="twitter:description" content="Thả sticker và meme siêu tốc trên mọi app nhắn tin bằng bong bóng nổi sổ tay. 100% Offline, sạch, không quảng cáo!" />
+  <meta name="twitter:image" content="https://stickhub.web.app/og-preview.png" />
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="icon.png" />
   <link rel="apple-touch-icon" href="icon.png" />
+
+  <!-- Lucide Icons Library -->
+  <script src="https://unpkg.com/lucide@latest"></script>
 
   <!-- Stylesheet -->
   <link rel="stylesheet" href="style.css" />
@@ -36,8 +48,9 @@
         <p data-i18n="stickySubtitle">v5.2.5 • Miễn phí</p>
       </div>
     </div>
-    <a href="https://pub-66aa1ff95abc4f6198b4ab5def83a4a0.r2.dev/StickHub-v5.2.5.apk" class="btn-sticky-download" data-i18n="btnSticky">
-      Tải APK (13MB)
+    <a href="https://pub-66aa1ff95abc4f6198b4ab5def83a4a0.r2.dev/StickHub-v5.2.5.apk" class="btn-sticky-download">
+      <i data-lucide="download" style="width:15px;height:15px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>
+      <span data-i18n="btnSticky">Tải APK (13MB)</span>
     </a>
   </div>
 
@@ -58,18 +71,20 @@
           <a href="#faq" class="nav-link" data-i18n="navFaq">Tâm Sự & FAQ</a>
         </div>
 
-        <!-- Language Switcher Button -->
+        <!-- Theme Switcher Button (Dark / Light Mode) -->
+        <button class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle Theme" title="Chuyển chế độ sáng/tối">
+          <i data-lucide="sun" id="themeIcon" style="width:16px;height:16px;"></i>
+        </button>
+
+        <!-- Language Switcher Button (Lucide Globe Icon, Zero Emoji) -->
         <button class="lang-switcher-btn" id="langSwitcherBtn" title="Chuyển sang English">
-          🇻🇳 Tiếng Việt
+          <i data-lucide="globe" style="width:16px;height:16px;"></i>
+          <span id="langLabel">Tiếng Việt</span>
         </button>
 
         <!-- Download Button in Header -->
         <a href="https://pub-66aa1ff95abc4f6198b4ab5def83a4a0.r2.dev/StickHub-v5.2.5.apk" class="btn-header-download">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
-          </svg>
+          <i data-lucide="download" style="width:16px;height:16px;"></i>
           <span data-i18n="btnHeaderDownload">Tải APK</span>
         </a>
       </nav>
@@ -100,44 +115,29 @@
 
           <div class="cta-group">
             <a href="https://pub-66aa1ff95abc4f6198b4ab5def83a4a0.r2.dev/StickHub-v5.2.5.apk" class="btn-primary-cta" id="heroDownloadBtn">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-              </svg>
+              <i data-lucide="download" style="width:20px;height:20px;"></i>
               <span data-i18n="btnPrimaryCta">Tải APK Miễn Phí</span>
               <span class="btn-badge">13.4 MB</span>
             </a>
 
             <!-- Smooth Explore Features Link -->
             <a href="#features" class="btn-secondary-cta">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 16 16 12 12 8"></polyline>
-                <line x1="8" y1="12" x2="16" y2="12"></line>
-              </svg>
+              <i data-lucide="compass" style="width:18px;height:18px;"></i>
               <span data-i18n="btnExploreFeatures">Khám Phá Tính Năng</span>
             </a>
           </div>
 
           <div class="hero-stamps-row">
             <div class="stamp-mini">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-              </svg>
+              <i data-lucide="wifi-off" style="width:15px;height:15px;"></i>
               <span data-i18n="stampOffline">100% Không Cần Mạng</span>
             </div>
             <div class="stamp-mini">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-              </svg>
+              <i data-lucide="shield-ban" style="width:15px;height:15px;"></i>
               <span data-i18n="stampNoAds">Sạch Bóng Quảng Cáo</span>
             </div>
             <div class="stamp-mini">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
+              <i data-lucide="unlock" style="width:15px;height:15px;"></i>
               <span data-i18n="stampNoRoot">Không Cần Quyền Root</span>
             </div>
           </div>
@@ -154,17 +154,19 @@
 
             <!-- Chat Header -->
             <div class="sim-chat-header">
-              <div class="sim-avatar">🌸</div>
+              <div class="sim-avatar">
+                <i data-lucide="heart" style="width:18px;height:18px;color:var(--golden-earth);"></i>
+              </div>
               <div class="sim-chat-info">
                 <h4 data-i18n="simChatTitle">Hội Bạn Cũ & Crush</h4>
-                <p data-i18n="simChatStatus">● Đang online</p>
+                <p data-i18n="simChatStatus"><i data-lucide="radio" style="width:11px;height:11px;display:inline-block;vertical-align:middle;margin-right:3px;"></i>Đang online</p>
               </div>
             </div>
 
             <!-- Chat Body -->
             <div class="sim-chat-body" id="simChatBody">
               <div class="chat-bubble incoming" data-i18n="simChatIncoming">
-                Tối nay đi cà phê acoustic không mn ơi? Ai gửi meme chốt kèo nào! ☕✨
+                Tối nay đi cà phê acoustic không mn ơi? Ai gửi meme chốt kèo nào!
               </div>
               <div class="chat-bubble outgoing" data-i18n="simChatOutgoing">
                 Chờ xíu nè, mở StickHub thả chiếc meme hủy diệt này liền...
@@ -174,25 +176,28 @@
             <!-- Floating Mascot Sticker Bubble -->
             <div class="interactive-overlay-bubble" id="simBubbleBtn" title="Chạm mở StickHub!">
               <img src="icon.png" alt="StickHub Mascot" />
-              <div class="bubble-hint-pulse" data-i18n="bubbleHint">Chạm mở popup! 👉</div>
+              <div class="bubble-hint-pulse" data-i18n="bubbleHint">Chạm mở popup!</div>
             </div>
 
             <!-- TRUE FLOATING POPUP DIALOG (WindowManager Floating Window) -->
             <div class="sim-quick-stickers-panel" id="simPanel">
               <div class="panel-header">
                 <h5>
-                  <span data-i18n="panelTitle">STICKHUB POPUP ✨</span>
+                  <i data-lucide="sparkles" style="width:16px;height:16px;"></i>
+                  <span data-i18n="panelTitle">STICKHUB POPUP</span>
                 </h5>
-                <button class="panel-close-btn" id="simPanelClose">✕</button>
+                <button class="panel-close-btn" id="simPanelClose" aria-label="Close">
+                  <i data-lucide="x" style="width:14px;height:14px;"></i>
+                </button>
               </div>
 
-              <!-- Categories Rail -->
+              <!-- Categories Rail (Zero Emoji, Pure Text) -->
               <div class="panel-chips-rail" id="simChipsRail">
                 <button class="sim-chip active" data-cat="all" data-i18n="chipAll">Tất cả</button>
-                <button class="sim-chip" data-cat="pepe" data-i18n="chipPepe">Pepe 🐸</button>
-                <button class="sim-chip" data-cat="cheems" data-i18n="chipCheems">Cheems 🐶</button>
-                <button class="sim-chip" data-cat="cat" data-i18n="chipCat">Mèo Bựa 🐱</button>
-                <button class="sim-chip" data-cat="troll" data-i18n="chipTroll">Troll 😂</button>
+                <button class="sim-chip" data-cat="pepe" data-i18n="chipPepe">Pepe</button>
+                <button class="sim-chip" data-cat="cheems" data-i18n="chipCheems">Cheems</button>
+                <button class="sim-chip" data-cat="cat" data-i18n="chipCat">Mèo</button>
+                <button class="sim-chip" data-cat="troll" data-i18n="chipTroll">Troll</button>
               </div>
 
               <!-- 3x2 Grid of Real Cutout Meme Stickers -->
@@ -202,7 +207,10 @@
             </div>
 
             <!-- Toast -->
-            <div class="sim-copy-toast" id="simToast" data-i18n="simToastText">Đã dán sticker vào chat! ✨</div>
+            <div class="sim-copy-toast" id="simToast">
+              <i data-lucide="check-check" style="width:15px;height:15px;display:inline-block;vertical-align:middle;margin-right:4px;"></i>
+              <span data-i18n="simToastText">Đã dán sticker vào chat!</span>
+            </div>
           </div>
         </div>
 
@@ -225,24 +233,25 @@
           <div class="scrapbook-card old-way reveal-on-scroll">
             <div class="washi-tape gold"></div>
             <div class="stamp-badge" style="margin-bottom: 1.25rem;">
+              <i data-lucide="x-circle" style="width:15px;height:15px;"></i>
               <span data-i18n="oldWayBadge">CÁCH CŨ RƯỜM RÀ</span>
             </div>
             <h3 class="card-title" data-i18n="oldWayTitle">Mất 5 bước & 15 giây cho 1 chiếc sticker</h3>
             <ul class="scrapbook-list">
               <li>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D4952D" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                <i data-lucide="x" style="width:18px;height:18px;color:var(--golden-earth);flex-shrink:0;margin-top:3px;"></i>
                 <span data-i18n="oldStep1"><strong>Rời màn hình chat:</strong> Thoát ra ngoài tìm app Thư viện hay Telegram.</span>
               </li>
               <li>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D4952D" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                <i data-lucide="x" style="width:18px;height:18px;color:var(--golden-earth);flex-shrink:0;margin-top:3px;"></i>
                 <span data-i18n="oldStep2"><strong>Lục lọi hàng ngàn ảnh:</strong> Cuộn mỏi tay giữa ảnh chụp tài liệu, biên lai thanh toán.</span>
               </li>
               <li>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D4952D" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                <i data-lucide="x" style="width:18px;height:18px;color:var(--golden-earth);flex-shrink:0;margin-top:3px;"></i>
                 <span data-i18n="oldStep3"><strong>Nguội mất câu chuyện:</strong> Khi quay lại, bạn bè đã nói sang chuyện khác, lỡ mất nhịp vui.</span>
               </li>
               <li>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D4952D" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                <i data-lucide="x" style="width:18px;height:18px;color:var(--golden-earth);flex-shrink:0;margin-top:3px;"></i>
                 <span data-i18n="oldStep4"><strong>Bị chia rẽ ứng dụng:</strong> Sticker ở app này không thể gửi sang app kia một cách tiện lợi.</span>
               </li>
             </ul>
@@ -251,25 +260,26 @@
           <!-- The StickHub Way -->
           <div class="scrapbook-card new-way reveal-on-scroll delay-1">
             <div class="washi-tape sage"></div>
-            <div class="stamp-badge" style="background: var(--sage-soft); border-color: var(--sage-green); color: var(--sage-green); margin-bottom: 1.25rem;">
+            <div class="stamp-badge" style="background: var(--sage-soft); border-color: var(--sage-border); color: var(--sage-green); margin-bottom: 1.25rem;">
+              <i data-lucide="check-circle-2" style="width:15px;height:15px;"></i>
               <span data-i18n="newWayBadge">CÙNG STICKHUB ẤM ÁP</span>
             </div>
             <h3 class="card-title" data-i18n="newWayTitle">1 Chạm Nhẹ Nhàng — Dán Liền Tay</h3>
             <ul class="scrapbook-list">
               <li>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6C9764" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <i data-lucide="check" style="width:18px;height:18px;color:var(--sage-green);flex-shrink:0;margin-top:3px;"></i>
                 <span data-i18n="newStep1"><strong>Bong bóng nổi túc trực:</strong> Nằm gọn bên mép màn hình, luôn đồng hành trên mọi ứng dụng.</span>
               </li>
               <li>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6C9764" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <i data-lucide="check" style="width:18px;height:18px;color:var(--sage-green);flex-shrink:0;margin-top:3px;"></i>
                 <span data-i18n="newStep2"><strong>Chạm là dán ngay:</strong> Nạp thẳng sticker vào bộ nhớ đệm (Clipboard) siêu tốc.</span>
               </li>
               <li>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6C9764" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <i data-lucide="check" style="width:18px;height:18px;color:var(--sage-green);flex-shrink:0;margin-top:3px;"></i>
                 <span data-i18n="newStep3"><strong>Gom về một mái nhà:</strong> Mọi meme từ khắp nơi đều được sắp xếp gọn gàng trong sổ tay.</span>
               </li>
               <li>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6C9764" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <i data-lucide="check" style="width:18px;height:18px;color:var(--sage-green);flex-shrink:0;margin-top:3px;"></i>
                 <span data-i18n="newStep4"><strong>Tự động thu hoạch:</strong> Cứ copy bất kỳ ảnh nào trên mạng, StickHub tự lưu và chống trùng lặp!</span>
               </li>
             </ul>
@@ -293,12 +303,7 @@
           <!-- Card 1: Floating Overlay (Col 8) -->
           <div class="bento-card col-8 reveal-on-scroll">
             <div class="bento-icon-box">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-                <line x1="8" y1="21" x2="16" y2="21"/>
-                <line x1="12" y1="17" x2="12" y2="21"/>
-                <circle cx="17" cy="8" r="2" fill="currentColor"/>
-              </svg>
+              <i data-lucide="app-window" style="width:26px;height:26px;"></i>
             </div>
             <h3 data-i18n="feat1Title">Bong Bóng Nổi WindowManager Êm Ái</h3>
             <p data-i18n="feat1Desc">
@@ -314,9 +319,7 @@
           <!-- Card 2: AI Cutout (Col 4) -->
           <div class="bento-card col-4 reveal-on-scroll delay-1">
             <div class="bento-icon-box" style="background: var(--sage-soft); border-color: var(--sage-border); color: var(--sage-green);">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-              </svg>
+              <i data-lucide="scissors" style="width:26px;height:26px;"></i>
             </div>
             <h3 data-i18n="feat2Title">Tách Nền Tự Động On-Device</h3>
             <p data-i18n="feat2Desc">
@@ -330,12 +333,8 @@
 
           <!-- Card 3: Clipboard Harvester (Col 4) -->
           <div class="bento-card col-4 reveal-on-scroll">
-            <div class="bento-icon-box">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
-                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
-                <path d="M12 11h4M12 16h4M8 11h.01M8 16h.01"/>
-              </svg>
+            <div class="bento-icon-box" style="background: var(--golden-earth-soft); border-color: var(--golden-earth-border); color: var(--golden-earth);">
+              <i data-lucide="clipboard-copy" style="width:26px;height:26px;"></i>
             </div>
             <h3 data-i18n="feat3Title">Thu Hoạch Clipboard Thông Minh</h3>
             <p data-i18n="feat3Desc">
@@ -350,14 +349,7 @@
           <!-- Card 4: Category Management (Col 8) -->
           <div class="bento-card col-8 reveal-on-scroll delay-1">
             <div class="bento-icon-box">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="8" y1="6" x2="21" y2="6"/>
-                <line x1="8" y1="12" x2="21" y2="12"/>
-                <line x1="8" y1="18" x2="21" y2="18"/>
-                <line x1="3" y1="6" x2="3.01" y2="6"/>
-                <line x1="3" y1="12" x2="3.01" y2="12"/>
-                <line x1="3" y1="18" x2="3.01" y2="18"/>
-              </svg>
+              <i data-lucide="arrow-down-up" style="width:26px;height:26px;"></i>
             </div>
             <h3 data-i18n="feat4Title">Sắp Xếp Danh Mục Kéo Thả Tiện Lợi</h3>
             <p data-i18n="feat4Desc">
@@ -372,10 +364,7 @@
           <!-- Card 5: 100% Offline (Col 6) -->
           <div class="bento-card col-6 reveal-on-scroll">
             <div class="bento-icon-box" style="background: var(--sage-soft); border-color: var(--sage-border); color: var(--sage-green);">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
+              <i data-lucide="shield-check" style="width:26px;height:26px;"></i>
             </div>
             <h3 data-i18n="feat5Title">100% Cục Bộ & Giữ Trọn Riêng Tư</h3>
             <p data-i18n="feat5Desc">
@@ -390,10 +379,7 @@
           <!-- Card 6: Vintage & Dark Mode (Col 6) -->
           <div class="bento-card col-6 reveal-on-scroll delay-1">
             <div class="bento-icon-box">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
-                <path d="M19 3v4M21 5h-4"/>
-              </svg>
+              <i data-lucide="palette" style="width:26px;height:26px;"></i>
             </div>
             <h3 data-i18n="feat6Title">Giao Diện Vintage Mộc Mạc, Ấm Áp</h3>
             <p data-i18n="feat6Desc">
@@ -455,12 +441,10 @@
           <div class="faq-item active reveal-on-scroll">
             <button class="faq-question">
               <span data-i18n="faq1Q">Tại sao StickHub chưa có mặt trên Google Play Store?</span>
-              <svg class="faq-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
+              <i data-lucide="chevron-down" class="faq-toggle-icon"></i>
             </button>
             <div class="faq-answer" data-i18n="faq1A">
-              Thành thật tâm sự cùng bạn: Mình là học sinh và hiện tại chưa có đủ 25$ để đóng phí mở tài khoản Google Play Developer! 😅 Tuy nhiên, file APK được đóng gói hoàn toàn sạch sẽ, không chèn mã theo dõi hay quảng cáo rác. Bạn có thể an tâm tải về sử dụng.
+              Thành thật tâm sự cùng bạn: Mình là học sinh và hiện tại chưa có đủ 25$ để đóng phí mở tài khoản Google Play Developer! Tuy nhiên, file APK được đóng gói hoàn toàn sạch sẽ, không chèn mã theo dõi hay quảng cáo rác. Bạn có thể an tâm tải về sử dụng.
             </div>
           </div>
 
@@ -468,9 +452,7 @@
           <div class="faq-item reveal-on-scroll">
             <button class="faq-question">
               <span data-i18n="faq2Q">Cài đặt trực tiếp file APK có an toàn cho điện thoại không?</span>
-              <svg class="faq-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
+              <i data-lucide="chevron-down" class="faq-toggle-icon"></i>
             </button>
             <div class="faq-answer" data-i18n="faq2A">
               Tuyệt đối an toàn. StickHub hoạt động hoàn toàn offline, không yêu cầu các quyền nhạy cảm như danh bạ hay vị trí. Ứng dụng chỉ cần quyền hiển thị bong bóng nổi và lưu trữ sticker cục bộ.
@@ -481,9 +463,7 @@
           <div class="faq-item reveal-on-scroll">
             <button class="faq-question">
               <span data-i18n="faq3Q">StickHub dùng được trên những ứng dụng trò chuyện nào?</span>
-              <svg class="faq-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
+              <i data-lucide="chevron-down" class="faq-toggle-icon"></i>
             </button>
             <div class="faq-answer" data-i18n="faq3A">
               Tất cả mọi ứng dụng! Nhờ cơ chế bong bóng nổi trên hệ thống, khi bạn chạm chọn sticker, ảnh sẽ được đưa vào Clipboard chuẩn. Bạn chỉ cần mở bàn phím ở Messenger, Zalo, Telegram, WhatsApp hay Instagram rồi nhấn "Dán".
@@ -494,9 +474,7 @@
           <div class="faq-item reveal-on-scroll">
             <button class="faq-question">
               <span data-i18n="faq4Q">Bong bóng nổi có gây hao pin hay làm chậm máy không?</span>
-              <svg class="faq-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
+              <i data-lucide="chevron-down" class="faq-toggle-icon"></i>
             </button>
             <div class="faq-answer" data-i18n="faq4A">
               Không hề nha! Ứng dụng được viết bằng Kotlin tối ưu sâu. Khi ở dạng bong bóng nhỏ, ứng dụng gần như tiêu thụ 0% CPU và chỉ tải bộ nhớ khi bạn chạm mở sổ chọn sticker.
@@ -518,11 +496,7 @@
 
           <div class="cta-group" style="justify-content: center;">
             <a href="https://pub-66aa1ff95abc4f6198b4ab5def83a4a0.r2.dev/StickHub-v5.2.5.apk" class="btn-primary-cta" id="masterDownloadBtn">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-              </svg>
+              <i data-lucide="download" style="width:20px;height:20px;"></i>
               <span data-i18n="btnMasterDownload">Tải StickHub APK (v5.2.5)</span>
             </a>
           </div>
