@@ -1,6 +1,6 @@
 ﻿/* ==========================================================================
-   StickHub Landing Page — Vintage Golden Earth Scrapbook Engine
-   Flawless Bilingual (VI/EN), Tactile Awwwards Reveals, Sleek Phone Drawer
+   StickHub Landing Page — Vintage Golden Earth Dark Mode Engine
+   Real Cutout Memes, WindowManager Floating Popup, Smart Auto-Hide Topbar
    ========================================================================== */
 
 (function () {
@@ -36,15 +36,15 @@
       // Phone Simulator
       simChatTitle: 'Hội Bạn Cũ & Crush',
       simChatStatus: '● Đang online',
-      simChatIncoming: 'Tối nay đi cà phê acoustic không mn ơi? Ai gửi sticker chốt kèo nào! ☕✨',
-      simChatOutgoing: 'Chờ xíu nè, mở StickHub thả chiếc sticker ấm lòng này liền...',
-      bubbleHint: 'Chạm mở sổ! 👉',
-      panelTitle: 'SỔ STICKER GẦN ĐÂY',
+      simChatIncoming: 'Tối nay đi cà phê acoustic không mn ơi? Ai gửi meme chốt kèo nào! ☕✨',
+      simChatOutgoing: 'Chờ xíu nè, mở StickHub thả chiếc meme hủy diệt này liền...',
+      bubbleHint: 'Chạm mở popup! 👉',
+      panelTitle: 'STICKHUB POPUP ✨',
       chipAll: 'Tất cả',
-      chipCat: 'Mèo 🐱',
-      chipCute: 'Ấm Áp 🌸',
       chipPepe: 'Pepe 🐸',
-      chipTroll: 'Vui Nhộn 😂',
+      chipCheems: 'Cheems 🐶',
+      chipCat: 'Mèo Bựa 🐱',
+      chipTroll: 'Troll 😂',
       simToastText: 'Đã dán sticker vào chat! ✨',
 
       // Problem vs Solution
@@ -166,15 +166,15 @@
       // Phone Simulator
       simChatTitle: 'Best Friends & Crush',
       simChatStatus: '● Online now',
-      simChatIncoming: 'Coffee & acoustic songs tonight anyone? Send a cozy sticker to confirm! ☕✨',
-      simChatOutgoing: 'Hold on a second, opening StickHub to send a heartwarming sticker...',
-      bubbleHint: 'Tap to open! 👉',
-      panelTitle: 'RECENT STICKERS',
+      simChatIncoming: 'Coffee & acoustic songs tonight anyone? Send a meme to lock it in! ☕✨',
+      simChatOutgoing: 'Hold on a second, opening StickHub to send a killer meme...',
+      bubbleHint: 'Tap for popup! 👉',
+      panelTitle: 'STICKHUB POPUP ✨',
       chipAll: 'All',
-      chipCat: 'Cats 🐱',
-      chipCute: 'Cozy 🌸',
       chipPepe: 'Pepe 🐸',
-      chipTroll: 'Funny 😂',
+      chipCheems: 'Cheems 🐶',
+      chipCat: 'Cats 🐱',
+      chipTroll: 'Troll 😂',
       simToastText: 'Pasted sticker to chat! ✨',
 
       // Problem vs Solution
@@ -310,7 +310,7 @@
   }
 
   // ==========================================================================
-  // 2. Interactive Phone & Compact Bottom Drawer Demo
+  // 2. Real Transparent Meme Cutouts & Floating Popup Logic
   // ==========================================================================
   const simBubbleBtn = document.getElementById('simBubbleBtn');
   const simPanel = document.getElementById('simPanel');
@@ -320,113 +320,31 @@
   const simToast = document.getElementById('simToast');
   const simChipsRail = document.getElementById('simChipsRail');
 
-  // Handcrafted Cozy Vintage Stickers (Golden Earth & Ink)
-  const stickers = [
-    {
-      id: 1,
-      cat: 'cat',
-      name: 'Mèo Ôm Cốc Trà',
-      svg: `<svg viewBox="0 0 100 100" fill="none">
-        <circle cx="50" cy="50" r="42" fill="#FAF5E8" stroke="#C68A2E" stroke-width="2.5"/>
-        <polygon points="26,26 36,10 46,24" fill="#E8A87C" stroke="#281F18" stroke-width="2"/>
-        <polygon points="54,24 64,10 74,26" fill="#E8A87C" stroke="#281F18" stroke-width="2"/>
-        <circle cx="50" cy="52" r="30" fill="#FFFDF8" stroke="#281F18" stroke-width="2.5"/>
-        <ellipse cx="40" cy="46" rx="4" ry="6" fill="#281F18"/>
-        <ellipse cx="60" cy="46" rx="4" ry="6" fill="#281F18"/>
-        <circle cx="41" cy="44" r="1.5" fill="#FFFFFF"/>
-        <circle cx="61" cy="44" r="1.5" fill="#FFFFFF"/>
-        <ellipse cx="34" cy="52" rx="4" ry="2.5" fill="#F4B2A3"/>
-        <ellipse cx="66" cy="52" rx="4" ry="2.5" fill="#F4B2A3"/>
-        <rect x="42" y="58" width="16" height="15" rx="3" fill="#C68A2E" stroke="#281F18" stroke-width="2"/>
-        <path d="M58 62 C62 62, 62 68, 58 68" stroke="#281F18" stroke-width="2" fill="none"/>
-        <path d="M46 54 Q48 50 46 47" stroke="#D99B26" stroke-width="2" stroke-linecap="round"/>
-        <path d="M54 54 Q56 50 54 47" stroke="#D99B26" stroke-width="2" stroke-linecap="round"/>
-      </svg>`
-    },
-    {
-      id: 2,
-      cat: 'cute',
-      name: 'Mầm Cây Ấm Áp',
-      svg: `<svg viewBox="0 0 100 100" fill="none">
-        <circle cx="50" cy="50" r="42" fill="#EEF4ED" stroke="#4A6741" stroke-width="2.5"/>
-        <polygon points="34,58 66,58 62,82 38,82" fill="#C68A2E" stroke="#281F18" stroke-width="2.5"/>
-        <rect x="31" y="54" width="38" height="6" rx="2" fill="#DB9836" stroke="#281F18" stroke-width="2"/>
-        <circle cx="44" cy="68" r="2.5" fill="#281F18"/>
-        <circle cx="56" cy="68" r="2.5" fill="#281F18"/>
-        <path d="M48 73 Q50 76 52 73" stroke="#281F18" stroke-width="2" stroke-linecap="round"/>
-        <path d="M50 54 Q50 40 50 34" stroke="#4A6741" stroke-width="3" stroke-linecap="round"/>
-        <path d="M50 38 Q64 30 62 42 Q52 46 50 38" fill="#588157" stroke="#281F18" stroke-width="2"/>
-        <path d="M50 34 Q36 26 38 38 Q48 42 50 34" fill="#74A57F" stroke="#281F18" stroke-width="2"/>
-      </svg>`
-    },
-    {
-      id: 3,
-      cat: 'pepe',
-      name: 'Pepe Tách Trà',
-      svg: `<svg viewBox="0 0 100 100" fill="none">
-        <ellipse cx="50" cy="50" rx="42" ry="38" fill="#84A98C" stroke="#281F18" stroke-width="2.5"/>
-        <ellipse cx="36" cy="38" rx="13" ry="11" fill="#FFFFFF" stroke="#281F18" stroke-width="2"/>
-        <ellipse cx="64" cy="38" rx="13" ry="11" fill="#FFFFFF" stroke="#281F18" stroke-width="2"/>
-        <circle cx="38" cy="38" r="5" fill="#281F18"/>
-        <circle cx="62" cy="38" r="5" fill="#281F18"/>
-        <path d="M30 62 Q 50 74 70 62" stroke="#281F18" stroke-width="3.5" stroke-linecap="round" fill="#C68A2E"/>
-        <ellipse cx="32" cy="48" rx="4" ry="2" fill="#D4973B"/>
-        <ellipse cx="68" cy="48" rx="4" ry="2" fill="#D4973B"/>
-      </svg>`
-    },
-    {
-      id: 4,
-      cat: 'cat',
-      name: 'Mèo Bánh Mì',
-      svg: `<svg viewBox="0 0 100 100" fill="none">
-        <ellipse cx="50" cy="50" rx="42" ry="40" fill="#FFF8EE" stroke="#D99B26" stroke-width="2.5"/>
-        <rect x="25" y="36" width="50" height="36" rx="16" fill="#D99B26" stroke="#281F18" stroke-width="2.5"/>
-        <polygon points="28,36 34,22 42,36" fill="#D99B26" stroke="#281F18" stroke-width="2"/>
-        <polygon points="58,36 66,22 72,36" fill="#D99B26" stroke="#281F18" stroke-width="2"/>
-        <path d="M36 50 Q40 44 44 50" stroke="#281F18" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-        <path d="M56 50 Q60 44 64 50" stroke="#281F18" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-        <ellipse cx="50" cy="56" rx="3" ry="2" fill="#C68A2E"/>
-      </svg>`
-    },
-    {
-      id: 5,
-      cat: 'cute',
-      name: 'Trái Tim Vàng Đất',
-      svg: `<svg viewBox="0 0 100 100" fill="none">
-        <circle cx="50" cy="50" r="42" fill="#FDF8EC" stroke="#C68A2E" stroke-width="2.5"/>
-        <path d="M50 78 C25 60, 20 40, 32 28 C42 18, 48 26, 50 30 C52 26, 58 18, 68 28 C80 40, 75 60, 50 78 Z" fill="#C68A2E" stroke="#281F18" stroke-width="2.5"/>
-        <path d="M38 32 Q44 26 48 34" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round"/>
-      </svg>`
-    },
-    {
-      id: 6,
-      cat: 'troll',
-      name: 'Nụ Cười Hóm Hỉnh',
-      svg: `<svg viewBox="0 0 100 100" fill="none">
-        <circle cx="50" cy="50" r="42" fill="#FDF8EC" stroke="#281F18" stroke-width="2.5"/>
-        <ellipse cx="36" cy="40" rx="6" ry="8" fill="#281F18"/>
-        <ellipse cx="64" cy="40" rx="6" ry="8" fill="#281F18"/>
-        <circle cx="37" cy="38" r="2" fill="#FFFFFF"/>
-        <circle cx="65" cy="38" r="2" fill="#FFFFFF"/>
-        <path d="M26 56 Q50 86 74 56 Z" fill="#FFFFFF" stroke="#281F18" stroke-width="3"/>
-        <line x1="34" y1="64" x2="66" y2="64" stroke="#281F18" stroke-width="2"/>
-        <line x1="42" y1="58" x2="42" y2="70" stroke="#281F18" stroke-width="2"/>
-        <line x1="50" y1="58" x2="50" y2="72" stroke="#281F18" stroke-width="2"/>
-        <line x1="58" y1="58" x2="58" y2="70" stroke="#281F18" stroke-width="2"/>
-      </svg>`
-    }
+  // Real Transparent Meme Stickers (Downloaded into public/stickers)
+  const memeStickers = [
+    { id: 1, cat: 'pepe', name: 'Pepe The Frog', img: 'stickers/pepe.png' },
+    { id: 2, cat: 'cheems', name: 'Cheems Doge', img: 'stickers/cheems.png' },
+    { id: 3, cat: 'troll', name: 'Trollface', img: 'stickers/trollface.png' },
+    { id: 4, cat: 'cat', name: 'Mèo Crying Scream', img: 'stickers/catscream.png' },
+    { id: 5, cat: 'cat', name: 'Mèo Đeo Kính Cool', img: 'stickers/kewlcat.png' },
+    { id: 6, cat: 'cheems', name: 'Doge Classic', img: 'stickers/doge.png' }
   ];
 
   function renderStickers(category) {
     if (!simStickerGrid) return;
     simStickerGrid.innerHTML = '';
-    const filtered = category === 'all' ? stickers : stickers.filter((s) => s.cat === category);
+    const filtered = category === 'all' ? memeStickers : memeStickers.filter((s) => s.cat === category);
 
     filtered.forEach((item) => {
       const card = document.createElement('div');
       card.className = 'sim-sticker-card';
       card.title = item.name;
-      card.innerHTML = item.svg;
+
+      const img = document.createElement('img');
+      img.src = item.img;
+      img.alt = item.name;
+      img.loading = 'lazy';
+      card.appendChild(img);
 
       card.addEventListener('click', () => {
         handleStickerClick(item);
@@ -444,33 +362,38 @@
       setTimeout(() => simToast.classList.remove('show'), 2000);
     }
 
-    // Close bottom drawer immediately with smooth spring
+    // Close floating popup smoothly
     if (simPanel) {
       simPanel.classList.remove('active');
     }
 
-    // Append outgoing sticker
+    // Append outgoing transparent meme sticker to chat
     if (simChatBody) {
       const stickerMsg = document.createElement('div');
       stickerMsg.className = 'chat-bubble chat-sticker-pasted';
-      stickerMsg.innerHTML = item.svg;
+      
+      const stickerImg = document.createElement('img');
+      stickerImg.src = item.img;
+      stickerImg.alt = item.name;
+      stickerMsg.appendChild(stickerImg);
+
       simChatBody.appendChild(stickerMsg);
       simChatBody.scrollTop = simChatBody.scrollHeight;
 
-      // Simulate Bot/Friend reaction
+      // Simulate Friend / Crush instant reaction
       clearTimeout(botReplyTimer);
       botReplyTimer = setTimeout(() => {
         const viReactions = [
-          'Aww cưng xỉu!! Xin link tải app gấp ☕💖',
-          'Trời ơi sticker gì mà dễ thương ấm áp dữ zậy! 🥺✨',
-          'Bấm cái gửi liền luôn hả?? StickHub nổi trên màn hình xịn thế! 💯',
-          'Chiếc meme làm ấm lòng giữa tiết trời se lạnh haha! 🐸❤️'
+          'Ủa meme Cheems này cắt nền chuẩn zậy! Xin link tải app gấp haha 🤣🔥',
+          'Trollface kinh điển luôn trời ơi!! Đỉnh vcl 👏✨',
+          'Ủa bấm cái dán liền luôn hả?? StickHub nổi trên màn hình xịn thế! 💯',
+          'Con mèo gào khóc đúng tâm trạng tui lúc này luôn haha! 😂❤️'
         ];
         const enReactions = [
-          'Aww so adorable!! Send me the download link please! ☕💖',
-          'OMG this sticker is so cozy and cute! 🥺✨',
-          'One tap and you pasted it right away?? StickHub overlay is so cool! 💯',
-          'This meme totally made my day haha! 🐸❤️'
+          'Whoa that Cheems cutout is so clean!! Send me the download link! 🤣🔥',
+          'Classic Trollface OMG!! That hit hard 👏✨',
+          'Wait, one tap and you pasted it right away?? StickHub overlay is so cool! 💯',
+          'That screaming cat meme is literally my mood right now haha! 😂❤️'
         ];
         const pool = currentLang === 'vi' ? viReactions : enReactions;
         const text = pool[Math.floor(Math.random() * pool.length)];
@@ -480,11 +403,11 @@
         incomingMsg.textContent = text;
         simChatBody.appendChild(incomingMsg);
         simChatBody.scrollTop = simChatBody.scrollHeight;
-      }, 1100);
+      }, 1000);
     }
   }
 
-  // Floating Bubble Click
+  // Mascot Bubble Toggle
   if (simBubbleBtn && simPanel) {
     simBubbleBtn.addEventListener('click', () => {
       const isActive = simPanel.classList.toggle('active');
@@ -532,7 +455,38 @@
   applyLanguage(currentLang);
 
   // ==========================================================================
-  // 4. Staggered Scroll Reveals (IntersectionObserver)
+  // 4. Smart Auto-Hide Topbar (Hide on scroll down, show on scroll up)
+  // ==========================================================================
+  let lastScrollY = window.scrollY;
+  const siteHeader = document.getElementById('siteHeader');
+
+  window.addEventListener(
+    'scroll',
+    () => {
+      if (!siteHeader) return;
+      const currentScrollY = window.scrollY;
+
+      // Scrolled styling (background blur)
+      if (currentScrollY > 40) {
+        siteHeader.classList.add('scrolled');
+      } else {
+        siteHeader.classList.remove('scrolled');
+      }
+
+      // Hide on scroll down, show on scroll up
+      if (currentScrollY > lastScrollY && currentScrollY > 120) {
+        siteHeader.classList.add('header-hidden');
+      } else {
+        siteHeader.classList.remove('header-hidden');
+      }
+
+      lastScrollY = currentScrollY;
+    },
+    { passive: true }
+  );
+
+  // ==========================================================================
+  // 5. Staggered Scroll Reveals (IntersectionObserver)
   // ==========================================================================
   const revealElements = document.querySelectorAll('.reveal-on-scroll');
   if ('IntersectionObserver' in window) {
@@ -553,7 +507,7 @@
   }
 
   // ==========================================================================
-  // 5. 3D Perspective Card Tilt (Desktop Only)
+  // 6. 3D Perspective Card Tilt (Desktop Only)
   // ==========================================================================
   if (window.matchMedia('(min-width: 992px)').matches) {
     const tiltCards = document.querySelectorAll('.bento-card, .scrapbook-card, .step-card');
@@ -572,23 +526,6 @@
       });
     });
   }
-
-  // ==========================================================================
-  // 6. Header Scrolled Shadow
-  // ==========================================================================
-  const siteHeader = document.getElementById('siteHeader');
-  window.addEventListener(
-    'scroll',
-    () => {
-      if (!siteHeader) return;
-      if (window.scrollY > 30) {
-        siteHeader.classList.add('scrolled');
-      } else {
-        siteHeader.classList.remove('scrolled');
-      }
-    },
-    { passive: true }
-  );
 
   // ==========================================================================
   // 7. Sticky Mobile Download Bar
@@ -629,5 +566,5 @@
     }
   });
 
-  console.log('📖 StickHub Vintage Golden Earth loaded in ' + currentLang.toUpperCase());
+  console.log('📖 StickHub Dark Mode loaded in ' + currentLang.toUpperCase());
 })();
