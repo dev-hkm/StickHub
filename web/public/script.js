@@ -288,7 +288,7 @@
     currentLang = browserLang.startsWith('vi') ? 'vi' : 'en';
   }
 
-  let currentTheme = localStorage.getItem('stickhub_theme') || 'dark';
+  let currentTheme = localStorage.getItem('stickhub_theme') || 'light';
 
   function applyTheme(theme) {
     currentTheme = theme;
@@ -307,7 +307,7 @@
 
     const themeColorMeta = document.querySelector('meta[name="theme-color"]');
     if (themeColorMeta) {
-      themeColorMeta.setAttribute('content', theme === 'dark' ? '#130F0C' : '#FAF6EF');
+      themeColorMeta.setAttribute('content', theme === 'dark' ? '#130F0C' : '#F5EEDB');
     }
 
     if (window.lucide) {
