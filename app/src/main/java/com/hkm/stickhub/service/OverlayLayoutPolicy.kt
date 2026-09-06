@@ -25,6 +25,11 @@ object OverlayLayoutPolicy {
     const val CHROME_SEARCH_HEIGHT_DP = 46f
     const val CHROME_CATEGORIES_HEIGHT_DP = 38f
 
+    // Keep the close control compact; its touch target sits outside the panel
+    // and must not consume a large corner of the popup.
+    const val CLOSE_CONTROL_SIZE_DP = 30f
+    const val CLOSE_DOCK_OFFSET_DP = 8f
+
     data class PanelBounds(
         val x: Int,
         val y: Int,
@@ -61,7 +66,7 @@ object OverlayLayoutPolicy {
         closeSize: Int,
         screenWidth: Int,
         screenHeight: Int,
-        offsetPx: Int = 4
+        offsetPx: Int = CLOSE_DOCK_OFFSET_DP.toInt()
     ): CloseOverlayPosition {
         val maxX = max(0, screenWidth - closeSize)
         val maxY = max(0, screenHeight - closeSize)

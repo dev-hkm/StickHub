@@ -443,7 +443,7 @@ class OverlayService : Service() {
         panelContent?.let { content ->
             val isGridOnly = !showTitle && !showSearch && !showCategories
             val outerPad = if (isGridOnly) (4 * density).toInt() else (6 * density).toInt()
-            content.setPadding(outerPad, outerPad, outerPad, outerPad)
+            content.setPadding(outerPad, (2 * density).toInt(), outerPad, outerPad)
         }
 
         // Hidden rows must not keep filtering invisibly. Clearing the EditText
@@ -893,7 +893,8 @@ class OverlayService : Service() {
             )
             elevation = 12f
             val outerPad = if (isGridOnly) (4 * density).toInt() else (6 * density).toInt()
-            setPadding(outerPad, outerPad, outerPad, outerPad)
+            val topPad = (2 * density).toInt()
+            setPadding(outerPad, topPad, outerPad, outerPad)
         }
 
         // Chrome Container (Header, Search, Categories) with its own opacity.
@@ -1031,7 +1032,7 @@ class OverlayService : Service() {
             ).apply {
                 // Give the chip rail deliberate breathing room from the
                 // popup edge; it should read as floating content, not a topbar.
-                setMargins(0, (6 * density).toInt(), 0, (6 * density).toInt())
+                setMargins(0, (2 * density).toInt(), 0, (4 * density).toInt())
             }
             visibility = if (showCategories) View.VISIBLE else View.GONE
         }
@@ -1102,8 +1103,8 @@ class OverlayService : Service() {
         val closeBtn = ImageView(this).apply {
             setImageDrawable(ContextCompat.getDrawable(this@OverlayService, LucideR.drawable.lucide_ic_x))
             setColorFilter(palette.textColor)
-            val btnSize = (42 * density).toInt()
-            val pad = (11 * density).toInt()
+            val btnSize = (OverlayLayoutPolicy.CLOSE_CONTROL_SIZE_DP * density).toInt()
+            val pad = (7 * density).toInt()
             setPadding(pad, pad, pad, pad)
             val btnBg = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
@@ -1474,7 +1475,9 @@ class OverlayService : Service() {
             closeSize = closeOverlaySizePx,
             screenWidth = screenW,
             screenHeight = screenH,
-            offsetPx = (4 * resources.displayMetrics.density).toInt().coerceAtLeast(4)
+            offsetPx = (OverlayLayoutPolicy.CLOSE_DOCK_OFFSET_DP * resources.displayMetrics.density)
+                .toInt()
+                .coerceAtLeast(1)
         )
         closeOverlayParams.x = position.x
         closeOverlayParams.y = position.y

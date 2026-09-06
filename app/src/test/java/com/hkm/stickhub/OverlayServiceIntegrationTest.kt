@@ -143,7 +143,7 @@ class OverlayServiceIntegrationTest {
         val chips = field<android.widget.LinearLayout>(service, "chipContainer")
         val content = field<android.widget.LinearLayout>(service, "panelContent")
         val density = service.resources.displayMetrics.density
-        assertEquals("Compact mode must not reserve a blank close row", (6 * density).toInt(), content.paddingTop)
+        assertEquals("Compact mode must keep the top edge visually thin", (2 * density).toInt(), content.paddingTop)
     }
 
     @Test

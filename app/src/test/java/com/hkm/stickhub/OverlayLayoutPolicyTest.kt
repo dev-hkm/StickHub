@@ -296,8 +296,8 @@ class OverlayLayoutPolicyTest {
             showTitle = true,
             showSearch = true,
             showCategories = true,
-            closeButtonSizePx = (42 * density).toInt(),
-            closeOffsetPx = (4 * density).toInt()
+            closeButtonSizePx = (OverlayLayoutPolicy.CLOSE_CONTROL_SIZE_DP * density).toInt(),
+            closeOffsetPx = (OverlayLayoutPolicy.CLOSE_DOCK_OFFSET_DP * density).toInt()
         )
 
         assertTrue(geometry.panelBounds.width in geometry.minWidth..geometry.maxWidth)
@@ -306,10 +306,39 @@ class OverlayLayoutPolicyTest {
         assertTrue(geometry.panelBounds.y + geometry.panelBounds.height <= 2400)
         assertTrue(geometry.columns >= 3)
         // Close button center should dock on the outside corner
-        val closeSize = (42 * density).toInt()
+        val closeSize = (OverlayLayoutPolicy.CLOSE_CONTROL_SIZE_DP * density).toInt()
         val closeCenterX = geometry.closePosition.x + closeSize / 2
         val closeCenterY = geometry.closePosition.y + closeSize / 2
         assertTrue(closeCenterX >= geometry.panelBounds.x + geometry.panelBounds.width)
         assertTrue(closeCenterY <= geometry.panelBounds.y)
+    }
+
+    @Test
+    fun closeControlOnlyOverlapsThePopupByAThinDiagonalMargin() {
+        val density = 3f
+        val geometry = OverlayLayoutPolicy.computePopupGeometry(
+            requestedX = 120,
+            requestedY = 260,
+            requestedWidth = 720,
+            requestedHeight = 900,
+            screenWidth = 1080,
+            screenHeight = 2400,
+            density = density,
+            showTitle = false,
+            showSearch = false,
+            showCategories = true,
+            closeButtonSizePx = (OverlayLayoutPolicy.CLOSE_CONTROL_SIZE_DP * density).toInt(),
+            closeOffsetPx = (OverlayLayoutPolicy.CLOSE_DOCK_OFFSET_DP * density).toInt()
+        )
+
+        val closeLeft = geometry.closePosition.x
+        val closeBottom = geometry.closePosition.y +
+                (OverlayLayoutPolicy.CLOSE_CONTROL_SIZE_DP * density).toInt()
+        val panelRight = geometry.panelBounds.x + geometry.panelBounds.width
+        val horizontalOverlap = (panelRight - closeLeft).coerceAtLeast(0)
+        val verticalOverlap = (closeBottom - geometry.panelBounds.y).coerceAtLeast(0)
+
+        assertTrue("Close control must not eat a large corner of the popup", horizontalOverlap <= 12 * density)
+        assertTrue("Close control must only kiss the top edge", verticalOverlap <= 12 * density)
     }
 }
