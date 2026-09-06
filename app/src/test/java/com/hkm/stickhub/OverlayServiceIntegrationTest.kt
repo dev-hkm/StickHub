@@ -191,20 +191,6 @@ class OverlayServiceIntegrationTest {
         assertTrue("Bubble panel must remain open after category selection", field<Boolean>(service, "isPanelOpen"))
     }
 
-    @Test
-    fun chipRailKeepsEndClearOfCloseDock() = withService { service ->
-        val bubble = field<View>(service, "bubbleView")
-        assertTrue(bubble.performClick())
-        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
-
-        val chips = field<android.widget.LinearLayout>(service, "chipContainer")
-        val density = service.resources.displayMetrics.density
-        val closeSize = field<Int>(service, "closeOverlaySizePx")
-        val expected = com.hkm.stickhub.service.OverlayLayoutPolicy.chipRailEndInsetPx(density, closeSize)
-        assertTrue("Rail end must clear the docked close hit box", chips.paddingEnd >= expected)
-        assertTrue(expected >= closeSize / 2)
-    }
-
     private fun withService(block: (OverlayService) -> Unit) {
         ShadowSettings.setCanDrawOverlays(true)
         val controller = Robolectric.buildService(OverlayService::class.java).create()

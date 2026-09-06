@@ -312,24 +312,4 @@ class OverlayLayoutPolicyTest {
         assertTrue(closeCenterX >= geometry.panelBounds.x + geometry.panelBounds.width)
         assertTrue(closeCenterY <= geometry.panelBounds.y)
     }
-
-    @Test
-    fun testChipRailEndInsetCoversCloseOverhang() {
-        for (density in listOf(1f, 2f, 2.5f, 3.5f)) {
-            val closeSize = (OverlayLayoutPolicy.CLOSE_CONTROL_SIZE_DP * density).toInt()
-            val inset = OverlayLayoutPolicy.chipRailEndInsetPx(density, closeSize)
-            // Must at least cover the half-button overhang inside the panel.
-            assertTrue(inset >= closeSize / 2)
-            assertTrue(inset > 0)
-        }
-    }
-
-    @Test
-    fun testChipRailEndInsetIsStableAcrossDensities() {
-        val lo = OverlayLayoutPolicy.chipRailEndInsetPx(1f, 42)
-        val hi = OverlayLayoutPolicy.chipRailEndInsetPx(3.5f, (42 * 3.5f).toInt())
-        // Grows with density, never explodes: under 64dp worth of pixels.
-        assertTrue(hi > lo)
-        assertTrue(hi < 64 * 3.5f)
-    }
 }

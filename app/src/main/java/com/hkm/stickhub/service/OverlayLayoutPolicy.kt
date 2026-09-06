@@ -54,8 +54,6 @@ object OverlayLayoutPolicy {
      * sits on the popup's top-right corner, leaving half of the control above
      * and to the right of the surface instead of consuming content space.
      */
-    const val CLOSE_CONTROL_SIZE_DP = 42f
-    const val CLOSE_DOCK_OFFSET_DP = 4f
     fun closeOverlayPosition(
         panelX: Int,
         panelY: Int,
@@ -71,24 +69,6 @@ object OverlayLayoutPolicy {
             x = (panelX + panelWidth + offsetPx - closeSize / 2).coerceIn(0, maxX),
             y = (panelY - offsetPx - closeSize / 2).coerceIn(0, maxY)
         )
-    }
-
-    /**
-     * End inset for the category chip rail so the last (usually newest) chip
-     * never parks underneath the close control's hit box. The docked close
-     * button overhangs the panel's top-right corner by half its size minus
-     * the dock offset; a chip resting in that strip would send its taps to
-     * the close window on the separate overlay layer and dismiss the popup.
-     * Scrolling can still carry a chip under the corner mid-gesture, but the
-     * resting position — where taps actually land — stays clear.
-     */
-    fun chipRailEndInsetPx(
-        density: Float,
-        closeSizePx: Int,
-        closeOffsetPx: Int = (CLOSE_DOCK_OFFSET_DP * density).toInt().coerceAtLeast(1)
-    ): Int {
-        val overhangPx = (closeSizePx / 2 - closeOffsetPx).coerceAtLeast(0)
-        return overhangPx + (8 * density).toInt().coerceAtLeast(8)
     }
 
     /**
