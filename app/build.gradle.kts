@@ -45,10 +45,9 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version 5.2.10: compact corner-docked close control with safe chip
-        // touch forwarding.
-        versionCode = 67
-        versionName = "5.2.15"
+        // Version 5.2.16: keep newest category chips clear of the close dock.
+        versionCode = 68
+        versionName = "5.2.16"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

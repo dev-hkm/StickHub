@@ -26,7 +26,7 @@
       btnHeaderDownload: 'Tải APK',
 
       // Hero
-      heroBadge: 'Bản Cập Nhật v5.2.7 • Sổ Tay Android Mến Yêu',
+      heroBadge: 'Bản Cập Nhật v5.2.16 • Sổ Tay Android Mến Yêu',
       heroTitle: 'Kho Sticker Nổi.<br><span class=\"highlight-ink\">Thả Cảm Xúc</span> Ấm Áp<br>Không Rời Cuộc Vui.',
       heroSubtitle: 'StickHub mang cả cuốn sổ sticker & meme bạn yêu thích bay lơ lửng trên Messenger, Telegram, Zalo hay WhatsApp. Chạm nhẹ là dán ngay, giữ trọn từng khoảnh khắc kết nối!',
       btnPrimaryCta: 'Tải APK Miễn Phí',
@@ -132,10 +132,10 @@
       // Master CTA
       masterTitle: 'Sẵn Sàng Cho Những Cuộc Trò Chuyện Ấm Áp?',
       masterDesc: 'Đừng để những chiếc sticker đong đầy cảm xúc bị lãng quên. Tải StickHub ngay hôm nay để sẻ chia niềm vui cùng những người bạn yêu thương!',
-      btnMasterDownload: 'Tải StickHub APK (v5.2.7)',
+      btnMasterDownload: 'Tải StickHub APK (v5.2.16)',
 
       // Sticky Bar
-      stickySubtitle: 'v5.2.7 • Miễn phí',
+      stickySubtitle: 'v5.2.16 • Miễn phí',
       btnSticky: 'Tải APK (13MB)',
 
       // Footer
@@ -158,7 +158,7 @@
       btnHeaderDownload: 'Get APK',
 
       // Hero
-      heroBadge: 'Update v5.2.7 • Cherished Android Scrapbook',
+      heroBadge: 'Update v5.2.16 • Cherished Android Scrapbook',
       heroTitle: 'Floating Sticker Album.<br><span class=\"highlight-ink\">Drop Reactions</span><br>Without Leaving Chats.',
       heroSubtitle: 'StickHub brings your favorite sticker & meme scrapbook to hover gracefully over Messenger, Telegram, Zalo, or WhatsApp. One gentle tap to paste, keeping conversations lively and warm!',
       btnPrimaryCta: 'Download Free APK',
@@ -264,10 +264,10 @@
       // Master CTA
       masterTitle: 'Ready For Warm & Meaningful Chats?',
       masterDesc: 'Never let memorable moments and perfect memes slip away. Download StickHub today and share warmth with the people you love!',
-      btnMasterDownload: 'Download StickHub APK (v5.2.7)',
+      btnMasterDownload: 'Download StickHub APK (v5.2.16)',
 
       // Sticky Bar
-      stickySubtitle: 'v5.2.7 • Free',
+      stickySubtitle: 'v5.2.16 • Free',
       btnSticky: 'Get APK (13MB)',
 
       // Footer

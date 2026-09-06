@@ -1038,6 +1038,18 @@ class OverlayService : Service() {
         categoryScrollView = chipsScroll
         val chipsGroup = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
+            // Keep the resting end of the rail clear of the docked close
+            // control: the newest categories live at the row end, exactly
+            // where the close overlay's hit box overhangs the panel corner.
+            setPadding(
+                0,
+                0,
+                OverlayLayoutPolicy.chipRailEndInsetPx(
+                    density,
+                    (OverlayLayoutPolicy.CLOSE_CONTROL_SIZE_DP * density).toInt()
+                ),
+                0
+            )
         }
         chipsScroll.addView(chipsGroup)
         chrome.addView(chipsScroll)
@@ -1097,12 +1109,11 @@ class OverlayService : Service() {
         // 3. Layer 2: Floating Controls overlaying the popup edges
 
         // Top-End Close Button. Tap closes; a deliberate hold turns it into the popup drag handle.
-        // The 36dp hit box exceeds the 30dp artwork so the control stays
+        // The oversized hit box (see CLOSE_CONTROL_SIZE_DP) stays
         // finger-friendly without visually crowding the popup corner.
         val closeBtn = ImageView(this).apply {
             setImageDrawable(ContextCompat.getDrawable(this@OverlayService, LucideR.drawable.lucide_ic_x))
             setColorFilter(palette.textColor)
-            val btnSize = (42 * density).toInt()
             val pad = (11 * density).toInt()
             setPadding(pad, pad, pad, pad)
             val btnBg = GradientDrawable().apply {
@@ -1114,7 +1125,7 @@ class OverlayService : Service() {
             background = btnBg
             contentDescription = "Close popup. Hold and drag to move."
             elevation = 12f
-            closeOverlaySizePx = btnSize
+            closeOverlaySizePx = (OverlayLayoutPolicy.CLOSE_CONTROL_SIZE_DP * density).toInt()
         }
         closeOverlayParams = WindowManager.LayoutParams(
             closeOverlaySizePx, closeOverlaySizePx, layoutFlag,
