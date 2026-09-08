@@ -187,6 +187,7 @@ private sealed interface ModalRoute {
     object SourceChooser : ModalRoute
     object ClipboardReview : ModalRoute
     data class SubjectCutout(val uri: Uri) : ModalRoute
+    data class DirectImage(val uri: Uri) : ModalRoute
     data class StickerDetail(val stickerId: Long) : ModalRoute
     data class StickerStudio(val sticker: StickerItem) : ModalRoute
     object LibraryLayout : ModalRoute
@@ -580,6 +581,7 @@ fun StickHubApp(
             ModalRoute.SourceChooser -> activeModalRoute = ModalRoute.None
             ModalRoute.ClipboardReview -> closeClipboardReview(consumeCurrent = false)
             is ModalRoute.SubjectCutout -> dismissCutoutSheet()
+            is ModalRoute.DirectImage -> dismissCutoutSheet()
             is ModalRoute.StickerDetail -> {
                 scope.launch {
                     try {
@@ -719,6 +721,14 @@ fun StickHubApp(
     ) { uri: Uri? ->
         if (uri != null) {
             activeModalRoute = ModalRoute.SubjectCutout(uri)
+        }
+    }
+
+    val directPhotoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            activeModalRoute = ModalRoute.DirectImage(uri)
         }
     }
 
@@ -2113,6 +2123,7 @@ fun StickHubApp(
                         )
                         Button(
                             onClick = {
+                                haptics.performTap()
                                 if (clipboardImageUris.isEmpty()) return@Button
                                 activeModalRoute = ModalRoute.None
                                 importSingleClipboardSticker()
@@ -2137,6 +2148,7 @@ fun StickHubApp(
                         }
                         Button(
                             onClick = {
+                                haptics.performTap()
                                 activeModalRoute = ModalRoute.None
                                 photoPickerLauncher.launch(
                                     androidx.activity.result.PickVisualMediaRequest(
@@ -2154,6 +2166,27 @@ fun StickHubApp(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Pick photo from device")
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                haptics.performTap()
+                                activeModalRoute = ModalRoute.None
+                                directPhotoPickerLauncher.launch(
+                                    androidx.activity.result.PickVisualMediaRequest(
+                                        ActivityResultContracts.PickVisualMedia.ImageOnly
+                                    )
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(LucideR.drawable.lucide_ic_image),
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Use full photo as sticker")
                         }
                     }
                 },
@@ -2210,6 +2243,48 @@ fun StickHubApp(
                 onChangeImage = {
                     dismissCutoutSheet {
                         photoPickerLauncher.launch(
+                            androidx.activity.result.PickVisualMediaRequest(
+                                ActivityResultContracts.PickVisualMedia.ImageOnly
+                            )
+                        )
+                    }
+                }
+            )
+        }
+
+        is ModalRoute.DirectImage -> {
+            SubjectCutoutSheet(
+                imageUri = route.uri,
+                sheetState = cutoutSheetState,
+                categories = categories,
+                directImport = true,
+                onDismiss = { dismissCutoutSheet() },
+                onSaveSticker = { bitmap, title, category, tags ->
+                    val saved = repository.saveStickerBitmap(bitmap, title, category, tags)
+                    if (saved != null) {
+                        flashSnackbar("Sticker created successfully!")
+                        true
+                    } else {
+                        flashSnackbar("Failed to create sticker")
+                        false
+                    }
+                },
+                onCopySticker = { bitmap ->
+                    val copied = withContext(Dispatchers.IO) {
+                        ClipboardHelper.copyBitmapToClipboard(context, bitmap)
+                    }
+                    if (copied) {
+                        haptics.performConfirm()
+                        flashSnackbar("Sticker copied to clipboard.")
+                    } else {
+                        haptics.performReject()
+                        flashSnackbar("Couldn't copy sticker.")
+                    }
+                    copied
+                },
+                onChangeImage = {
+                    dismissCutoutSheet {
+                        directPhotoPickerLauncher.launch(
                             androidx.activity.result.PickVisualMediaRequest(
                                 ActivityResultContracts.PickVisualMedia.ImageOnly
                             )

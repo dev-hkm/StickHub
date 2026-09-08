@@ -99,10 +99,12 @@ import com.hkm.stickhub.data.cutout.CutoutSaveState
 import com.hkm.stickhub.data.cutout.CutoutSelectionPolicy
 import com.hkm.stickhub.data.cutout.CutoutState
 import com.hkm.stickhub.data.cutout.SubjectCutoutProcessor
+import com.hkm.stickhub.data.cutout.StickerCanvasNormalizer
 import com.hkm.stickhub.data.model.CategoryItem
 import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
 import com.hkm.stickhub.ui.theme.StickHubMotion
 import com.hkm.stickhub.util.AsyncActionGate
+import com.hkm.stickhub.util.BitmapDecodeUtil
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -117,6 +119,7 @@ fun SubjectCutoutSheet(
     imageUri: Uri,
     sheetState: SheetState,
     categories: List<CategoryItem>,
+    directImport: Boolean = false,
     onDismiss: () -> Unit,
     onSaveSticker: suspend (bitmap: Bitmap, title: String, category: String, tags: String) -> Boolean,
     onCopySticker: suspend (bitmap: Bitmap) -> Boolean,
@@ -137,7 +140,8 @@ fun SubjectCutoutSheet(
 
     var interactionMode by remember(imageUri) { mutableStateOf(CutoutInteractionMode.Auto) }
     var selectedCandidate by remember(imageUri) { mutableStateOf<CutoutCandidate?>(null) }
-    var transparentBitmap by remember(imageUri) { mutableStateOf<Bitmap?>(null) }
+    var transparentBitmap by remember(imageUri, directImport) { mutableStateOf<Bitmap?>(null) }
+    var directLoadError by remember(imageUri, directImport) { mutableStateOf<String?>(null) }
     val selectedCutoutBitmap = selectedCandidate?.cutoutBitmap ?: transparentBitmap
 
     // Metadata inputs
@@ -163,17 +167,42 @@ fun SubjectCutoutSheet(
             // Recycle before reset: reset() parks the state at Idle, which owns nothing.
             processor.state.value.recycleOwnedBitmaps()
             processor.reset()
+            if (directImport) {
+                transparentBitmap?.takeUnless { it.isRecycled }?.recycle()
+            }
         }
     }
 
-    LaunchedEffect(imageUri) {
+    LaunchedEffect(imageUri, directImport) {
         // Reset first so a stale generation can never paint into the new image.
         processor.reset()
         interactionMode = CutoutInteractionMode.Auto
         selectedCandidate = null
         transparentBitmap = null
+        directLoadError = null
         title = "Sticker ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())}"
-        processor.processUri(imageUri)
+        if (directImport) {
+            val decoded = BitmapDecodeUtil.decodeBoundedBitmap(context, imageUri, maxDimension = 2048)
+            if (decoded == null) {
+                directLoadError = "We couldn't read that image. Pick a supported photo and try again."
+            } else {
+                val normalized = try {
+                    StickerCanvasNormalizer.normalize(decoded.bitmap)
+                } catch (_: Exception) {
+                    null
+                }
+                if (normalized == null) {
+                    directLoadError = "This image is too large or could not be prepared as a sticker."
+                } else {
+                    transparentBitmap = normalized
+                }
+                if (decoded.bitmap !== normalized && !decoded.bitmap.isRecycled) {
+                    decoded.bitmap.recycle()
+                }
+            }
+        } else {
+            processor.processUri(imageUri)
+        }
     }
 
     ModalBottomSheet(
@@ -219,7 +248,7 @@ fun SubjectCutoutSheet(
                 cutoutState !is CutoutState.NoSubjectFound &&
                 cutoutState !is CutoutState.GooglePlayServicesUnavailable &&
                 cutoutState !is CutoutState.Failed
-            if (canChooseCutoutMode) {
+            if (canChooseCutoutMode && !directImport) {
                 CutoutInteractionModeSelector(
                     selectedMode = interactionMode,
                     enabled = !isSaving,
@@ -351,8 +380,12 @@ fun SubjectCutoutSheet(
                         ) {
                             OutlinedButton(
                                 onClick = {
-                                    selectedCandidate = null
-                                    transparentBitmap = null
+                                    if (directImport) {
+                                        onChangeImage()
+                                    } else {
+                                        selectedCandidate = null
+                                        transparentBitmap = null
+                                    }
                                 },
                                 enabled = !isSaving,
                                 modifier = Modifier.weight(1f),
@@ -466,7 +499,30 @@ fun SubjectCutoutSheet(
                         }
                     }
                 } else {
-                    when (val state = cutoutState) {
+                    if (directImport && directLoadError != null) {
+                        FallbackStateView(
+                            iconRes = LucideR.drawable.lucide_ic_info,
+                            message = "Unable to load photo",
+                            subtitle = directLoadError.orEmpty(),
+                            actionText = "Retry",
+                            actionIcon = LucideR.drawable.lucide_ic_refresh_cw,
+                            onAction = {
+                                scope.launch {
+                                    directLoadError = null
+                                    val decoded = BitmapDecodeUtil.decodeBoundedBitmap(context, imageUri, maxDimension = 2048)
+                                    val normalized = decoded?.let {
+                                        try { StickerCanvasNormalizer.normalize(it.bitmap) } catch (_: Exception) { null }
+                                    }
+                                    decoded?.bitmap?.takeUnless { it === normalized || it.isRecycled }?.recycle()
+                                    if (normalized != null) transparentBitmap = normalized
+                                    else directLoadError = "We couldn't read that image. Pick a supported photo and try again."
+                                }
+                            },
+                            secondaryActionText = "Choose another photo",
+                            secondaryActionIcon = LucideR.drawable.lucide_ic_image,
+                            onSecondaryAction = onChangeImage
+                        )
+                    } else when (val state = cutoutState) {
                         // Phase: Decoding
                         CutoutState.Decoding -> {
                             AnalyzingSkeletonView(statusText = "Decoding image...")
