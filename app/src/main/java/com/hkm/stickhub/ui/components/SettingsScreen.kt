@@ -9,6 +9,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.AlertDialog
@@ -316,8 +318,18 @@ fun SettingsScreen(
             AnimatedContent(
                 targetState = selectedTab,
                 transitionSpec = {
-                    fadeIn(animationSpec = tween(220)) togetherWith
-                        fadeOut(animationSpec = tween(150))
+                    val direction = if (targetState.ordinal >= initialState.ordinal) 1 else -1
+                    (
+                        slideInHorizontally(
+                            animationSpec = tween(280),
+                            initialOffsetX = { fullWidth -> direction * (fullWidth / 3) }
+                        ) + fadeIn(animationSpec = tween(180))
+                    ) togetherWith (
+                        slideOutHorizontally(
+                            animationSpec = tween(240),
+                            targetOffsetX = { fullWidth -> -direction * (fullWidth / 3) }
+                        ) + fadeOut(animationSpec = tween(150))
+                    )
                 },
                 label = "settings_tab_content"
             ) { _ ->
