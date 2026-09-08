@@ -26,7 +26,7 @@
       btnHeaderDownload: 'Tải APK',
 
       // Hero
-      heroBadge: 'Bản Cập Nhật v5.2.7 • Sổ Tay Android Mến Yêu',
+      heroBadge: 'Bản Cập Nhật v5.2.23 • Sổ Tay Android Mến Yêu',
       heroTitle: 'Kho Sticker Nổi.<br><span class=\"highlight-ink\">Thả Cảm Xúc</span> Ấm Áp<br>Không Rời Cuộc Vui.',
       heroSubtitle: 'StickHub mang cả cuốn sổ sticker & meme bạn yêu thích bay lơ lửng trên Messenger, Telegram, Zalo hay WhatsApp. Chạm nhẹ là dán ngay, giữ trọn từng khoảnh khắc kết nối!',
       btnPrimaryCta: 'Tải APK Miễn Phí',
@@ -77,8 +77,8 @@
       pillEdgeSnap: '#BámDínhMép',
       pillAutoDim: '#TựĐộngẨn',
 
-      feat2Title: 'Tách Nền Tự Động On-Device',
-      feat2Desc: 'Tích hợp ML Kit chạy trực tiếp trên máy. Biến những bức ảnh đời thường của bạn bè và thú cưng thành sticker không viền trong chớp mắt.',
+      feat2Title: 'Tách Nền Tự Động & Nhập Ảnh Nguyên Bản',
+      feat2Desc: 'Tích hợp ML Kit tách nền offline thần tốc, hoặc tùy chọn nhập trực tiếp ảnh nguyên bản làm sticker mà không bị ép cắt xén.',
       pillMLKit: '#MLKitAI',
       pillOnDevice: '#ChạyTrênMáy',
 
@@ -92,8 +92,8 @@
       pillDragDrop: '#KéoThảReorder',
       pill4Layouts: '#4ChếĐộHiểnThị',
 
-      feat5Title: '100% Cục Bộ & Giữ Trọn Riêng Tư',
-      feat5Desc: 'Toàn bộ dữ liệu nằm lại trong bộ nhớ máy của bạn. Không gửi ảnh lên mây, không theo dõi và không làm phiền bởi quảng cáo.',
+      feat5Title: 'Cục Bộ & Sao Lưu Đám Mây Mã Hóa',
+      feat5Desc: 'Dữ liệu lưu an toàn trên máy. Tùy chọn sao lưu đám mây được mã hóa AES-GCM zero-knowledge bằng mã khôi phục — máy chủ không thể đọc được ảnh của bạn.',
       pillOffline: '#HoànToànOffline',
       pillPrivacy: '#BảoMậtRiêngTư',
 
@@ -108,7 +108,7 @@
       installDesc: 'Không cần tài khoản Google Play, không cần Root. Cài đặt trực tiếp file APK an toàn chỉ trong 30 giây.',
       step1Num: '01',
       step1Title: 'Tải File APK Nhẹ Nhàng',
-      step1Desc: 'Nhấn nút tải từ máy chủ đám mây tốc độ cao. Gói cài đặt nhỏ gọn, chỉ 13.4 MB.',
+      step1Desc: 'Nhấn nút tải từ máy chủ đám mây tốc độ cao. Gói cài đặt nhỏ gọn, chỉ 14.1 MB.',
       step2Num: '02',
       step2Title: 'Mở & Cấp Quyền Cài Đặt',
       step2Desc: 'Mở tệp đã tải và bấm Cài đặt. Cho phép \"Cài đặt từ nguồn này\" nếu máy bạn hỏi lần đầu.',
@@ -125,18 +125,18 @@
       faq2Q: 'Cài đặt trực tiếp file APK có an toàn cho điện thoại không?',
       faq2A: 'Tuyệt đối an toàn. StickHub hoạt động hoàn toàn offline, không yêu cầu các quyền nhạy cảm như danh bạ hay vị trí. Ứng dụng chỉ cần quyền hiển thị bong bóng nổi và lưu trữ sticker cục bộ.',
       faq3Q: 'StickHub dùng được trên những ứng dụng trò chuyện nào?',
-      faq3A: 'StickHub gửi ảnh sticker trong suốt qua Clipboard chuẩn của Android, hoạt động tốt ở những ứng dụng chấp nhận dạng này như Zalo. Bạn chỉ cần mở bàn phím rồi nhấn \"Dán\". Mỗi ứng dụng như Messenger, Telegram, WhatsApp hay Instagram tự quyết định hiển thị sticker gọn hay ảnh lớn — StickHub còn có StickHub Keyboard để chèn trực tiếp vào trình soạn thảo hỗ trợ, và người dùng WhatsApp có thể thêm cả category thành pack sticker native ngay trong Settings.',
+      faq3A: 'StickHub gửi ảnh sticker trong suốt qua Clipboard chuẩn của Android, hoạt động tốt ở những ứng dụng chấp nhận dạng này như Zalo. Bạn chỉ cần mở bàn phím rồi nhấn \"Dán\". Mỗi ứng dụng như Messenger, Telegram, WhatsApp hay Instagram tự quyết định hiển thị sticker gọn hay ảnh lớn — người dùng WhatsApp có thể thêm cả category thành pack sticker native ngay trong Settings, và bạn có thể sao lưu toàn bộ thư viện lên Cloud với mã hóa zero-knowledge.',
       faq4Q: 'Bong bóng nổi có gây hao pin hay làm chậm máy không?',
       faq4A: 'Không hề nha! Ứng dụng được viết bằng Kotlin tối ưu sâu. Khi ở dạng bong bóng nhỏ, ứng dụng gần như tiêu thụ 0% CPU và chỉ tải bộ nhớ khi bạn chạm mở sổ chọn sticker.',
 
       // Master CTA
       masterTitle: 'Sẵn Sàng Cho Những Cuộc Trò Chuyện Ấm Áp?',
       masterDesc: 'Đừng để những chiếc sticker đong đầy cảm xúc bị lãng quên. Tải StickHub ngay hôm nay để sẻ chia niềm vui cùng những người bạn yêu thương!',
-      btnMasterDownload: 'Tải StickHub APK (v5.2.7)',
+      btnMasterDownload: 'Tải StickHub APK (v5.2.23)',
 
       // Sticky Bar
-      stickySubtitle: 'v5.2.7 • Miễn phí',
-      btnSticky: 'Tải APK (13MB)',
+      stickySubtitle: 'v5.2.23 • Miễn phí',
+      btnSticky: 'Tải APK (14.1MB)',
 
       // Footer
       footerDesc: 'Sổ sticker nổi ấm áp dành cho Android. Tôn trọng quyền riêng tư và giữ trọn mạch trò chuyện.',
@@ -158,7 +158,7 @@
       btnHeaderDownload: 'Get APK',
 
       // Hero
-      heroBadge: 'Update v5.2.7 • Cherished Android Scrapbook',
+      heroBadge: 'Update v5.2.23 • Cherished Android Scrapbook',
       heroTitle: 'Floating Sticker Album.<br><span class=\"highlight-ink\">Drop Reactions</span><br>Without Leaving Chats.',
       heroSubtitle: 'StickHub brings your favorite sticker & meme scrapbook to hover gracefully over Messenger, Telegram, Zalo, or WhatsApp. One gentle tap to paste, keeping conversations lively and warm!',
       btnPrimaryCta: 'Download Free APK',
@@ -209,8 +209,8 @@
       pillEdgeSnap: '#EdgeSnapping',
       pillAutoDim: '#AutoDim',
 
-      feat2Title: 'On-Device AI Subject Cutout',
-      feat2Desc: 'Powered by on-device ML Kit. Transform casual photos of friends and beloved pets into borderless stickers in the blink of an eye.',
+      feat2Title: 'On-Device AI Cutout & Full Photos',
+      feat2Desc: 'Powered by local ML Kit segmentation. Extract foreground subjects in milliseconds, or import full photos directly without forced cropping.',
       pillMLKit: '#MLKitAI',
       pillOnDevice: '#OnDevice',
 
@@ -224,8 +224,8 @@
       pillDragDrop: '#DragAndDrop',
       pill4Layouts: '#4LayoutModes',
 
-      feat5Title: '100% Local & Privacy-Honoring',
-      feat5Desc: 'Every piece of data stays strictly inside your device. No cloud leaks, no telemetry, and zero intrusive ads.',
+      feat5Title: 'Local-First & Encrypted Cloud Backup',
+      feat5Desc: 'All data stays private on your phone. Optional cloud backup is end-to-end encrypted with zero-knowledge AES-GCM and a single recovery code.',
       pillOffline: '#100%Offline',
       pillPrivacy: '#ZeroTracking',
 
@@ -240,7 +240,7 @@
       installDesc: 'No Google Play account needed, no Root required. Safe direct installation in 30 seconds.',
       step1Num: '01',
       step1Title: 'Download the Lightweight APK',
-      step1Desc: 'Tap the download button from our fast Cloudflare CDN. The APK file is only 13.4 MB.',
+      step1Desc: 'Tap the download button from our fast Cloudflare CDN. The APK file is only 14.1 MB.',
       step2Num: '02',
       step2Title: 'Open & Grant Permission',
       step2Desc: 'Open the downloaded file and choose Install. Allow \"Install unknown apps\" if prompted for the first time.',
@@ -257,18 +257,18 @@
       faq2Q: 'Is installing this APK directly safe for my phone?',
       faq2A: 'Completely safe. StickHub operates 100% offline and requires no sensitive permissions like Contacts or Location. It only asks for floating overlay permission and local storage to keep your stickers safe.',
       faq3Q: 'Which chat apps does StickHub support?',
-      faq3A: 'StickHub sends a transparent sticker image through the standard Android Clipboard, which works well in apps that accept this format, such as Zalo. Just open the keyboard and tap \"Paste\". Each app — Messenger, Telegram, WhatsApp, Discord or Instagram — decides on its own whether to show it compact or large. StickHub Keyboard can also insert directly into editors that support it, and WhatsApp users can add a whole category as a native sticker pack from Settings.',
+      faq3A: 'StickHub sends a transparent sticker image through the standard Android Clipboard, which works well in apps that accept this format, such as Zalo. Just open the keyboard and tap \"Paste\". Each app — Messenger, Telegram, WhatsApp, Discord or Instagram — decides on its own whether to show it compact or large. WhatsApp users can add a whole category as a native sticker pack from Settings, and you can securely sync your entire library via zero-knowledge encrypted cloud backup.',
       faq4Q: 'Does the floating bubble drain battery or lag the phone?',
       faq4A: 'Not at all! The app is written in optimized Kotlin. When minimized as a tiny bubble, it consumes practically 0% CPU and only loads memory when you actively tap to open the sticker picker.',
 
       // Master CTA
       masterTitle: 'Ready For Warm & Meaningful Chats?',
       masterDesc: 'Never let memorable moments and perfect memes slip away. Download StickHub today and share warmth with the people you love!',
-      btnMasterDownload: 'Download StickHub APK (v5.2.7)',
+      btnMasterDownload: 'Download StickHub APK (v5.2.23)',
 
       // Sticky Bar
-      stickySubtitle: 'v5.2.7 • Free',
-      btnSticky: 'Get APK (13MB)',
+      stickySubtitle: 'v5.2.23 • Free',
+      btnSticky: 'Get APK (14.1MB)',
 
       // Footer
       footerDesc: 'A cozy floating sticker scrapbook for Android. Respecting privacy and keeping conversations unbroken.',

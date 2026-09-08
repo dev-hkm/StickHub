@@ -13,8 +13,8 @@
   [![UI](https://img.shields.io/badge/UI-Jetpack_Compose_Material_3-4285F4?style=flat&logo=jetpackcompose&logoColor=white)](#)
   [![License](https://img.shields.io/badge/License-Proprietary_All_Rights_Reserved-red.svg)](#)
   [![Website](https://img.shields.io/badge/Website-stickhub.web.app-FFB703?style=flat&logo=firebase&logoColor=black)](https://stickhub.web.app)
-  [![GitHub Release](https://img.shields.io/badge/GitHub_Release-v5.2.5-238636?style=flat&logo=github&logoColor=white)](https://github.com/dev-hkm/StickHub/releases/tag/v5.2.5)
-  [![Download APK](https://img.shields.io/badge/Direct_APK-v5.2.5-007ACC?style=flat&logo=googleplay&logoColor=white)](https://github.com/dev-hkm/StickHub/releases/download/v5.2.5/StickHub-v5.2.5.apk)
+  [![GitHub Release](https://img.shields.io/badge/GitHub_Release-v5.2.23-238636?style=flat&logo=github&logoColor=white)](https://github.com/dev-hkm/StickHub/releases/tag/v5.2.23)
+  [![Download APK](https://img.shields.io/badge/Direct_APK-v5.2.23-007ACC?style=flat&logo=googleplay&logoColor=white)](https://github.com/dev-hkm/StickHub/releases/download/v5.2.23/StickHub-v5.2.23.apk)
 
   <br /><br />
 
@@ -60,11 +60,11 @@ Modern chat applications (Telegram, Zalo, Messenger, WhatsApp, Discord, Slack...
 
 **StickHub** solves these pain points with an ultra-fast, local-first utility architecture:
 
-* 🎈 **Quick Stickers Floating Overlay:** A floating bubble (`WindowManager TYPE_APPLICATION_OVERLAY`) that hovers over any chat app. One tap expands a compact sticker grid to copy any sticker to the clipboard with zero background bloat.
-* 🤖 **On-Device ML Subject Segmentation:** Offline ML Kit subject cutout processor that extracts foreground subjects with crisp contour smoothing in milliseconds without sending any data to the cloud.
-* 📋 **Smart Clipboard Staging & Dedup:** Detects clipboard image copies with SHA-256 content deduplication and offers one-tap batch import straight into organized libraries.
-* ⌨️ **StickHub Keyboard (opt-in):** An `InputMethodService` that inserts stickers straight into editors supporting rich content via the Commit Content API, with one-time clipboard fallback otherwise. Whether a target renders compact or large stays the target app's decision.
-* 💬 **Native WhatsApp Sticker Packs:** Categories with 3+ stickers can be added straight into WhatsApp's own sticker tray through WhatsApp's public third-party pack contract (WebP 512, tray icon, user-confirmed). Messenger has no such public API, so pasted images there render as the receiving app decides.
+* 🎈 **Quick Stickers Floating Overlay:** A floating bubble (`WindowManager TYPE_APPLICATION_OVERLAY`) that hovers over any chat app. One tap expands a compact sticker grid to copy any sticker to the clipboard with zero background bloat, docked corner close control, and long-press drag mode.
+* 🖼️ **Full Photo & Smart Cutout Import:** Import full photos directly as custom stickers without forced cropping, or extract clean foreground subjects in milliseconds with on-device ML Kit subject segmentation.
+* 📋 **Smart Clipboard Staging & Dedup:** Detects clipboard image copies with SHA-256 content deduplication and offers responsive one-tap batch import straight into organized libraries.
+* ☁️ **End-to-End Encrypted Cloud Backup:** Zero-knowledge client-side AES-GCM encrypted backup streaming via Cloudflare R2 multipart uploads, protected by a single recovery code.
+* 💬 **Native WhatsApp Sticker Packs:** Categories with 3+ stickers can be added straight into WhatsApp's own sticker tray through WhatsApp's public third-party pack contract (WebP 512, tray icon, user-confirmed).
 * 🎨 **Unified Category Management & Drag-and-Drop:** Intuitive reordering of custom folders and smart filters (`All`, `Favorites`, `Frequent`) with haptic feedback, instantly synced to the overlay in real-time.
 * 🔒 **Local-First & Privacy-First:** Local SQLite database remains the source of truth; optional cloud backups are encrypted on-device before upload and the server never receives plaintext sticker data.
 
@@ -79,7 +79,8 @@ Modern chat applications (Telegram, Zalo, Messenger, WhatsApp, Discord, Slack...
 | **Smart System Filters** | Dynamic smart collections (`All`, `Favorites`, `Frequent`) alongside custom user categories, freely arrangeable via drag & drop. |
 | **Adaptive Theme Sync** | Full support for System, Pure Light, Pure Dark, and Material 3 Dynamic Color palettes synchronized simultaneously across App and Overlay. |
 | **4 Library Layout Modes** | Compact Grid, Comfortable Grid, Cover Grid, and Detailed List View for different screen sizes and collection densities. |
-| **Complete Backup** | Single-file `.stickhub` archive export/import plus optional encrypted cloud backup with recovery-code restore. |
+| **Full Photos & Smart Cutout** | Import full photos directly as stickers or use on-device ML subject detection + interactive refine tools. |
+| **Encrypted Cloud & Local Backup** | Single-file `.stickhub` archive export/import plus zero-knowledge AES-GCM encrypted cloud backups with R2 multipart streaming and recovery-code restore. |
 
 ---
 
@@ -126,8 +127,8 @@ StickHub/
 
 The latest signed Release APK is available for download:
 
-* **Version:** 5.2.5 (versionCode 57)
-* **Direct Download:** [StickHub-v5.2.5.apk](https://github.com/dev-hkm/StickHub/releases/download/v5.2.5/StickHub-v5.2.5.apk)
+* **Version:** 5.2.23 (versionCode 74)
+* **Direct Download:** [StickHub-v5.2.23.apk](https://github.com/dev-hkm/StickHub/releases/download/v5.2.23/StickHub-v5.2.23.apk)
 * **Android Requirement:** Android 8.0 (API level 26) or higher.
 
 ---
