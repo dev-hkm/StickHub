@@ -1,0 +1,13 @@
+name = "stickhub-cloud"
+main = "src/index.ts"
+compatibility_date = "2026-09-08"
+account_id = "034347dd76504f4c1432207060ac442f"
+
+[vars]
+ALLOWED_ORIGIN = "https://stickhub.web.app"
+MAX_BACKUP_BYTES = "67108864"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "stickhub-cloud"
+database_id = "b1445d8c-d01c-474c-bb17-4bd486a35e37"

@@ -23,3 +23,4 @@ local.properties
 secrets.properties
 release-signing.properties
 .wrangler/
+cloud/node_modules/

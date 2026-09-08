@@ -66,6 +66,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -166,6 +167,14 @@ fun SettingsScreen(
     onNavigateToCategoryManagement: () -> Unit,
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
+    cloudBackupWorking: Boolean = false,
+    cloudBackupStatus: String? = null,
+    cloudRecoveryCode: String? = null,
+    onCreateCloudVault: () -> Unit = {},
+    onCloudBackup: () -> Unit = {},
+    onCloudRestore: () -> Unit = {},
+    onCloudRestoreWithRecoveryCode: (String) -> Unit = {},
+    onCopyCloudRecoveryCode: () -> Unit = {},
     whatsappPacks: List<com.hkm.stickhub.util.WhatsAppPackSummary>,
     preparingWhatsAppPackId: String?,
     onAddWhatsAppPack: (String) -> Unit,
@@ -203,6 +212,8 @@ fun SettingsScreen(
     var showResetAppearanceDialog by remember { mutableStateOf(false) }
     var showStartFilterDialog by remember { mutableStateOf(false) }
     var showAfterCopyDialog by remember { mutableStateOf(false) }
+    var showCloudRecoveryDialog by remember { mutableStateOf(false) }
+    var cloudRecoveryInput by rememberSaveable { mutableStateOf("") }
 
     val context = LocalContext.current
     val sheetCoroutineScope = rememberCoroutineScope()
@@ -1527,6 +1538,141 @@ fun SettingsScreen(
                     }
                 }
 
+                SectionHeader("CLOUD BACKUP")
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                painter = painterResource(LucideR.drawable.lucide_ic_cloud),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Encrypted cloud backup",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = cloudBackupStatus ?: if (cloudRecoveryCode == null) {
+                                        "Optional backup for your stickers and categories"
+                                    } else {
+                                        "Ready to sync your local library"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        if (cloudRecoveryCode == null) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            FilledTonalButton(
+                                onClick = {
+                                    haptics.performNavigationTap()
+                                    onCreateCloudVault()
+                                },
+                                enabled = !cloudBackupWorking,
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    painter = painterResource(LucideR.drawable.lucide_ic_cloud_upload),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(17.dp)
+                                )
+                                Spacer(modifier = Modifier.width(7.dp))
+                                Text(if (cloudBackupWorking) "Preparing…" else "Set up cloud backup")
+                            }
+                            TextButton(
+                                onClick = {
+                                    haptics.performTap()
+                                    showCloudRecoveryDialog = true
+                                },
+                                enabled = !cloudBackupWorking,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Restore with a recovery code")
+                            }
+                        } else {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Recovery code",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = cloudRecoveryCode,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            TextButton(
+                                onClick = {
+                                    haptics.performTap()
+                                    onCopyCloudRecoveryCode()
+                                },
+                                contentPadding = PaddingValues(0.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(LucideR.drawable.lucide_ic_copy),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text("Copy recovery code")
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                FilledTonalButton(
+                                    onClick = {
+                                        haptics.performNavigationTap()
+                                        onCloudBackup()
+                                    },
+                                    enabled = !cloudBackupWorking,
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(LucideR.drawable.lucide_ic_cloud_upload),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text("Back up")
+                                }
+                                FilledTonalButton(
+                                    onClick = {
+                                        haptics.performNavigationTap()
+                                        onCloudRestore()
+                                    },
+                                    enabled = !cloudBackupWorking,
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(LucideR.drawable.lucide_ic_cloud_download),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text("Restore")
+                                }
+                            }
+                        }
+                    }
+                }
+
                 SettingsDivider()
             }
 
@@ -1666,14 +1812,14 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = "100% Offline & Private",
+                                text = "Local-first & encrypted",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "All stickers, tags, and preferences are stored exclusively on your device. StickHub has zero analytics, zero external network servers, and zero trackers.",
+                                text = "Your library stays local by default. Optional cloud backups are encrypted on this device before upload, so the cloud service cannot read your sticker images.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 lineHeight = 18.sp
@@ -1684,6 +1830,50 @@ fun SettingsScreen(
             }
         }
 
+
+        if (showCloudRecoveryDialog) {
+            AlertDialog(
+                onDismissRequest = { showCloudRecoveryDialog = false },
+                title = { Text("Restore cloud backup") },
+                text = {
+                    Column {
+                        Text(
+                            "Enter the recovery code from your previous device. Your code is used locally to decrypt the backup.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = cloudRecoveryInput,
+                            onValueChange = { cloudRecoveryInput = it },
+                            singleLine = true,
+                            label = { Text("Recovery code") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showCloudRecoveryDialog = false }) {
+                        Text("Cancel")
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val code = cloudRecoveryInput.trim()
+                            if (code.isNotEmpty()) {
+                                showCloudRecoveryDialog = false
+                                cloudRecoveryInput = ""
+                                haptics.performConfirm()
+                                onCloudRestoreWithRecoveryCode(code)
+                            }
+                        },
+                        enabled = cloudRecoveryInput.isNotBlank()
+                    ) {
+                        Text("Restore")
+                    }
+                }
+            )
+        }
 
         if (showResetAppearanceDialog) {
             AlertDialog(

@@ -66,7 +66,7 @@ Modern chat applications (Telegram, Zalo, Messenger, WhatsApp, Discord, Slack...
 * ⌨️ **StickHub Keyboard (opt-in):** An `InputMethodService` that inserts stickers straight into editors supporting rich content via the Commit Content API, with one-time clipboard fallback otherwise. Whether a target renders compact or large stays the target app's decision.
 * 💬 **Native WhatsApp Sticker Packs:** Categories with 3+ stickers can be added straight into WhatsApp's own sticker tray through WhatsApp's public third-party pack contract (WebP 512, tray icon, user-confirmed). Messenger has no such public API, so pasted images there render as the receiving app decides.
 * 🎨 **Unified Category Management & Drag-and-Drop:** Intuitive reordering of custom folders and smart filters (`All`, `Favorites`, `Frequent`) with haptic feedback, instantly synced to the overlay in real-time.
-* 🔒 **100% Offline & Privacy-First:** Local SQLite database, isolated internal storage sandbox, and edge-to-edge Material You Dynamic Color theme sync.
+* 🔒 **Local-First & Privacy-First:** Local SQLite database remains the source of truth; optional cloud backups are encrypted on-device before upload and the server never receives plaintext sticker data.
 
 ---
 
@@ -79,7 +79,7 @@ Modern chat applications (Telegram, Zalo, Messenger, WhatsApp, Discord, Slack...
 | **Smart System Filters** | Dynamic smart collections (`All`, `Favorites`, `Frequent`) alongside custom user categories, freely arrangeable via drag & drop. |
 | **Adaptive Theme Sync** | Full support for System, Pure Light, Pure Dark, and Material 3 Dynamic Color palettes synchronized simultaneously across App and Overlay. |
 | **4 Library Layout Modes** | Compact Grid, Comfortable Grid, Cover Grid, and Detailed List View for different screen sizes and collection densities. |
-| **Complete Offline Backup** | Single-file `.stickhub` archive export and import with integrity verification. |
+| **Complete Backup** | Single-file `.stickhub` archive export/import plus optional encrypted cloud backup with recovery-code restore. |
 
 ---
 
@@ -92,6 +92,7 @@ StickHub is built adhering to modern Android development standards, Clean Archit
 * **Overlay Engine:** Android `WindowManager` (`TYPE_APPLICATION_OVERLAY`) utilizing optimized native Views inside an isolated `ForegroundService` for maximum performance and minimal battery footprint.
 * **On-Device Machine Learning:** Google ML Kit Subject Segmentation API (local inference, zero server dependency).
 * **Local Persistence:** Android SQLite (`SQLiteOpenHelper`) with explicit index optimization, content hashing (`SHA-256`), and atomic transactions.
+* **Cloud Backup:** Cloudflare Worker + D1 vault index + R2 encrypted blob storage; recovery-code authenticated and client-side AES-GCM encrypted.
 * **Architecture:** Unidirectional Data Flow (UDF), Repository Pattern, Reducer Pattern (`ClipboardOfferReducer`), and custom UI Drag State Machines (`CategoryDragSession`).
 * **Icons & Polish:** Lucide Vector Icons, Material You Dynamic Colors, adaptive monochrome icons with multi-layer punchouts, and tactile haptic feedback policies.
 

@@ -116,6 +116,8 @@ import com.hkm.stickhub.data.model.CategoryItem
 import com.hkm.stickhub.data.model.StickerItem
 import com.hkm.stickhub.data.repository.StickerOrderPolicy
 import com.hkm.stickhub.data.repository.StickerRepository
+import com.hkm.stickhub.cloud.CloudBackupOperations
+import com.hkm.stickhub.cloud.CloudBackupWorkState
 import com.hkm.stickhub.service.OverlayPreferences
 import com.hkm.stickhub.service.OverlayService
 import com.hkm.stickhub.ui.components.AddCategoryDialog
@@ -492,6 +494,9 @@ fun StickHubApp(
 
     val backupOps = remember(context) { BackupOperations.getInstance(context) }
     val backupWorkState by backupOps.state.collectAsState()
+    val cloudBackupOps = remember(context) { CloudBackupOperations.getInstance(context) }
+    val cloudBackupWorkState by cloudBackupOps.state.collectAsState()
+    var cloudRecoveryCode by remember { mutableStateOf(cloudBackupOps.recoveryCode()) }
 
     fun showClipboardOffer(snapshot: ClipboardBatchSnapshot) {
         clipboardOffer = snapshot
@@ -865,6 +870,50 @@ fun StickHubApp(
                 haptics.performReject()
                 flashSnackbar(work.message)
                 backupOps.acknowledge()
+            }
+        }
+    }
+
+    LaunchedEffect(cloudBackupWorkState) {
+        when (val work = cloudBackupWorkState) {
+            is CloudBackupWorkState.Idle,
+            is CloudBackupWorkState.Working -> Unit
+            is CloudBackupWorkState.Ready -> {
+                cloudRecoveryCode = work.recoveryCode
+                flashSnackbar("Cloud backup is ready. Save your recovery code.")
+                cloudBackupOps.acknowledge()
+            }
+            is CloudBackupWorkState.UploadFinished -> {
+                cloudRecoveryCode = cloudBackupOps.recoveryCode()
+                haptics.performConfirm()
+                flashSnackbar("Encrypted cloud backup completed.")
+                cloudBackupOps.acknowledge()
+            }
+            is CloudBackupWorkState.RestoreFinished -> {
+                cloudRecoveryCode = cloudBackupOps.recoveryCode()
+                when (val result = work.result) {
+                    is com.hkm.stickhub.util.BackupImportResult.Success -> {
+                        haptics.performConfirm()
+                        flashSnackbar(
+                            if (result.imported == 0) "Cloud backup was already present." else
+                                "${result.imported} sticker${if (result.imported == 1) "" else "s"} restored from cloud."
+                        )
+                    }
+                    is com.hkm.stickhub.util.BackupImportResult.Invalid -> {
+                        haptics.performReject()
+                        flashSnackbar(result.reason)
+                    }
+                    is com.hkm.stickhub.util.BackupImportResult.Failed -> {
+                        haptics.performReject()
+                        flashSnackbar(result.reason)
+                    }
+                }
+                cloudBackupOps.acknowledge()
+            }
+            is CloudBackupWorkState.Failed -> {
+                haptics.performReject()
+                flashSnackbar(work.message)
+                cloudBackupOps.acknowledge()
             }
         }
     }
@@ -1912,6 +1961,24 @@ fun StickHubApp(
                 },
                 onImportBackup = {
                     importLauncher.launch(arrayOf("*/*"))
+                },
+                cloudBackupWorking = cloudBackupWorkState is CloudBackupWorkState.Working,
+                cloudBackupStatus = when (val cloud = cloudBackupWorkState) {
+                    is CloudBackupWorkState.Working -> cloud.label
+                    is CloudBackupWorkState.Failed -> cloud.message
+                    else -> null
+                },
+                cloudRecoveryCode = cloudRecoveryCode,
+                onCreateCloudVault = { cloudBackupOps.createVault() },
+                onCloudBackup = { cloudBackupOps.startUpload(allStickers, categories) },
+                onCloudRestore = { cloudBackupOps.startRestore() },
+                onCloudRestoreWithRecoveryCode = { code -> cloudBackupOps.startRestoreWithRecoveryCode(code) },
+                onCopyCloudRecoveryCode = {
+                    cloudRecoveryCode?.let { code ->
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                        clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("StickHub recovery code", code))
+                        scope.launch { flashSnackbar("Recovery code copied.") }
+                    }
                 },
                 whatsappPacks = whatsappPacks,
                 preparingWhatsAppPackId = preparingWhatsAppPackId,

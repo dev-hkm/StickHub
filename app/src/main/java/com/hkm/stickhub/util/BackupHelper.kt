@@ -7,6 +7,7 @@ import com.hkm.stickhub.data.model.StickerItem
 import com.hkm.stickhub.data.repository.StickerRepository
 import com.hkm.stickhub.data.repository.StickerRepository.BackupRestoreCategory
 import com.hkm.stickhub.data.repository.StickerRepository.BackupRestoreSticker
+import com.hkm.stickhub.cloud.BackupSettingsSnapshot
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -35,7 +36,7 @@ sealed interface BackupImportResult {
 
 object BackupHelper {
 
-    const val BACKUP_FORMAT_VERSION = 3
+    const val BACKUP_FORMAT_VERSION = 4
     const val MAX_METADATA_BYTES = 1_048_576 // 1 MiB hard cap (untrusted input)
     const val MAX_STICKERS = 10_000
     const val MAX_IMAGE_BYTES = 32L * 1024 * 1024 // 32 MiB per image
@@ -44,6 +45,14 @@ object BackupHelper {
 
     private const val METADATA_NAME = "metadata.json"
     private const val IMAGE_PREFIX = "stickers/"
+
+    /** File-backed variant used by the encrypted cloud transport. */
+    suspend fun exportBackupToFile(
+        context: Context,
+        outputFile: File,
+        stickers: List<StickerItem>,
+        categories: List<CategoryItem>
+    ): Boolean = exportBackup(context, Uri.fromFile(outputFile), stickers, categories)
 
     suspend fun exportBackup(
         context: Context,
@@ -126,6 +135,7 @@ object BackupHelper {
             rootJson.put("exportedAt", System.currentTimeMillis())
             rootJson.put("categories", catArray)
             rootJson.put("stickers", stickersArray)
+            rootJson.put("settings", BackupSettingsSnapshot.capture(context))
             val metadataBytes = rootJson.toString().toByteArray(Charsets.UTF_8)
             // Oversized metadata fails loudly at export, never ships truncated.
             if (metadataBytes.size > MAX_METADATA_BYTES) return@withContext false
@@ -148,8 +158,12 @@ object BackupHelper {
                 }
 
                 val outputStream = try {
-                    context.contentResolver.openOutputStream(outputUri, "wt")
-                        ?: context.contentResolver.openOutputStream(outputUri)
+                    if (outputUri.scheme == "file") {
+                        outputUri.path?.let(::FileOutputStream)
+                    } else {
+                        context.contentResolver.openOutputStream(outputUri, "wt")
+                            ?: context.contentResolver.openOutputStream(outputUri)
+                    }
                 } catch (_: Exception) {
                     null
                 } ?: return@withContext false
@@ -197,7 +211,11 @@ object BackupHelper {
             if (!stagingDir.exists()) stagingDir.mkdirs()
             val canonicalStagingPath = stagingDir.canonicalPath
             val inputStream = try {
-                context.contentResolver.openInputStream(inputUri)
+                if (inputUri.scheme == "file") {
+                    inputUri.path?.let(::FileInputStream)
+                } else {
+                    context.contentResolver.openInputStream(inputUri)
+                }
             } catch (_: Exception) {
                 null
             } ?: return@withContext BackupImportResult.Failed("Couldn't open the backup file.")
@@ -396,6 +414,7 @@ object BackupHelper {
                     )
                 }
             )
+            BackupSettingsSnapshot.restore(context, rootJson.optJSONObject("settings"))
             BackupImportResult.Success(imported = outcome.imported, alreadyPresent = outcome.alreadyPresent)
         } catch (ce: CancellationException) {
             throw ce
