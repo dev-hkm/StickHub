@@ -3,7 +3,6 @@ import { AwsClient } from "aws4fetch";
 interface Env {
   DB: D1Database;
   ALLOWED_ORIGIN: string;
-  MAX_BACKUP_BYTES?: string;
   R2_ENDPOINT: string;
   R2_BUCKET: string;
   R2_ACCESS_KEY_ID: string;
@@ -13,7 +12,8 @@ interface Env {
 const VAULT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SHA256 = /^[0-9a-f]{64}$/i;
 const BACKUP_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const MAX_DEFAULT_BYTES = 64 * 1024 * 1024;
+// R2 multipart object limit, not an application subscription quota.
+const R2_MAX_BYTES = 5 * 1024 ** 4;
 
 const jsonHeaders = {
   "content-type": "application/json; charset=utf-8",
@@ -125,7 +125,7 @@ async function uploadBackup(request: Request, env: Env, vaultId: string): Promis
   const backupId = request.headers.get("x-backup-id")?.trim();
   const checksum = request.headers.get("x-backup-checksum")?.trim().toLowerCase();
   const contentLength = Number(request.headers.get("content-length") ?? "0");
-  const maxBytes = Number(env.MAX_BACKUP_BYTES ?? MAX_DEFAULT_BYTES);
+  const maxBytes = R2_MAX_BYTES;
   if (!backupId || !BACKUP_ID.test(backupId) || !checksum || !SHA256.test(checksum)) {
     return error("VALIDATION_ERROR", "Backup metadata is invalid.", 400, origin);
   }
@@ -134,28 +134,76 @@ async function uploadBackup(request: Request, env: Env, vaultId: string): Promis
   }
   if (!request.body) return error("EMPTY_BACKUP", "Backup payload is empty.", 400, origin);
 
-  const body = await request.arrayBuffer();
-  if (body.byteLength !== contentLength) return error("SIZE_MISMATCH", "Backup size mismatch.", 400, origin);
-  const digest = await crypto.subtle.digest("SHA-256", body);
-  const actual = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
-  if (!safeEqual(actual, checksum)) return error("CHECKSUM_MISMATCH", "Backup integrity check failed.", 400, origin);
+  // Old clients must upgrade; never buffer an arbitrary backup in Worker RAM.
+  return error("UPGRADE_REQUIRED", "Update StickHub to use large-file cloud backup.", 426, origin);
+}
 
-  const key = `stickhub-cloud/${vaultId}/latest.bin`;
-  const uploaded = await r2(env).fetch(objectUrl(env, key), {
-    method: "PUT",
-    body,
-    headers: { "content-type": "application/octet-stream", "content-length": String(body.byteLength) },
-  });
-  if (!uploaded.ok) return error("STORAGE_UNAVAILABLE", "Cloud storage is temporarily unavailable.", 502, origin);
+type Upload = { upload_id: string; object_key: string; byte_size: number; checksum: string; part_size: number; created_at: number };
+const xmlEscape = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const xmlValue = (s: string, name: string) => s.match(new RegExp(`<${name}>([^<]+)</${name}>`))?.[1]
+  .replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 
-  const now = Date.now();
-  await env.DB.prepare(
-    `INSERT INTO backups(vault_id, backup_id, object_key, byte_size, checksum, created_at)
-     VALUES(?1, ?2, ?3, ?4, ?5, ?6)
-     ON CONFLICT(vault_id) DO UPDATE SET backup_id=excluded.backup_id, object_key=excluded.object_key,
-       byte_size=excluded.byte_size, checksum=excluded.checksum, created_at=excluded.created_at`
-  ).bind(vaultId, backupId, key, body.byteLength, actual, now).run();
-  return response({ data: { backupId, byteSize: body.byteLength, checksum: actual, createdAt: now } }, 200, origin);
+async function multipart(request: Request, env: Env, vaultId: string, backupId: string, action: string): Promise<Response> {
+  const origin = originFor(request, env);
+  const auth = await authenticatedVault(request, env, vaultId);
+  if (auth) return auth;
+  if (!BACKUP_ID.test(backupId)) return error("INVALID_ID", "Invalid backup id.", 400, origin);
+  const aws = r2(env);
+  let row = await env.DB.prepare("SELECT * FROM uploads WHERE vault_id=?1 AND backup_id=?2").bind(vaultId, backupId).first<Upload>();
+  if (action === "init" && request.method === "POST") {
+    const input = await request.json<{ byteSize: number; checksum: string }>();
+    if (!Number.isSafeInteger(input.byteSize) || input.byteSize <= 0 || input.byteSize > R2_MAX_BYTES || !SHA256.test(input.checksum)) {
+      return error("INVALID_SIZE", "Invalid backup size or checksum (R2 maximum: 5 TiB).", 400, origin);
+    }
+    if (row && (row.byte_size !== input.byteSize || row.checksum !== input.checksum)) return error("CONFLICT", "Backup id conflict.", 409, origin);
+    if (!row) {
+      const key = `stickhub-cloud/${vaultId}/${backupId}.bin`;
+      const started = await aws.fetch(objectUrl(env, key) + "?uploads", { method: "POST", headers: { "content-type": "application/octet-stream", "x-amz-meta-sha256": input.checksum } });
+      const uploadId = xmlValue(await started.text(), "UploadId");
+      if (!started.ok || !uploadId) return error("STORAGE", "Couldn't start R2 upload.", 502, origin);
+      // At most 10,000 R2 parts; use larger parts for very large files.
+      const partSize = Math.max(8 * 1024 * 1024, Math.ceil(input.byteSize / 10000 / (1024 * 1024)) * 1024 * 1024);
+      row = { upload_id: uploadId, object_key: key, byte_size: input.byteSize, checksum: input.checksum, part_size: partSize, created_at: Date.now() };
+      await env.DB.prepare("INSERT INTO uploads VALUES(?1,?2,?3,?4,?5,?6,?7,?8)").bind(vaultId, backupId, uploadId, key, input.byteSize, input.checksum, partSize, row.created_at).run();
+    }
+    return response({ data: { partSize: row.part_size } }, 200, origin);
+  }
+  if (!row) return error("NOT_FOUND", "Upload session not found.", 404, origin);
+  const uploadUrl = new URL(objectUrl(env, row.object_key));
+  uploadUrl.searchParams.set("uploadId", row.upload_id);
+  if (action === "part" && request.method === "POST") {
+    const { partNumber } = await request.json<{ partNumber: number }>();
+    if (!Number.isInteger(partNumber) || partNumber < 1 || partNumber > Math.ceil(row.byte_size / row.part_size)) return error("INVALID_PART", "Invalid part number.", 400, origin);
+    uploadUrl.searchParams.set("partNumber", String(partNumber));
+    uploadUrl.searchParams.set("X-Amz-Expires", "3600");
+    const signed = await aws.sign(uploadUrl.toString(), { method: "PUT", aws: { signQuery: true } });
+    return response({ data: { url: signed.url } }, 200, origin);
+  }
+  if (action === "abort" && request.method === "POST") {
+    await aws.fetch(uploadUrl, { method: "DELETE" });
+    await env.DB.prepare("DELETE FROM uploads WHERE vault_id=?1 AND backup_id=?2").bind(vaultId, backupId).run();
+    return response({ data: { aborted: true } }, 200, origin);
+  }
+  if (action === "complete" && request.method === "POST") {
+    const { parts } = await request.json<{ parts: { partNumber: number; etag: string }[] }>();
+    if (!Array.isArray(parts) || parts.length !== Math.ceil(row.byte_size / row.part_size) || parts.some((p, i) => p.partNumber !== i + 1 || typeof p.etag !== "string" || !/^"?[a-f0-9]{32}"?$/i.test(p.etag))) return error("INVALID_PARTS", "Incomplete upload parts.", 400, origin);
+    // HEAD makes completion retryable if the response was lost after R2 committed.
+    let head = await aws.fetch(objectUrl(env, row.object_key), { method: "HEAD" });
+    if (!head.ok) {
+      const xml = `<CompleteMultipartUpload>${parts.map(p => `<Part><PartNumber>${p.partNumber}</PartNumber><ETag>${xmlEscape(p.etag)}</ETag></Part>`).join("")}</CompleteMultipartUpload>`;
+      const completed = await aws.fetch(uploadUrl, { method: "POST", body: xml, headers: { "content-type": "application/xml" } });
+      const result = await completed.text();
+      if (!completed.ok || result.includes("<Error>") || !result.includes("CompleteMultipartUploadResult")) return error("STORAGE", "R2 couldn't complete the backup. Retry upload.", 502, origin);
+      head = await aws.fetch(objectUrl(env, row.object_key), { method: "HEAD" });
+    }
+    if (!head.ok || Number(head.headers.get("content-length")) !== row.byte_size || head.headers.get("x-amz-meta-sha256") !== row.checksum) return error("INTEGRITY", "Uploaded backup verification failed.", 502, origin);
+    // Publish only the completed immutable object; the previous snapshot survives failures.
+    await env.DB.prepare(`INSERT INTO backups(vault_id,backup_id,object_key,byte_size,checksum,created_at) VALUES(?1,?2,?3,?4,?5,?6)
+      ON CONFLICT(vault_id) DO UPDATE SET backup_id=excluded.backup_id,object_key=excluded.object_key,byte_size=excluded.byte_size,checksum=excluded.checksum,created_at=excluded.created_at
+      WHERE excluded.created_at >= backups.created_at`).bind(vaultId, backupId, row.object_key, row.byte_size, row.checksum, row.created_at).run();
+    return response({ data: { backupId, byteSize: row.byte_size, checksum: row.checksum, createdAt: row.created_at } }, 200, origin);
+  }
+  return error("NOT_FOUND", "Route not found.", 404, origin);
 }
 
 async function downloadBackup(request: Request, env: Env, vaultId: string): Promise<Response> {
@@ -207,6 +255,8 @@ export default {
       if (request.method === "POST" && url.pathname === "/v1/vaults") {
         return registerVault(request, env);
       }
+      const uploadMatch = url.pathname.match(/^\/v2\/vaults\/([^/]+)\/uploads\/([^/]+)\/(init|part|complete|abort)$/);
+      if (uploadMatch) return await multipart(request, env, uploadMatch[1], uploadMatch[2], uploadMatch[3]);
       const match = url.pathname.match(/^\/v1\/vaults\/([^/]+)\/backup$/);
       if (match) {
         const vaultId = match[1];

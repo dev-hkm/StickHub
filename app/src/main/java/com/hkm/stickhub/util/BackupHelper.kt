@@ -38,11 +38,14 @@ sealed interface BackupImportResult {
 object BackupHelper {
 
     const val BACKUP_FORMAT_VERSION = 4
-    const val MAX_METADATA_BYTES = 1_048_576 // 1 MiB hard cap (untrusted input)
-    const val MAX_STICKERS = 10_000
-    const val MAX_IMAGE_BYTES = 32L * 1024 * 1024 // 32 MiB per image
-    const val MAX_TOTAL_BYTES = 1024L * 1024 * 1024 // 1 GiB total uncompressed
-    const val MAX_ZIP_ENTRIES = 10_010 // stickers + metadata + small headroom
+    // Parsing metadata still needs working memory; derive the safety budget
+    // from the device heap rather than imposing a product/library quota.
+    val MAX_METADATA_BYTES: Int
+        get() = (Runtime.getRuntime().maxMemory() / 32).coerceAtMost((Int.MAX_VALUE - 8192).toLong()).toInt()
+    const val MAX_STICKERS = Int.MAX_VALUE - 10
+    const val MAX_IMAGE_BYTES = 5L * 1024 * 1024 * 1024 * 1024 // R2 object ceiling
+    const val MAX_TOTAL_BYTES = MAX_IMAGE_BYTES
+    const val MAX_ZIP_ENTRIES = Int.MAX_VALUE
 
     private const val METADATA_NAME = "metadata.json"
     private const val IMAGE_PREFIX = "stickers/"

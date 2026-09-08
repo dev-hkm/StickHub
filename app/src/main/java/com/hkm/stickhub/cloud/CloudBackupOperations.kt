@@ -156,34 +156,40 @@ class CloudBackupOperations private constructor(appContext: Context) {
         categories: List<CategoryItem>
     ): CloudBackupMetadata = withContext(Dispatchers.IO) {
         val plainFile = File(context.cacheDir, "cloud_plain_${UUID.randomUUID()}.stickhub")
+        val encryptedFile = File(context.cacheDir, "cloud_encrypted_${UUID.randomUUID()}.bin")
         try {
+            CloudTransferService.begin(context)
+            mutableState.value = CloudBackupWorkState.Working("Preparing backup on device…")
             check(BackupHelper.exportBackupToFile(context, plainFile, stickers, categories)) {
                 "Couldn't create a local backup snapshot."
             }
-            val plain = plainFile.readBytes()
-            val encrypted = CloudBackupCrypto.encrypt(plain, credentials)
-            check(encrypted.size <= MAX_PAYLOAD_BYTES) {
-                "Cloud backup is larger than the 64 MB limit. Use local export instead."
+            mutableState.value = CloudBackupWorkState.Working("Encrypting backup…")
+            CloudBackupStream.encrypt(plainFile, encryptedFile, credentials)
+            plainFile.delete()
+            val checksum = encryptedFile.inputStream().use(ClipboardContentHasher::sha256)
+            client.uploadFile(credentials, encryptedFile, UUID.randomUUID().toString(), checksum) { done, total ->
+                mutableState.value = CloudBackupWorkState.Working("Uploading backup: $done / $total parts")
             }
-            val checksum = encrypted.inputStream().use(ClipboardContentHasher::sha256)
-            client.upload(credentials, encrypted, UUID.randomUUID().toString(), checksum)
         } finally {
             plainFile.delete()
+            encryptedFile.delete()
+            CloudTransferService.end(context)
         }
     }
 
     private suspend fun restoreInternal(credentialsOverride: CloudVaultCredentials?): BackupImportResult = withContext(Dispatchers.IO) {
         val credentials = credentialsOverride ?: CloudVaultStore.get(context)
             ?: error("Create a cloud vault before restoring.")
-        val download = client.download(credentials)
-        val actualChecksum = download.payload.inputStream().use(ClipboardContentHasher::sha256)
-        check(actualChecksum.equals(download.metadata.checksum, ignoreCase = true)) {
-            "Cloud backup integrity check failed."
-        }
-        val plaintext = CloudBackupCrypto.decrypt(download.payload, credentials)
         val archive = File(context.cacheDir, "cloud_restore_${UUID.randomUUID()}.stickhub")
+        val encryptedFile = File(context.cacheDir, "cloud_download_${UUID.randomUUID()}.bin")
         try {
-            archive.writeBytes(plaintext)
+            CloudTransferService.begin(context)
+            val metadata = client.downloadFile(credentials, encryptedFile)
+            val actualChecksum = encryptedFile.inputStream().use(ClipboardContentHasher::sha256)
+            check(actualChecksum.equals(metadata.checksum, ignoreCase = true)) { "Cloud backup integrity check failed." }
+            mutableState.value = CloudBackupWorkState.Working("Decrypting and restoring backup…")
+            CloudBackupStream.decrypt(encryptedFile, archive, credentials)
+            encryptedFile.delete()
             val result = BackupHelper.importBackupDetailed(context, android.net.Uri.fromFile(archive), repository)
             if (credentialsOverride != null && result is BackupImportResult.Success) {
                 CloudVaultStore.save(context, credentials)
@@ -191,12 +197,12 @@ class CloudBackupOperations private constructor(appContext: Context) {
             result
         } finally {
             archive.delete()
+            encryptedFile.delete()
+            CloudTransferService.end(context)
         }
     }
 
     companion object {
-        private const val MAX_PAYLOAD_BYTES = 64 * 1024 * 1024
-
         @Volatile
         private var shared: CloudBackupOperations? = null
 

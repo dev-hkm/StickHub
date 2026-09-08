@@ -5,7 +5,6 @@ account_id = "034347dd76504f4c1432207060ac442f"
 
 [vars]
 ALLOWED_ORIGIN = "https://stickhub.web.app"
-MAX_BACKUP_BYTES = "67108864"
 
 [[d1_databases]]
 binding = "DB"

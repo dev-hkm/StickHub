@@ -7,6 +7,12 @@ import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.io.File
+import java.io.RandomAccessFile
+import org.json.JSONArray
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 data class CloudBackupMetadata(
     val backupId: String,
@@ -26,6 +32,102 @@ class CloudBackupHttpException(val statusCode: Int, message: String) : IOExcepti
 class CloudBackupClient(
     private val baseUrl: String = DEFAULT_BASE_URL
 ) {
+    suspend fun uploadFile(credentials: CloudVaultCredentials, file: File, backupId: String, checksum: String, progress: (Int, Int) -> Unit): CloudBackupMetadata = withContext(Dispatchers.IO) {
+        val path = "/v2/vaults/${credentials.vaultId}/uploads/$backupId/"
+        suspend fun control(action: String, body: JSONObject): JSONObject = retry {
+            parseJson(request("POST", path + action, credentials, body.toString().toByteArray(), "application/json")).getJSONObject("data")
+        }
+        val init = control("init", JSONObject().put("byteSize", file.length()).put("checksum", checksum))
+        val partSize = init.getLong("partSize")
+        check(partSize >= 5L * 1024 * 1024) { "Invalid multipart size." }
+        val count = ((file.length() + partSize - 1) / partSize).toInt()
+        val parts = JSONArray()
+        for (part in 1..count) {
+            currentCoroutineContext().ensureActive()
+            val offset = (part - 1) * partSize
+            val length = minOf(partSize, file.length() - offset)
+            val etag = retry {
+                val signedUrl = control("part", JSONObject().put("partNumber", part)).getString("url")
+                val connection = (URL(signedUrl).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "PUT"
+                    connectTimeout = 30_000
+                    readTimeout = 120_000
+                    doOutput = true
+                    instanceFollowRedirects = false
+                    setFixedLengthStreamingMode(length)
+                }
+                try {
+                    RandomAccessFile(file, "r").use { input ->
+                        input.seek(offset)
+                        connection.outputStream.use { output ->
+                            val buffer = ByteArray(64 * 1024)
+                            var left = length
+                            while (left > 0) {
+                                currentCoroutineContext().ensureActive()
+                                val read = input.read(buffer, 0, minOf(buffer.size.toLong(), left).toInt())
+                                check(read > 0) { "Backup file is incomplete." }
+                                output.write(buffer, 0, read)
+                                left -= read
+                            }
+                        }
+                    }
+                    if (connection.responseCode !in 200..299) throw IOException("R2 part upload failed (${connection.responseCode}).")
+                    connection.getHeaderField("ETag") ?: throw IOException("R2 upload receipt is missing.")
+                } finally { connection.disconnect() }
+            }
+            parts.put(JSONObject().put("partNumber", part).put("etag", etag))
+            progress(part, count)
+        }
+        val data = control("complete", JSONObject().put("parts", parts))
+        CloudBackupMetadata(data.getString("backupId"), data.getLong("byteSize"), data.getString("checksum"), data.getLong("createdAt"))
+    }
+
+    suspend fun downloadFile(credentials: CloudVaultCredentials, file: File): CloudBackupMetadata = withContext(Dispatchers.IO) {
+        retry {
+            val connection = (URL(baseUrl.trimEnd('/') + "/v1/vaults/${credentials.vaultId}/backup").openConnection() as HttpURLConnection).apply {
+                connectTimeout = 30_000
+                readTimeout = 120_000
+                setRequestProperty("X-Vault-Secret-Hash", credentials.secretHashHex)
+                setRequestProperty("User-Agent", "StickHub-Android-CloudBackup/2")
+                setRequestProperty("Accept-Encoding", "identity")
+            }
+            try {
+                if (connection.responseCode !in 200..299) {
+                    val message = connection.errorStream?.bufferedReader()?.use { it.readText() }?.let {
+                        runCatching { JSONObject(it).getJSONObject("error").getString("message") }.getOrNull()
+                    } ?: "Cloud download failed (${connection.responseCode})."
+                    throw CloudBackupHttpException(connection.responseCode, message)
+                }
+                val id = connection.getHeaderField("X-Backup-Id") ?: throw IOException("Missing backup id.")
+                val checksum = connection.getHeaderField("X-Backup-Checksum") ?: throw IOException("Missing backup checksum.")
+                val size = connection.getHeaderField("Content-Length")?.toLongOrNull() ?: throw IOException("Missing backup size.")
+                connection.inputStream.use { input -> file.outputStream().buffered().use { output ->
+                    val buffer = ByteArray(64 * 1024)
+                    var written = 0L
+                    while (true) {
+                        currentCoroutineContext().ensureActive()
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        written += read
+                        check(written <= size) { "Cloud backup size mismatch." }
+                        output.write(buffer, 0, read)
+                    }
+                    check(written == size) { "Cloud download was interrupted." }
+                } }
+                CloudBackupMetadata(id, size, checksum, connection.getHeaderField("X-Backup-Created-At")?.toLongOrNull() ?: 0L)
+            } finally { connection.disconnect() }
+        }
+    }
+
+    private suspend fun <T> retry(block: suspend () -> T): T {
+        repeat(3) { attempt ->
+            try { return block() } catch (error: IOException) {
+                if (attempt == 2 || (error is CloudBackupHttpException && error.statusCode in 400..499 && error.statusCode != 429)) throw error
+                delay(1000L * (attempt + 1))
+            }
+        }
+        error("Upload failed.")
+    }
     suspend fun registerVault(credentials: CloudVaultCredentials): Boolean = withContext(Dispatchers.IO) {
         val body = JSONObject()
             .put("vaultId", credentials.vaultId)
