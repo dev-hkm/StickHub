@@ -164,6 +164,7 @@ import com.hkm.stickhub.ui.theme.OldMoneySealMotif
 import com.hkm.stickhub.ui.theme.NeoStickerMotif
 import com.hkm.stickhub.ui.theme.SketchDoodleMotif
 import com.hkm.stickhub.ui.theme.StickHubMotion
+import com.hkm.stickhub.ui.i18n.AppLanguage
 import com.hkm.stickhub.util.BackupHelper
 import com.hkm.stickhub.util.BackupOperations
 import com.hkm.stickhub.util.BackupWorkState
@@ -212,7 +213,9 @@ fun StickHubApp(
     themeMode: AppThemeMode = AppThemeMode.SYSTEM,
     onThemeModeChange: (AppThemeMode) -> Unit = {},
     visualTheme: AppVisualTheme = AppVisualTheme.DEFAULT,
-    onVisualThemeChange: (AppVisualTheme) -> Unit = {}
+    onVisualThemeChange: (AppVisualTheme) -> Unit = {},
+    language: AppLanguage = AppLanguage.ENGLISH,
+    onLanguageChange: (AppLanguage) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -1799,6 +1802,8 @@ fun StickHubApp(
                 onThemeModeChange = onThemeModeChange,
                 visualTheme = visualTheme,
                 onVisualThemeChange = onVisualThemeChange,
+                language = language,
+                onLanguageChange = onLanguageChange,
                 libraryViewMode = libraryViewMode,
                 onLibraryViewModeChange = { newMode ->
                     libraryViewMode = newMode

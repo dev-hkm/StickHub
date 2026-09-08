@@ -41,12 +41,15 @@ private data class ThemeModeOption(val mode: AppThemeMode, val label: String, va
 fun ThemeModeSelector(
     themeMode: AppThemeMode,
     onThemeModeChange: (AppThemeMode) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    systemLabel: String = "System",
+    lightLabel: String = "Light",
+    darkLabel: String = "Dark"
 ) {
     val options = listOf(
-        ThemeModeOption(AppThemeMode.SYSTEM, "System", LucideR.drawable.lucide_ic_monitor),
-        ThemeModeOption(AppThemeMode.LIGHT, "Light", LucideR.drawable.lucide_ic_sun),
-        ThemeModeOption(AppThemeMode.DARK, "Dark", LucideR.drawable.lucide_ic_moon)
+        ThemeModeOption(AppThemeMode.SYSTEM, systemLabel, LucideR.drawable.lucide_ic_monitor),
+        ThemeModeOption(AppThemeMode.LIGHT, lightLabel, LucideR.drawable.lucide_ic_sun),
+        ThemeModeOption(AppThemeMode.DARK, darkLabel, LucideR.drawable.lucide_ic_moon)
     )
     val selectedIndex = options.indexOfFirst { it.mode == themeMode }.coerceAtLeast(0)
 

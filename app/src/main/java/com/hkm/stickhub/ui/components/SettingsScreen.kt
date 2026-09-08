@@ -6,6 +6,11 @@ import android.provider.Settings
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.TextButton
@@ -58,6 +63,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -70,13 +77,20 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.PrimaryScrollableTabRow
+import androidx.compose.material3.Tab
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -101,8 +115,20 @@ import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
 import com.hkm.stickhub.ui.library.StickerLibraryLayoutPickerSheet
 import com.hkm.stickhub.ui.library.StickerLibraryViewMode
 import com.hkm.stickhub.ui.theme.AppThemeMode
+import com.hkm.stickhub.ui.i18n.AppLanguage
+import com.hkm.stickhub.ui.i18n.StickHubStrings
+import com.hkm.stickhub.ui.i18n.LocalStickHubStrings
+import com.hkm.stickhub.ui.i18n.stringsFor
+import com.hkm.stickhub.ui.i18n.text
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+
+private enum class SettingsTab {
+    GENERAL,
+    QUICK_STICKERS,
+    LIBRARY,
+    BACKUP_PRIVACY
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -111,6 +137,8 @@ fun SettingsScreen(
     onThemeModeChange: (AppThemeMode) -> Unit,
     visualTheme: AppVisualTheme = AppVisualTheme.DEFAULT,
     onVisualThemeChange: (AppVisualTheme) -> Unit = {},
+    language: AppLanguage = AppLanguage.ENGLISH,
+    onLanguageChange: (AppLanguage) -> Unit = {},
     libraryViewMode: StickerLibraryViewMode,
     onLibraryViewModeChange: (StickerLibraryViewMode) -> Unit,
     showLibrarySearch: Boolean,
@@ -182,6 +210,19 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val haptics = rememberStickHubHaptics()
+    val strings = remember(language) { stringsFor(language) }
+    var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
+    val selectedTab = SettingsTab.entries[selectedTabIndex.coerceIn(0, SettingsTab.entries.lastIndex)]
+    val generalListState = rememberLazyListState()
+    val quickStickersListState = rememberLazyListState()
+    val libraryListState = rememberLazyListState()
+    val backupPrivacyListState = rememberLazyListState()
+    val activeListState: LazyListState = when (selectedTab) {
+        SettingsTab.GENERAL -> generalListState
+        SettingsTab.QUICK_STICKERS -> quickStickersListState
+        SettingsTab.LIBRARY -> libraryListState
+        SettingsTab.BACKUP_PRIVACY -> backupPrivacyListState
+    }
     var previewBubbleSizeDp by remember(overlayBubbleSizeDp) {
         mutableFloatStateOf(overlayBubbleSizeDp)
     }
@@ -263,11 +304,21 @@ fun SettingsScreen(
 
     val navBarsBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        LazyColumn(
+    CompositionLocalProvider(LocalStickHubStrings provides strings) {
+        Surface(
+            modifier = modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            AnimatedContent(
+                targetState = selectedTab,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(220)) togetherWith
+                        fadeOut(animationSpec = tween(150))
+                },
+                label = "settings_tab_content"
+            ) { _ ->
+                LazyColumn(
+            state = activeListState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
                 start = 16.dp,
@@ -276,7 +327,11 @@ fun SettingsScreen(
                 bottom = navBarsBottom + 32.dp
             )
         ) {
-            item(key = "settings_header") {
+            stickyHeader(key = "settings_header") {
+                Surface(
+                    color = MaterialTheme.colorScheme.background,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -297,7 +352,7 @@ fun SettingsScreen(
                     ) {
                         Icon(
                             painter = painterResource(LucideR.drawable.lucide_ic_arrow_left),
-                            contentDescription = "Back to Library",
+                            contentDescription = strings.backToLibrary,
                             tint = MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier.size(22.dp)
                         )
@@ -307,25 +362,65 @@ fun SettingsScreen(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Settings",
+                            text = strings.settings,
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onBackground
                         )
                         Text(
-                            text = "Personalize your sticker studio",
+                            text = strings.settingsSubtitle,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
+                PrimaryScrollableTabRow(
+                    selectedTabIndex = selectedTabIndex,
+                    edgePadding = 0.dp,
+                    containerColor = MaterialTheme.colorScheme.background,
+                    divider = {}
+                ) {
+                    listOf(
+                        strings.general,
+                        strings.quickStickers,
+                        strings.library,
+                        strings.backupPrivacy
+                    ).forEachIndexed { index, label ->
+                        Tab(
+                            selected = selectedTabIndex == index,
+                            onClick = {
+                                if (selectedTabIndex != index) haptics.performTick()
+                                selectedTabIndex = index
+                            },
+                            text = {
+                                Text(
+                                    text = label,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        )
+                    }
+                }
+                }
             }
 
-            item(key = "section_appearance") {
-                SectionHeader("APPEARANCE")
+            if (selectedTab == SettingsTab.GENERAL) item(key = "section_appearance") {
+                SectionHeader(strings.appearance)
+
+                SettingsLanguageSelector(
+                    language = language,
+                    strings = strings,
+                    onLanguageChange = {
+                        haptics.performTick()
+                        onLanguageChange(it)
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
 
                 Text(
-                    text = "Color theme",
+                    text = strings.colorTheme,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -868,7 +963,7 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = "Theme mode",
+                    text = strings.themeMode,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -882,7 +977,10 @@ fun SettingsScreen(
                             onThemeModeChange(newMode)
                         }
                     },
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    modifier = Modifier.padding(bottom = 16.dp),
+                    systemLabel = strings.system,
+                    lightLabel = strings.light,
+                    darkLabel = strings.dark
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -912,7 +1010,7 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(14.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Library layout",
+                                text = strings.libraryLayout,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -959,12 +1057,12 @@ fun SettingsScreen(
                 SettingsDivider()
             }
 
-            item(key = "section_quick_stickers") {
-                SectionHeader("QUICK STICKERS")
+            if (selectedTab == SettingsTab.QUICK_STICKERS) item(key = "section_quick_stickers") {
+                SectionHeader(strings.quickStickersSection)
 
                 // --- 1. Availability ---
                 Text(
-                    text = "Availability",
+                    text = strings.availability,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -1010,7 +1108,7 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Display over other apps",
+                                text = strings.text("Display over other apps"),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -1030,7 +1128,7 @@ fun SettingsScreen(
                                 shape = RoundedCornerShape(8.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                             ) {
-                                Text("Grant", style = MaterialTheme.typography.labelMedium)
+                                Text(strings.grant, style = MaterialTheme.typography.labelMedium)
                             }
                         }
                     }
@@ -1040,7 +1138,7 @@ fun SettingsScreen(
 
                 // --- 2. Appearance ---
                 Text(
-                    text = "Appearance",
+                    text = strings.appearanceSection,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -1049,7 +1147,7 @@ fun SettingsScreen(
 
                 // 2A0. Appearance presets (one-shot, opt-in only)
                 Text(
-                    text = "Presets",
+                    text = strings.presets,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1085,7 +1183,7 @@ fun SettingsScreen(
 
                 // 2A. Bubble Group
                 Text(
-                    text = "Bubble",
+                    text = strings.bubble,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1132,7 +1230,7 @@ fun SettingsScreen(
 
                 // 2B. Popup Composition Group
                 Text(
-                    text = "Popup composition",
+                    text = strings.popupComposition,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1147,7 +1245,11 @@ fun SettingsScreen(
                         .padding(bottom = 8.dp)
                 ) {
                     Text(
-                        text = "Tip: For stickers floating directly on chat without a background, set Master to 100%, Popup background to 0%, and Stickers to 100%.",
+                        text = if (language == AppLanguage.VIETNAMESE) {
+                            "Mẹo: Để sticker nổi trực tiếp trên cửa sổ chat, đặt Tổng thể 100%, nền popup 0% và sticker 100%."
+                        } else {
+                            "Tip: For stickers floating directly on chat without a background, set Master to 100%, Popup background to 0%, and Stickers to 100%."
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(12.dp),
@@ -1292,7 +1394,7 @@ fun SettingsScreen(
 
                 // 2C. Sticker Clarity Group
                 Text(
-                    text = "Sticker clarity",
+                    text = strings.stickerClarity,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1361,7 +1463,7 @@ fun SettingsScreen(
 
                 // --- 3. Opening behavior ---
                 Text(
-                    text = "Opening behavior",
+                    text = strings.openingBehavior,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -1422,7 +1524,7 @@ fun SettingsScreen(
 
                 // --- 4. Popup content ---
                 Text(
-                    text = "Popup content",
+                    text = strings.popupContent,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -1467,13 +1569,16 @@ fun SettingsScreen(
             }
 
 
-            item(key = "section_whatsapp") {
-                SectionHeader("WHATSAPP STICKERS")
+            if (selectedTab == SettingsTab.LIBRARY || selectedTab == SettingsTab.BACKUP_PRIVACY) item(key = "section_library_services") {
+                if (selectedTab == SettingsTab.LIBRARY) {
+                    SectionHeader(strings.whatsappStickers)
 
                 Text(
-                    text = "Add a category as a native sticker pack inside " +
-                        "WhatsApp's own tray. WhatsApp asks you to confirm " +
-                        "there; StickHub cannot add packs silently.",
+                    text = if (language == AppLanguage.VIETNAMESE) {
+                        "Thêm danh mục thành gói sticker gốc trong khay WhatsApp. WhatsApp sẽ yêu cầu ngài xác nhận; StickHub không thể tự thêm gói."
+                    } else {
+                        "Add a category as a native sticker pack inside WhatsApp's own tray. WhatsApp asks you to confirm there; StickHub cannot add packs silently."
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
@@ -1483,7 +1588,11 @@ fun SettingsScreen(
 
                 if (whatsappPacks.isEmpty()) {
                     Text(
-                        text = "Add at least 3 stickers to a category to offer it as a pack.",
+                        text = if (language == AppLanguage.VIETNAMESE) {
+                            "Thêm ít nhất 3 sticker vào danh mục để cung cấp dưới dạng gói."
+                        } else {
+                            "Add at least 3 stickers to a category to offer it as a pack."
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 4.dp)
@@ -1510,7 +1619,11 @@ fun SettingsScreen(
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
                                         Text(
-                                            text = "${pack.stickerCount} stickers · native tray pack",
+                                            text = if (language == AppLanguage.VIETNAMESE) {
+                                                "${pack.stickerCount} sticker · gói gốc trong khay"
+                                            } else {
+                                                "${pack.stickerCount} stickers · native tray pack"
+                                            },
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -1538,7 +1651,10 @@ fun SettingsScreen(
                     }
                 }
 
-                SectionHeader("CLOUD BACKUP")
+                }
+
+                if (selectedTab == SettingsTab.BACKUP_PRIVACY) {
+                SectionHeader(strings.cloudBackup)
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -1558,7 +1674,7 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Encrypted cloud backup",
+                                    text = strings.text("Encrypted cloud backup"),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onSurface
@@ -1602,12 +1718,12 @@ fun SettingsScreen(
                                 enabled = !cloudBackupWorking,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("Restore with a recovery code")
+                                Text(strings.text("Restore with a recovery code"))
                             }
                         } else {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Recovery code",
+                                text = strings.text("Recovery code"),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1619,7 +1735,11 @@ fun SettingsScreen(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = "Keep this code safe. The encrypted sticker snapshot is created when a backup completes.",
+                                text = if (language == AppLanguage.VIETNAMESE) {
+                                    "Hãy giữ an toàn mã này. Bản sao lưu sticker mã hóa được tạo sau khi sao lưu hoàn tất."
+                                } else {
+                                    "Keep this code safe. The encrypted sticker snapshot is created when a backup completes."
+                                },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(top = 4.dp)
@@ -1637,7 +1757,7 @@ fun SettingsScreen(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(5.dp))
-                                Text("Copy recovery code")
+                                Text(strings.text("Copy recovery code"))
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 FilledTonalButton(
@@ -1655,7 +1775,7 @@ fun SettingsScreen(
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(5.dp))
-                                    Text("Back up")
+                                    Text(strings.text("Back up"))
                                 }
                                 FilledTonalButton(
                                     onClick = {
@@ -1672,18 +1792,19 @@ fun SettingsScreen(
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(5.dp))
-                                    Text("Restore")
+                                    Text(strings.text("Restore"))
                                 }
                             }
                         }
                     }
                 }
 
+                }
                 SettingsDivider()
             }
 
-            item(key = "section_data") {
-                SectionHeader("LIBRARY & DATA")
+            if (selectedTab == SettingsTab.LIBRARY) item(key = "section_data") {
+                SectionHeader(strings.libraryAndData)
 
                 Surface(
                     shape = RoundedCornerShape(14.dp),
@@ -1711,13 +1832,13 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(14.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Manage categories",
+                                text = strings.manageCategories,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "$categoryCount categories available",
+                                text = strings.categoriesAvailable(categoryCount),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1770,7 +1891,7 @@ fun SettingsScreen(
                             modifier = Modifier.size(17.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Export")
+                Text(strings.export)
                     }
 
                     FilledTonalButton(
@@ -1787,7 +1908,7 @@ fun SettingsScreen(
                             modifier = Modifier.size(17.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Import")
+                        Text(strings.import)
                     }
                 }
 
@@ -1795,8 +1916,8 @@ fun SettingsScreen(
             }
 
             // 4. PRIVACY & STORAGE
-            item(key = "section_privacy") {
-                SectionHeader("PRIVACY")
+            if (selectedTab == SettingsTab.BACKUP_PRIVACY) item(key = "section_privacy") {
+                SectionHeader(strings.privacy)
 
                 Surface(
                     shape = RoundedCornerShape(14.dp),
@@ -1818,14 +1939,18 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = "Local-first & encrypted",
+                                text = strings.localFirstEncrypted,
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Your library stays local by default. Optional cloud backups are encrypted on this device before upload, so the cloud service cannot read your sticker images.",
+                                text = if (language == AppLanguage.VIETNAMESE) {
+                                    "Thư viện mặc định được giữ trên thiết bị. Bản sao lưu đám mây tùy chọn được mã hóa trước khi tải lên nên dịch vụ không thể đọc ảnh sticker của ngài."
+                                } else {
+                                    "Your library stays local by default. Optional cloud backups are encrypted on this device before upload, so the cloud service cannot read your sticker images."
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 lineHeight = 18.sp
@@ -1834,17 +1959,22 @@ fun SettingsScreen(
                     }
                 }
             }
-        }
+                }
+            }
 
 
         if (showCloudRecoveryDialog) {
             AlertDialog(
                 onDismissRequest = { showCloudRecoveryDialog = false },
-                title = { Text("Restore cloud backup") },
+                title = { Text(if (language == AppLanguage.VIETNAMESE) "Khôi phục bản sao lưu đám mây" else "Restore cloud backup") },
                 text = {
                     Column {
                         Text(
-                            "Enter the recovery code from your previous device. Your code is used locally to decrypt the backup.",
+                            if (language == AppLanguage.VIETNAMESE) {
+                                "Nhập mã phục hồi từ thiết bị trước. Mã chỉ được dùng cục bộ để giải mã bản sao lưu."
+                            } else {
+                                "Enter the recovery code from your previous device. Your code is used locally to decrypt the backup."
+                            },
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Spacer(modifier = Modifier.height(12.dp))
@@ -1852,14 +1982,14 @@ fun SettingsScreen(
                             value = cloudRecoveryInput,
                             onValueChange = { cloudRecoveryInput = it },
                             singleLine = true,
-                            label = { Text("Recovery code") },
+                            label = { Text(strings.text("Recovery code")) },
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showCloudRecoveryDialog = false }) {
-                        Text("Cancel")
+                        Text(strings.cancel)
                     }
                 },
                 confirmButton = {
@@ -1875,7 +2005,7 @@ fun SettingsScreen(
                         },
                         enabled = cloudRecoveryInput.isNotBlank()
                     ) {
-                        Text("Restore")
+                        Text(strings.text("Restore"))
                     }
                 }
             )
@@ -1884,9 +2014,15 @@ fun SettingsScreen(
         if (showResetAppearanceDialog) {
             AlertDialog(
                 onDismissRequest = { showResetAppearanceDialog = false },
-                title = { Text("Reset Quick Stickers appearance?") },
+                title = { Text(if (language == AppLanguage.VIETNAMESE) "Đặt lại giao diện Sticker nhanh?" else "Reset Quick Stickers appearance?") },
                 text = {
-                    Text("This will restore bubble size, bubble transparency, and popup transparency to their default values. Your saved bubble position, stickers, categories, and theme will not be changed.")
+                    Text(
+                        if (language == AppLanguage.VIETNAMESE) {
+                            "Thao tác này đưa kích thước nút nổi, độ trong suốt nút nổi và popup về mặc định. Vị trí nút, sticker, danh mục và theme sẽ không thay đổi."
+                        } else {
+                            "This will restore bubble size, bubble transparency, and popup transparency to their default values. Your saved bubble position, stickers, categories, and theme will not be changed."
+                        }
+                    )
                 },
                 confirmButton = {
                     TextButton(
@@ -1905,12 +2041,12 @@ fun SettingsScreen(
                             onResetOverlayAppearance()
                         }
                     ) {
-                        Text("Reset")
+                        Text(strings.text("Reset"))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showResetAppearanceDialog = false }) {
-                        Text("Cancel")
+                        Text(strings.cancel)
                     }
                 }
             )
@@ -1919,7 +2055,7 @@ fun SettingsScreen(
         if (showStartFilterDialog) {
             AlertDialog(
                 onDismissRequest = { showStartFilterDialog = false },
-                title = { Text("Open popup with") },
+                title = { Text(strings.text("Open popup with")) },
                 text = {
                     Column(
                         modifier = Modifier
@@ -1965,7 +2101,7 @@ fun SettingsScreen(
                                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
                             )
                             Text(
-                                text = "Categories",
+                                text = if (language == AppLanguage.VIETNAMESE) "Danh mục" else "Categories",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary,
@@ -2005,7 +2141,7 @@ fun SettingsScreen(
                 },
                 confirmButton = {
                     TextButton(onClick = { showStartFilterDialog = false }) {
-                        Text("Done")
+                        Text(strings.done)
                     }
                 }
             )
@@ -2014,7 +2150,7 @@ fun SettingsScreen(
         if (showAfterCopyDialog) {
             AlertDialog(
                 onDismissRequest = { showAfterCopyDialog = false },
-                title = { Text("After copying a sticker") },
+                title = { Text(strings.text("After copying a sticker")) },
                 text = {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         listOf(
@@ -2051,7 +2187,7 @@ fun SettingsScreen(
                 },
                 confirmButton = {
                     TextButton(onClick = { showAfterCopyDialog = false }) {
-                        Text("Done")
+                        Text(strings.done)
                     }
                 }
             )
@@ -2066,6 +2202,42 @@ fun SettingsScreen(
                 onSelectMode = { selectLayoutMode(it) },
                 onDismissRequest = { dismissLayoutPicker() }
             )
+        }
+    }
+    }
+}
+
+@Composable
+private fun SettingsLanguageSelector(
+    language: AppLanguage,
+    strings: StickHubStrings,
+    onLanguageChange: (AppLanguage) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = strings.language,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            val options = listOf(AppLanguage.ENGLISH to strings.english, AppLanguage.VIETNAMESE to strings.vietnamese)
+            options.forEachIndexed { index, (option, label) ->
+                SegmentedButton(
+                    selected = language == option,
+                    onClick = { onLanguageChange(option) },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                    modifier = Modifier.weight(1f),
+                    label = {
+                        Text(
+                            text = label,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                )
+            }
         }
     }
 }
@@ -2096,6 +2268,7 @@ private fun SettingsToggleRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
+    val strings = LocalStickHubStrings.current
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
@@ -2116,13 +2289,13 @@ private fun SettingsToggleRow(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = title,
+                    text = strings.text(title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = subtitle,
+                    text = strings.text(subtitle),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -2137,6 +2310,7 @@ private fun SettingsToggleRow(
 
 @Composable
 private fun StatItem(label: String, value: String) {
+    val strings = LocalStickHubStrings.current
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = value,
@@ -2145,7 +2319,7 @@ private fun StatItem(label: String, value: String) {
             color = MaterialTheme.colorScheme.primary
         )
         Text(
-            text = label,
+            text = strings.text(label),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -2250,6 +2424,7 @@ private fun SettingsClickableRow(
     onClick: () -> Unit,
     trailing: @Composable (() -> Unit)? = null
 ) {
+    val strings = LocalStickHubStrings.current
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.40f),
@@ -2266,14 +2441,14 @@ private fun SettingsClickableRow(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = title,
+                    text = strings.text(title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = subtitle,
+                    text = strings.text(subtitle),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -2385,6 +2560,7 @@ private fun SettingsSliderItem(
     enabled: Boolean = true,
     contentDescription: String? = null
 ) {
+    val strings = LocalStickHubStrings.current
     // Direct manipulation owns the drag through SliderInteractionState: parent
     // echoes (persisted commits, resets) can never yank the thumb mid-gesture,
     // and release always persists the exact final value — never a stale frame.
@@ -2410,7 +2586,7 @@ private fun SettingsSliderItem(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = title,
+                    text = strings.text(title),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -2418,7 +2594,7 @@ private fun SettingsSliderItem(
                 if (subtitle != null) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = subtitle,
+                        text = strings.text(subtitle),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

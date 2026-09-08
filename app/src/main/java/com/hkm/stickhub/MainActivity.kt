@@ -21,6 +21,8 @@ import com.hkm.stickhub.ui.theme.AppThemeMode
 import com.hkm.stickhub.ui.theme.AppVisualTheme
 import com.hkm.stickhub.ui.theme.StickHubTheme
 import com.hkm.stickhub.ui.theme.ThemePreferences
+import com.hkm.stickhub.ui.i18n.AppLanguage
+import com.hkm.stickhub.ui.i18n.LanguagePreferences
 
 import android.graphics.Color as AndroidColor
 import androidx.activity.SystemBarStyle
@@ -33,6 +35,7 @@ class MainActivity : ComponentActivity() {
     private var incomingShareGeneration = 0L
     private var themeMode by mutableStateOf(AppThemeMode.SYSTEM)
     private var visualTheme by mutableStateOf(AppVisualTheme.DEFAULT)
+    private var language by mutableStateOf(AppLanguage.ENGLISH)
     /** Bumped on every resume so the UI reconciles real permission/service state. */
     private var foregroundTick by mutableStateOf(0)
 
@@ -60,6 +63,7 @@ class MainActivity : ComponentActivity() {
         StickerTransport.cleanup(applicationContext)
         themeMode = ThemePreferences.getThemeMode(this)
         visualTheme = ThemePreferences.getVisualTheme(this)
+        language = LanguagePreferences.get(this)
 
         handleIncomingIntent(intent)
 
@@ -88,6 +92,11 @@ class MainActivity : ComponentActivity() {
                         }
                     },
                     visualTheme = visualTheme,
+                    language = language,
+                    onLanguageChange = { newLanguage ->
+                        language = newLanguage
+                        LanguagePreferences.set(this, newLanguage)
+                    },
                     onVisualThemeChange = { newTheme ->
                         visualTheme = newTheme
                         ThemePreferences.setVisualTheme(this, newTheme)
@@ -115,6 +124,7 @@ class MainActivity : ComponentActivity() {
         // away so the UI reflects reality, not first-launch memory.
         themeMode = ThemePreferences.getThemeMode(this)
         visualTheme = ThemePreferences.getVisualTheme(this)
+        language = LanguagePreferences.get(this)
         foregroundTick++
     }
 
