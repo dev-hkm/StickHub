@@ -40,8 +40,11 @@ object BackupHelper {
     const val BACKUP_FORMAT_VERSION = 4
     // Parsing metadata still needs working memory; derive the safety budget
     // from the device heap rather than imposing a product/library quota.
+    @Volatile
+    var maxMetadataBytesOverride: Int? = null
+
     val MAX_METADATA_BYTES: Int
-        get() = (Runtime.getRuntime().maxMemory() / 32).coerceAtMost((Int.MAX_VALUE - 8192).toLong()).toInt()
+        get() = maxMetadataBytesOverride ?: (Runtime.getRuntime().maxMemory() / 32).coerceAtMost((Int.MAX_VALUE - 8192).toLong()).toInt()
     const val MAX_STICKERS = Int.MAX_VALUE - 10
     const val MAX_IMAGE_BYTES = 5L * 1024 * 1024 * 1024 * 1024 // R2 object ceiling
     const val MAX_TOTAL_BYTES = MAX_IMAGE_BYTES

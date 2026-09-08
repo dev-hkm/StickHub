@@ -60,7 +60,7 @@ class ClipboardStager(
     private val opener: UriOpener = UriOpener { uri ->
         appContext.contentResolver.openInputStream(uri)
     },
-    private val maxImageBytes: Long = BackupHelper.MAX_IMAGE_BYTES,
+    private val maxImageBytes: Long = MAX_IMAGE_BYTES,
     private val maxItems: Int = MAX_BATCH_ITEMS
 ) {
     fun interface UriOpener {
@@ -185,6 +185,7 @@ class ClipboardStager(
     }
 
     companion object {
+        const val MAX_IMAGE_BYTES = 32L * 1024 * 1024
         const val MAX_BATCH_ITEMS = 50
         private const val TAG = "ClipboardStage"
         private const val COPY_CHUNK = 8192

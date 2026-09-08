@@ -149,11 +149,16 @@ class DataSafetyRegressionTest {
     }
 
     @Test fun metadataLargerThanOneMegabyteIsRejectedBeforeMutation() = runBlocking {
-        val metadata = JSONObject().put("version", 2).put("padding", "x".repeat(1024 * 1024))
-            .put("stickers", JSONArray().put(stickerJson("one.png")))
-        val archive = zip("metadata.stickhub", mapOf("metadata.json" to metadata.toString().toByteArray(), "stickers/one.png" to byteArrayOf(1)))
-        assertEquals(0, BackupHelper.importBackup(context, Uri.fromFile(archive), repository))
-        assertTrue(repository.stickersFlow.value.isEmpty())
+        BackupHelper.maxMetadataBytesOverride = 1024 * 1024
+        try {
+            val metadata = JSONObject().put("version", 2).put("padding", "x".repeat(1024 * 1024))
+                .put("stickers", JSONArray().put(stickerJson("one.png")))
+            val archive = zip("metadata.stickhub", mapOf("metadata.json" to metadata.toString().toByteArray(), "stickers/one.png" to byteArrayOf(1)))
+            assertEquals(0, BackupHelper.importBackup(context, Uri.fromFile(archive), repository))
+            assertTrue(repository.stickersFlow.value.isEmpty())
+        } finally {
+            BackupHelper.maxMetadataBytesOverride = null
+        }
     }
 
     @Test fun exportSupportsRoundTripOfFiveHundredStickers() = runBlocking {
