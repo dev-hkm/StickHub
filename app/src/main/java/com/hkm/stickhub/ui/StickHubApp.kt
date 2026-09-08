@@ -177,6 +177,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -278,9 +279,12 @@ fun StickHubApp(
     fun dismissCutoutSheet(afterHidden: (() -> Unit)? = null) {
         scope.launch {
             try {
-                cutoutSheetState.hide()
+                // A stuck sheet animation must never leave the modal scrim intercepting the
+                // entire app. Normal dismissals still animate; the timeout is a last-resort
+                // escape for interrupted/recomposed sheet transitions after a save.
+                withTimeoutOrNull(650L) { cutoutSheetState.hide() }
             } finally {
-                if (activeModalRoute is ModalRoute.SubjectCutout) {
+                if (activeModalRoute is ModalRoute.SubjectCutout || activeModalRoute is ModalRoute.DirectImage) {
                     activeModalRoute = ModalRoute.None
                 }
                 afterHidden?.invoke()

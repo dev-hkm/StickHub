@@ -322,15 +322,17 @@ class StickerRepository(private val context: Context) {
             }
             committed = true
 
-            // A snapshot failure must never destroy committed data: refresh in
-            // isolation and answer from the durable row itself, not the flow.
-            try {
-                refresh()
-            } catch (ce: CancellationException) {
-                throw ce
-            } catch (_: Exception) {
+            // The database row is already durable. Refreshing every sticker and category here
+            // made the save button wait on a full-library query and triggered a large UI
+            // recomposition. Publish only the committed row; the next normal refresh still
+            // reconciles the complete snapshot when the app resumes.
+            getStickerByIdInternal(id)?.also { savedSticker ->
+                val current = _stickersFlow.value
+                _stickersFlow.value = buildList(current.size + 1) {
+                    add(savedSticker)
+                    addAll(current.filterNot { it.id == savedSticker.id })
+                }
             }
-            getStickerByIdInternal(id)
         } catch (ce: CancellationException) {
             if (!committed) {
                 tempFile.delete()
