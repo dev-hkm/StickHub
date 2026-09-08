@@ -3,12 +3,9 @@ package com.hkm.stickhub.cloud
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
-import android.util.Base64
 import java.security.KeyStore
-import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
-import javax.crypto.spec.GCMParameterSpec
 
 /** Stores the vault recovery code encrypted by an Android Keystore key. */
 object CloudVaultStore {
@@ -21,14 +18,8 @@ object CloudVaultStore {
         val encoded = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString(ENCRYPTED_CODE, null) ?: return null
         return try {
-            val parts = encoded.split('.')
-            require(parts.size == 2)
-            val iv = Base64.decode(parts[0], Base64.DEFAULT)
-            val ciphertext = Base64.decode(parts[1], Base64.DEFAULT)
-            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, iv))
             CloudVaultCredentials.parseRecoveryCode(
-                cipher.doFinal(ciphertext).toString(Charsets.UTF_8)
+                CloudVaultEnvelope.decrypt(key(), encoded).toString(Charsets.UTF_8)
             )
         } catch (_: Exception) {
             null
@@ -36,12 +27,7 @@ object CloudVaultStore {
     }
 
     fun save(context: Context, credentials: CloudVaultCredentials) {
-        val iv = ByteArray(12)
-        java.security.SecureRandom().nextBytes(iv)
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, key(), GCMParameterSpec(128, iv))
-        val ciphertext = cipher.doFinal(credentials.recoveryCode.toByteArray(Charsets.UTF_8))
-        val value = "${Base64.encodeToString(iv, Base64.NO_WRAP)}.${Base64.encodeToString(ciphertext, Base64.NO_WRAP)}"
+        val value = CloudVaultEnvelope.encrypt(key(), credentials.recoveryCode.toByteArray(Charsets.UTF_8))
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putString(ENCRYPTED_CODE, value)
