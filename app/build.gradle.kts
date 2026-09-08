@@ -46,8 +46,8 @@ android {
         minSdk = 24
         targetSdk = 35
         // Version 5.2.19: harden local/cloud backup restore paths.
-        versionCode = 76
-        versionName = "5.2.25"
+        versionCode = 77
+        versionName = "5.2.26"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

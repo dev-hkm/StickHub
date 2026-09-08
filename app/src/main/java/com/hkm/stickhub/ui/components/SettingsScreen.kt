@@ -23,6 +23,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.input.pointer.pointerInput
 import com.hkm.stickhub.ui.theme.AppVisualTheme
 import com.hkm.stickhub.ui.theme.BotanicalColors
 import com.hkm.stickhub.ui.theme.NeubrutalismColors
@@ -44,6 +46,7 @@ import com.hkm.stickhub.ui.theme.NouveauColors
 import com.hkm.stickhub.ui.theme.SketchbookColors
 import com.hkm.stickhub.ui.theme.ThemePreferences
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -217,6 +220,7 @@ fun SettingsScreen(
     val quickStickersListState = rememberLazyListState()
     val libraryListState = rememberLazyListState()
     val backupPrivacyListState = rememberLazyListState()
+    val horizontalSwipeThreshold = with(LocalDensity.current) { 72.dp.toPx() }
     val activeListState: LazyListState = when (selectedTab) {
         SettingsTab.GENERAL -> generalListState
         SettingsTab.QUICK_STICKERS -> quickStickersListState
@@ -319,7 +323,30 @@ fun SettingsScreen(
             ) { _ ->
                 LazyColumn(
             state = activeListState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(selectedTabIndex) {
+                    var horizontalDistance = 0f
+                    detectHorizontalDragGestures(
+                        onDragStart = { horizontalDistance = 0f },
+                        onHorizontalDrag = { change, amount ->
+                            horizontalDistance += amount
+                            change.consume()
+                        },
+                        onDragEnd = {
+                            if (kotlin.math.abs(horizontalDistance) >= horizontalSwipeThreshold) {
+                                val direction = if (horizontalDistance < 0f) 1 else -1
+                                val nextIndex = (selectedTabIndex + direction)
+                                    .coerceIn(0, SettingsTab.entries.lastIndex)
+                                if (nextIndex != selectedTabIndex) {
+                                    haptics.performTick()
+                                    selectedTabIndex = nextIndex
+                                }
+                            }
+                        },
+                        onDragCancel = { horizontalDistance = 0f }
+                    )
+                },
             contentPadding = PaddingValues(
                 start = 16.dp,
                 end = 16.dp,
@@ -332,13 +359,16 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.background,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(top = 8.dp, bottom = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                // Keep the status-bar inset and the tab row inside one painted
+                // surface. This prevents the tabs from sliding under system
+                // icons while preserving a seamless edge-to-edge background.
+                Column(modifier = Modifier.statusBarsPadding()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp, bottom = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                     IconButton(
                         onClick = {
                             if (showLayoutPicker) {
@@ -373,7 +403,7 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                }
+                    }
                 PrimaryScrollableTabRow(
                     selectedTabIndex = selectedTabIndex,
                     edgePadding = 0.dp,
@@ -401,6 +431,7 @@ fun SettingsScreen(
                             }
                         )
                     }
+                }
                 }
                 }
             }
