@@ -997,8 +997,8 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (themesExpanded) "Show fewer themes"
-                        else "Show all ${AppVisualTheme.entries.size} themes • ${visualTheme.title}",
+                        text = if (themesExpanded) strings.text("Show fewer themes")
+                        else "${strings.text("Show all themes")} ${AppVisualTheme.entries.size} • ${visualTheme.title}",
                         style = MaterialTheme.typography.labelLarge
                     )
                 }
@@ -1157,7 +1157,9 @@ fun SettingsScreen(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = if (hasOverlayPermission) "Permission granted" else "Permission required for floating bubble",
+                                text = strings.text(
+                                    if (hasOverlayPermission) "Permission granted" else "Permission required for floating bubble"
+                                ),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1515,13 +1517,14 @@ fun SettingsScreen(
 
                 // 3.1 Open popup with
                 val filterSummary = when (startFilterMode) {
-                    OverlayStartFilterMode.ALL -> "All stickers"
-                    OverlayStartFilterMode.FAVORITES -> "Favorites"
-                    OverlayStartFilterMode.FREQUENT -> "Frequently used"
-                    OverlayStartFilterMode.LAST_USED -> "Last used filter"
+                    OverlayStartFilterMode.ALL -> strings.text("All stickers")
+                    OverlayStartFilterMode.FAVORITES -> strings.text("Favorites")
+                    OverlayStartFilterMode.FREQUENT -> strings.text("Frequently used")
+                    OverlayStartFilterMode.LAST_USED -> strings.text("Last used filter")
                     OverlayStartFilterMode.CUSTOM_CATEGORY -> {
-                        if (startCustomCategory.isNotBlank()) "Category: $startCustomCategory"
-                        else "Custom category"
+                        if (startCustomCategory.isNotBlank()) {
+                            "${strings.text("Category: ")}$startCustomCategory"
+                        } else strings.text("Custom category")
                     }
                 }
                 SettingsClickableRow(
@@ -1544,8 +1547,8 @@ fun SettingsScreen(
 
                 // 3.2 After copying a sticker
                 val copySummary = when (afterCopyAction) {
-                    OverlayAfterCopyAction.CLOSE_POPUP -> "Close popup"
-                    OverlayAfterCopyAction.KEEP_OPEN -> "Keep popup open"
+                    OverlayAfterCopyAction.CLOSE_POPUP -> strings.text("Close popup")
+                    OverlayAfterCopyAction.KEEP_OPEN -> strings.text("Keep popup open")
                 }
                 SettingsClickableRow(
                     title = "After copying a sticker",
@@ -1684,7 +1687,7 @@ fun SettingsScreen(
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                                     ) {
                                         Text(
-                                            if (preparing) "Preparing…" else "Add to WhatsApp",
+                            strings.text(if (preparing) "Preparing…" else "Add to WhatsApp"),
                                             style = MaterialTheme.typography.labelMedium
                                         )
                                     }
@@ -1724,9 +1727,9 @@ fun SettingsScreen(
                                 )
                                 Text(
                                     text = cloudBackupStatus ?: if (cloudRecoveryCode == null) {
-                                        "Optional backup for your stickers and categories"
+                                        strings.text("Optional backup for your stickers and categories")
                                     } else {
-                                        "Ready to sync your local library"
+                                        strings.text("Ready to sync your local library")
                                     },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1751,7 +1754,7 @@ fun SettingsScreen(
                                     modifier = Modifier.size(17.dp)
                                 )
                                 Spacer(modifier = Modifier.width(7.dp))
-                                Text(if (cloudBackupWorking) "Preparing…" else "Set up cloud backup")
+                                Text(strings.text(if (cloudBackupWorking) "Preparing…" else "Set up cloud backup"))
                             }
                             TextButton(
                                 onClick = {
@@ -2009,7 +2012,7 @@ fun SettingsScreen(
         if (showCloudRecoveryDialog) {
             AlertDialog(
                 onDismissRequest = { showCloudRecoveryDialog = false },
-                title = { Text(if (language == AppLanguage.VIETNAMESE) "Khôi phục bản sao lưu đám mây" else "Restore cloud backup") },
+                title = { Text(strings.text("Restore cloud backup")) },
                 text = {
                     Column {
                         Text(
@@ -2057,7 +2060,7 @@ fun SettingsScreen(
         if (showResetAppearanceDialog) {
             AlertDialog(
                 onDismissRequest = { showResetAppearanceDialog = false },
-                title = { Text(if (language == AppLanguage.VIETNAMESE) "Đặt lại giao diện Sticker nhanh?" else "Reset Quick Stickers appearance?") },
+                title = { Text(strings.text("Reset Quick Stickers appearance?")) },
                 text = {
                     Text(
                         if (language == AppLanguage.VIETNAMESE) {
@@ -2106,10 +2109,10 @@ fun SettingsScreen(
                             .verticalScroll(rememberScrollState())
                     ) {
                         listOf(
-                            OverlayStartFilterMode.ALL to "All stickers",
-                            OverlayStartFilterMode.FAVORITES to "Favorites",
-                            OverlayStartFilterMode.FREQUENT to "Frequently used",
-                            OverlayStartFilterMode.LAST_USED to "Last used filter"
+                            OverlayStartFilterMode.ALL to strings.text("All stickers"),
+                            OverlayStartFilterMode.FAVORITES to strings.text("Favorites"),
+                            OverlayStartFilterMode.FREQUENT to strings.text("Frequently used"),
+                            OverlayStartFilterMode.LAST_USED to strings.text("Last used filter")
                         ).forEach { (mode, label) ->
                             Row(
                                 modifier = Modifier
@@ -2197,8 +2200,8 @@ fun SettingsScreen(
                 text = {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         listOf(
-                            OverlayAfterCopyAction.CLOSE_POPUP to "Close popup (Default)",
-                            OverlayAfterCopyAction.KEEP_OPEN to "Keep popup open"
+                            OverlayAfterCopyAction.CLOSE_POPUP to strings.text("Close popup (Default)"),
+                            OverlayAfterCopyAction.KEEP_OPEN to strings.text("Keep popup open")
                         ).forEach { (action, label) ->
                             Row(
                                 modifier = Modifier
