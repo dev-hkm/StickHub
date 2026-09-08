@@ -2224,10 +2224,12 @@ fun StickHubApp(
                 onSaveSticker = { bitmap, title, category, tags ->
                     val saved = repository.saveStickerBitmap(bitmap, title, category, tags)
                     if (saved != null) {
-                        flashSnackbar("Sticker created successfully!")
+                        // Do not suspend the save transaction on snackbar lifetime. The sheet
+                        // must leave Saving as soon as the durable DB/file commit returns.
+                        scope.launch { flashSnackbar("Sticker created successfully!") }
                         true
                     } else {
-                        flashSnackbar("Failed to create sticker")
+                        scope.launch { flashSnackbar("Failed to create sticker") }
                         false
                     }
                 },
@@ -2266,10 +2268,10 @@ fun StickHubApp(
                 onSaveSticker = { bitmap, title, category, tags ->
                     val saved = repository.saveStickerBitmap(bitmap, title, category, tags)
                     if (saved != null) {
-                        flashSnackbar("Sticker created successfully!")
+                        scope.launch { flashSnackbar("Sticker created successfully!") }
                         true
                     } else {
-                        flashSnackbar("Failed to create sticker")
+                        scope.launch { flashSnackbar("Failed to create sticker") }
                         false
                     }
                 },
