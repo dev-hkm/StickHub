@@ -1618,6 +1618,12 @@ fun SettingsScreen(
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )
+                            Text(
+                                text = "Keep this code safe. The encrypted sticker snapshot is created when a backup completes.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
                             TextButton(
                                 onClick = {
                                     haptics.performTap()

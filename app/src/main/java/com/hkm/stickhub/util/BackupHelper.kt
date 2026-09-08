@@ -2,6 +2,7 @@ package com.hkm.stickhub.util
 
 import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
 import com.hkm.stickhub.data.model.CategoryItem
 import com.hkm.stickhub.data.model.StickerItem
 import com.hkm.stickhub.data.repository.StickerRepository
@@ -161,7 +162,11 @@ object BackupHelper {
                     if (outputUri.scheme == "file") {
                         outputUri.path?.let(::FileOutputStream)
                     } else {
-                        context.contentResolver.openOutputStream(outputUri, "wt")
+                        // DocumentsProvider implementations consistently support
+                        // the documented truncate mode "w". Some providers
+                        // reject the non-standard "wt" mode and silently leave
+                        // a zero-byte placeholder behind.
+                        context.contentResolver.openOutputStream(outputUri, "w")
                             ?: context.contentResolver.openOutputStream(outputUri)
                     }
                 } catch (_: Exception) {
@@ -177,6 +182,10 @@ object BackupHelper {
                 } catch (_: Exception) {
                     return@withContext false
                 }
+                // A provider can report a successful write while returning a
+                // zero-byte or truncated document. Re-open the destination and
+                // parse the manifest before reporting success.
+                if (!isReadableBackupArchive(context, outputUri)) return@withContext false
             } finally {
                 stagingFile.delete()
             }
@@ -185,6 +194,41 @@ object BackupHelper {
             throw ce
         } catch (e: Exception) {
             e.printStackTrace()
+            false
+        }
+    }
+
+    /**
+     * Lightweight destination verification used after export and by tests.
+     * Full image/hash validation remains the import path's responsibility.
+     */
+    fun isReadableBackupArchive(context: Context, uri: Uri): Boolean {
+        val input = try {
+            if (uri.scheme == "file") {
+                uri.path?.let(::FileInputStream)
+            } else {
+                context.contentResolver.openInputStream(uri)
+            }
+        } catch (_: Exception) {
+            null
+        } ?: return false
+
+        return try {
+            var hasMetadata = false
+            ZipInputStream(BufferedInputStream(input)).use { zipIn ->
+                var entry = zipIn.nextEntry
+                while (entry != null) {
+                    if (!entry.isDirectory && entry.name == METADATA_NAME) {
+                        val metadata = readCapped(zipIn, MAX_METADATA_BYTES + 1)
+                            ?: return false
+                        hasMetadata = metadata.isNotEmpty() && metadata.size <= MAX_METADATA_BYTES
+                    }
+                    zipIn.closeEntry()
+                    entry = zipIn.nextEntry
+                }
+            }
+            hasMetadata
+        } catch (_: Exception) {
             false
         }
     }
@@ -210,6 +254,11 @@ object BackupHelper {
         try {
             if (!stagingDir.exists()) stagingDir.mkdirs()
             val canonicalStagingPath = stagingDir.canonicalPath
+            if (knownSize(context, inputUri) == 0L) {
+                return@withContext BackupImportResult.Invalid(
+                    "Backup file is empty (0 bytes). Choose a completed .stickhub export."
+                )
+            }
             val inputStream = try {
                 if (inputUri.scheme == "file") {
                     inputUri.path?.let(::FileInputStream)
@@ -475,6 +524,23 @@ object BackupHelper {
             throw e
         }
         return total
+    }
+
+    /** Returns a provider-reported size, -1 when the provider cannot tell us. */
+    private fun knownSize(context: Context, uri: Uri): Long {
+        if (uri.scheme == "file") return uri.path?.let(::File)?.length() ?: -1L
+        return try {
+            context.contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val index = cursor.getColumnIndex(OpenableColumns.SIZE)
+                    if (index >= 0 && !cursor.isNull(index)) cursor.getLong(index) else -1L
+                } else {
+                    -1L
+                }
+            } ?: -1L
+        } catch (_: Exception) {
+            -1L
+        }
     }
 
     private fun readImageFormat(file: File): String? {

@@ -8,6 +8,7 @@ import com.hkm.stickhub.data.db.StickHubDbHelper
 import com.hkm.stickhub.data.provider.StickerContentProvider
 import com.hkm.stickhub.data.repository.StickerRepository
 import com.hkm.stickhub.util.BackupHelper
+import com.hkm.stickhub.util.BackupImportResult
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -95,6 +96,37 @@ class DataSafetyRegressionTest {
         assertEquals(listOf("First", "Second"), repository.stickersFlow.value.map { it.title })
         assertEquals(0, BackupHelper.importBackup(context, Uri.fromFile(backup), repository))
         assertEquals(2, repository.stickersFlow.value.size)
+    }
+
+    @Test fun exportedBackupIsNonEmptyAndHasReadableManifest() = runBlocking {
+        repository.saveStickerBitmap(bitmap(Color.RED), "Export verification")
+        repository.refresh()
+        val backup = File(context.cacheDir, "verified-export.stickhub")
+
+        assertTrue(
+            BackupHelper.exportBackup(
+                context,
+                Uri.fromFile(backup),
+                repository.stickersFlow.value,
+                repository.categoriesFlow.value
+            )
+        )
+        assertTrue("A successful export must never produce a zero-byte file", backup.length() > 0L)
+        assertTrue(BackupHelper.isReadableBackupArchive(context, Uri.fromFile(backup)))
+    }
+
+    @Test fun zeroByteBackupIsNeverConsideredReadable() {
+        val backup = File(context.cacheDir, "zero-byte.stickhub").apply { writeBytes(ByteArray(0)) }
+        assertFalse(BackupHelper.isReadableBackupArchive(context, Uri.fromFile(backup)))
+    }
+
+    @Test fun zeroByteBackupExplainsThatTheSelectedFileIsEmpty() = runBlocking {
+        val backup = File(context.cacheDir, "empty-import.stickhub").apply { writeBytes(ByteArray(0)) }
+        val result = BackupHelper.importBackupDetailed(context, Uri.fromFile(backup), repository)
+        assertEquals(
+            BackupImportResult.Invalid("Backup file is empty (0 bytes). Choose a completed .stickhub export."),
+            result
+        )
     }
 
     @Test fun restoreKeepsWebpExtensionAndMimeType() = runBlocking {

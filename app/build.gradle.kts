@@ -45,9 +45,9 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version 5.2.18: fix Android Keystore recovery-code encryption IV.
-        versionCode = 69
-        versionName = "5.2.18"
+        // Version 5.2.19: harden local/cloud backup restore paths.
+        versionCode = 70
+        versionName = "5.2.19"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

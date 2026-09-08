@@ -1969,7 +1969,7 @@ fun StickHubApp(
                     else -> null
                 },
                 cloudRecoveryCode = cloudRecoveryCode,
-                onCreateCloudVault = { cloudBackupOps.createVault() },
+                onCreateCloudVault = { cloudBackupOps.createVault(allStickers, categories) },
                 onCloudBackup = { cloudBackupOps.startUpload(allStickers, categories) },
                 onCloudRestore = { cloudBackupOps.startRestore() },
                 onCloudRestoreWithRecoveryCode = { code -> cloudBackupOps.startRestoreWithRecoveryCode(code) },

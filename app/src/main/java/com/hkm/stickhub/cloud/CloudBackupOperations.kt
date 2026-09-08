@@ -43,13 +43,28 @@ class CloudBackupOperations private constructor(appContext: Context) {
 
     fun recoveryCode(): String? = CloudVaultStore.get(context)?.recoveryCode
 
-    fun createVault() {
+    /**
+     * Registers the vault and immediately snapshots a non-empty local library.
+     * Setup must not leave the user with a recovery code that authenticates a
+     * vault but has no data behind it.
+     */
+    fun createVault(
+        stickers: List<StickerItem> = emptyList(),
+        categories: List<CategoryItem> = emptyList()
+    ) {
         if (mutableState.value is CloudBackupWorkState.Working) return
         mutableState.value = CloudBackupWorkState.Working("Preparing encrypted cloud vault…")
         scope.launch {
             try {
-                val credentials = mutex.withLock { ensureCredentials() }
-                mutableState.value = CloudBackupWorkState.Ready(credentials.recoveryCode)
+                val outcome = mutex.withLock {
+                    val credentials = ensureCredentials()
+                    if (CloudBackupPolicy.validateUpload(stickers.size) == null) {
+                        CloudBackupWorkState.UploadFinished(uploadInternal(credentials, stickers, categories))
+                    } else {
+                        CloudBackupWorkState.Ready(credentials.recoveryCode)
+                    }
+                }
+                mutableState.value = outcome
             } catch (ce: CancellationException) {
                 throw ce
             } catch (error: Exception) {
@@ -60,6 +75,10 @@ class CloudBackupOperations private constructor(appContext: Context) {
 
     fun startUpload(stickers: List<StickerItem>, categories: List<CategoryItem>) {
         if (mutableState.value is CloudBackupWorkState.Working) return
+        CloudBackupPolicy.validateUpload(stickers.size)?.let { message ->
+            mutableState.value = CloudBackupWorkState.Failed(message)
+            return
+        }
         mutableState.value = CloudBackupWorkState.Working("Encrypting and uploading backup…")
         scope.launch {
             try {
@@ -128,7 +147,14 @@ class CloudBackupOperations private constructor(appContext: Context) {
         stickers: List<StickerItem>,
         categories: List<CategoryItem>
     ): CloudBackupMetadata = withContext(Dispatchers.IO) {
-        val credentials = ensureCredentials()
+        uploadInternal(ensureCredentials(), stickers, categories)
+    }
+
+    private suspend fun uploadInternal(
+        credentials: CloudVaultCredentials,
+        stickers: List<StickerItem>,
+        categories: List<CategoryItem>
+    ): CloudBackupMetadata = withContext(Dispatchers.IO) {
         val plainFile = File(context.cacheDir, "cloud_plain_${UUID.randomUUID()}.stickhub")
         try {
             check(BackupHelper.exportBackupToFile(context, plainFile, stickers, categories)) {
