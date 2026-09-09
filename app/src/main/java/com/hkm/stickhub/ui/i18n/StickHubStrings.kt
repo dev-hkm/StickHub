@@ -180,6 +180,7 @@ fun StickHubStrings.text(source: String): String {
         ,"Retry" to "Thử lại"
         ,"Enable Quick Stickers" to "Bật Sticker nhanh"
         ,"Your library is empty" to "Thư viện của ngài đang trống"
+        ,"Loading your stickers…" to "Đang tải sticker của ngài…"
         ,"Could not load your on-device sticker library." to "Không thể tải thư viện sticker trên thiết bị."
         ,"Library Layout" to "Bố cục thư viện"
         ,"Choose how stickers are displayed" to "Chọn cách hiển thị sticker"

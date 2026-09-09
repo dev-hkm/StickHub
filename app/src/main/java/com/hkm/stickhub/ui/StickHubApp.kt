@@ -1349,7 +1349,7 @@ fun StickHubApp(
                                                 EmptyLibraryView(searchQuery = searchQuery, visualTheme = visualTheme)
                                             }
                                         } else {
-                                            items(displayedStickers, key = { it.id }) { sticker ->
+                                            items(displayedStickers, key = { it.id }, contentType = { "sticker" }) { sticker ->
                                                 Box(modifier = Modifier.animateItem()) {
                                                     CompactStickerCard(
                                                         sticker = sticker,
@@ -1485,7 +1485,7 @@ fun StickHubApp(
                                                 EmptyLibraryView(searchQuery = searchQuery, visualTheme = visualTheme)
                                             }
                                         } else {
-                                            items(displayedStickers, key = { it.id }) { sticker ->
+                                            items(displayedStickers, key = { it.id }, contentType = { "sticker" }) { sticker ->
                                                 Box(modifier = Modifier.animateItem()) {
                                                     StickerCard(
                                                         sticker = sticker,
@@ -1701,7 +1701,7 @@ fun StickHubApp(
                                                 EmptyLibraryView(searchQuery = searchQuery, visualTheme = visualTheme)
                                             }
                                         } else {
-                                            items(displayedStickers, key = { it.id }) { sticker ->
+                                            items(displayedStickers, key = { it.id }, contentType = { "sticker" }) { sticker ->
                                                 Box(modifier = Modifier.animateItem()) {
                                                     LargeStickerCard(
                                                         sticker = sticker,
@@ -1835,7 +1835,7 @@ fun StickHubApp(
                                                 EmptyLibraryView(searchQuery = searchQuery, visualTheme = visualTheme)
                                             }
                                         } else {
-                                            items(displayedStickers, key = { it.id }) { sticker ->
+                                            items(displayedStickers, key = { it.id }, contentType = { "sticker" }) { sticker ->
                                                 Box(modifier = Modifier.animateItem()) {
                                                     StickerListItem(
                                                         sticker = sticker,
@@ -3007,6 +3007,7 @@ private fun LibraryHeadersContent(
 
 @Composable
 private fun LibraryLoadingView() {
+    val strings = LocalStickHubStrings.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -3023,7 +3024,7 @@ private fun LibraryLoadingView() {
                 color = MaterialTheme.colorScheme.primary
             )
             Text(
-                text = "Loading your stickers…",
+                text = strings.text("Loading your stickers…"),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

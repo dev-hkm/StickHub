@@ -45,9 +45,9 @@ android {
         applicationId = "com.hkm.stickhub"
         minSdk = 24
         targetSdk = 35
-        // Version 5.2.19: harden local/cloud backup restore paths.
-        versionCode = 84
-        versionName = "5.2.33"
+        // Version 5.2.34: lightweight scroll feedback and smoother library browsing.
+        versionCode = 85
+        versionName = "5.2.34"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -14,31 +14,33 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.LazyGridState
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 
 /**
  * A narrow, thumb-draggable scrollbar for long sticker collections. It is deliberately
  * implemented outside the lazy container so normal scrolling and card gestures keep their
  * ownership; the 24dp track remains easy to grab without making the visual chrome heavy.
+ * The thumb is transparent at rest and briefly fades in while scrolling or dragging.
  */
 @Composable
 fun LazyGridFastScrollbar(
@@ -67,6 +69,7 @@ fun LazyGridFastScrollbar(
         viewportSize = viewport.toFloat(),
         contentSize = contentSize,
         scrollOffset = scrollOffset,
+        isScrolling = state.isScrollInProgress,
         thumbColor = thumbColor,
         onScrollTo = { fraction ->
             val (index, offset) = geometry.target(fraction)
@@ -101,6 +104,7 @@ fun LazyListFastScrollbar(
         viewportSize = viewport.toFloat(),
         contentSize = contentSize,
         scrollOffset = scrollOffset,
+        isScrolling = state.isScrollInProgress,
         thumbColor = thumbColor,
         onScrollTo = { fraction ->
             val (index, offset) = geometry.target(fraction)
@@ -116,24 +120,36 @@ private fun FastScrollBarTrack(
     viewportSize: Float,
     contentSize: Float,
     scrollOffset: Float,
+    isScrolling: Boolean,
     thumbColor: Color,
     onScrollTo: suspend (Float) -> Unit
 ) {
     val canScroll = totalItems > 1 && contentSize > viewportSize + 1f
     if (!canScroll) return
 
-    val scope = rememberCoroutineScope()
-    var trackHeight by remember { mutableFloatStateOf(0f) }
     var dragging by remember { mutableStateOf(false) }
     var dragFraction by remember { mutableFloatStateOf(0f) }
-    var activeScrollJob by remember { mutableStateOf<Job?>(null) }
     val thumbFraction = (viewportSize / contentSize).coerceIn(0.08f, 1f)
     val latestThumbFraction by rememberUpdatedState(thumbFraction)
     val latestScroll by rememberUpdatedState(onScrollTo)
     val scrollFraction = (scrollOffset / (contentSize - viewportSize).coerceAtLeast(1f)).coerceIn(0f, 1f)
+    val scrollRequests = remember { Channel<Float>(Channel.CONFLATED) }
+    val thumbAlpha = remember { Animatable(0f) }
+
+    LaunchedEffect(scrollRequests) {
+        for (fraction in scrollRequests) latestScroll(fraction)
+    }
+    LaunchedEffect(isScrolling, dragging) {
+        if (isScrolling || dragging) {
+            thumbAlpha.animateTo(.62f, tween(120))
+        } else {
+            delay(650)
+            thumbAlpha.animateTo(0f, tween(260))
+        }
+    }
 
     DisposableEffect(Unit) {
-        onDispose { activeScrollJob?.cancel() }
+        onDispose { scrollRequests.close() }
     }
 
     Box(
@@ -143,9 +159,8 @@ private fun FastScrollBarTrack(
             .windowInsetsPadding(WindowInsets.systemBars)
             .padding(top = 12.dp, bottom = 88.dp)
             .clipToBounds()
-            .onSizeChanged { trackHeight = it.height.toFloat() }
             .semantics { contentDescription = "Fast scroll" }
-            .pointerInput(totalItems, trackHeight) {
+            .pointerInput(Unit) {
                 var dragTop = 0f
                 detectDragGestures(
                     onDragStart = { position ->
@@ -154,10 +169,7 @@ private fun FastScrollBarTrack(
                         val maxTop = (size.height - height).coerceAtLeast(1f)
                         dragTop = (position.y - height / 2).coerceIn(0f, maxTop)
                         dragFraction = dragTop / maxTop
-                        activeScrollJob?.cancel()
-                        activeScrollJob = scope.launch {
-                            latestScroll((dragTop / maxTop).coerceIn(0f, 1f))
-                        }
+                        scrollRequests.trySend((dragTop / maxTop).coerceIn(0f, 1f))
                     },
                     onDrag = { change, dragAmount ->
                         change.consume()
@@ -165,10 +177,7 @@ private fun FastScrollBarTrack(
                         val maxTop = (size.height - height).coerceAtLeast(1f)
                         dragTop = (dragTop + dragAmount.y).coerceIn(0f, maxTop)
                         dragFraction = dragTop / maxTop
-                        activeScrollJob?.cancel()
-                        activeScrollJob = scope.launch {
-                            latestScroll((dragTop / maxTop).coerceIn(0f, 1f))
-                        }
+                        scrollRequests.trySend((dragTop / maxTop).coerceIn(0f, 1f))
                     },
                     onDragEnd = { dragging = false },
                     onDragCancel = { dragging = false }
@@ -182,7 +191,7 @@ private fun FastScrollBarTrack(
             val height = (size.height * thumbFraction).coerceAtLeast(32.dp.toPx())
             val top = (size.height - height).coerceAtLeast(0f) * (if (dragging) dragFraction else scrollFraction)
             drawRoundRect(
-                color = thumbColor.copy(alpha = if (dragging) 0.9f else 0.55f),
+                color = thumbColor.copy(alpha = (thumbAlpha.value * if (dragging) 1.35f else 1f).coerceIn(0f, 1f)),
                 topLeft = Offset(x, top),
                 size = androidx.compose.ui.geometry.Size(thumbWidth, height),
                 cornerRadius = CornerRadius(thumbWidth, thumbWidth)
