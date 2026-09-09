@@ -6,6 +6,8 @@ import androidx.compose.runtime.mutableLongStateOf
 import android.os.SystemClock
 import androidx.compose.material3.ButtonDefaults
 import com.hkm.stickhub.service.OverlayStartFilterMode
+import com.hkm.stickhub.service.OverlayStartFilterPolicy
+import com.hkm.stickhub.service.LibraryStartFilterPreferences
 import com.hkm.stickhub.service.OverlayAfterCopyAction
 import com.hkm.stickhub.service.QuickStickersOnboardingPolicy
 
@@ -255,6 +257,27 @@ fun StickHubApp(
 
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedCategory by rememberSaveable { mutableStateOf("All") }
+    var libraryStartFilterMode by remember {
+        mutableStateOf(LibraryStartFilterPreferences.startFilterMode(context))
+    }
+    var libraryStartCustomCategory by remember {
+        mutableStateOf(LibraryStartFilterPreferences.customCategory(context))
+    }
+    var hasAppliedLibraryStartFilter by remember { mutableStateOf(false) }
+
+    // Apply the library preference once after the first disk snapshot is ready. Waiting for the
+    // real category list prevents a custom category from briefly resolving to All on cold start.
+    LaunchedEffect(librarySnapshotState, categories, libraryStartFilterMode, libraryStartCustomCategory) {
+        if (!hasAppliedLibraryStartFilter && librarySnapshotState is LibrarySnapshotState.Ready) {
+            selectedCategory = OverlayStartFilterPolicy.resolveActiveFilter(
+                mode = libraryStartFilterMode,
+                customCategory = libraryStartCustomCategory,
+                lastUsedFilter = OverlayPreferences.lastUsedFilter(context),
+                availableCategories = categories.map { it.name }
+            )
+            hasAppliedLibraryStartFilter = true
+        }
+    }
 
     // Navigation Controller and Route
     val navigator = remember { AppNavigator(initialRoute = AppRoute.LIBRARY) }
@@ -1932,6 +1955,13 @@ fun StickHubApp(
                     startCustomCategory = customCat
                     OverlayPreferences.setStartFilterMode(context, mode)
                     OverlayPreferences.setStartCustomCategory(context, customCat)
+                },
+                libraryStartFilterMode = libraryStartFilterMode,
+                libraryStartCustomCategory = libraryStartCustomCategory,
+                onLibraryStartFilterChange = { mode, customCat ->
+                    libraryStartFilterMode = mode
+                    libraryStartCustomCategory = customCat
+                    LibraryStartFilterPreferences.setStartFilter(context, mode, customCat)
                 },
                 afterCopyAction = afterCopyAction,
                 onAfterCopyActionChange = { action ->

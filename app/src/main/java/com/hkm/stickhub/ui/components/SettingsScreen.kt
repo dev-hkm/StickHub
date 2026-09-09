@@ -176,6 +176,9 @@ fun SettingsScreen(
     startFilterMode: OverlayStartFilterMode,
     startCustomCategory: String,
     onStartFilterChange: (OverlayStartFilterMode, String) -> Unit,
+    libraryStartFilterMode: OverlayStartFilterMode,
+    libraryStartCustomCategory: String,
+    onLibraryStartFilterChange: (OverlayStartFilterMode, String) -> Unit,
     afterCopyAction: OverlayAfterCopyAction,
     onAfterCopyActionChange: (OverlayAfterCopyAction) -> Unit,
     availableCategories: List<String>,
@@ -242,6 +245,7 @@ fun SettingsScreen(
     }
     var showResetAppearanceDialog by remember { mutableStateOf(false) }
     var showStartFilterDialog by remember { mutableStateOf(false) }
+    var showLibraryStartFilterDialog by remember { mutableStateOf(false) }
     var showAfterCopyDialog by remember { mutableStateOf(false) }
     var showCloudRecoveryDialog by remember { mutableStateOf(false) }
     var cloudRecoveryInput by rememberSaveable { mutableStateOf("") }
@@ -1028,6 +1032,36 @@ fun SettingsScreen(
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                val libraryFilterSummary = when (libraryStartFilterMode) {
+                    OverlayStartFilterMode.ALL -> strings.text("All stickers")
+                    OverlayStartFilterMode.FAVORITES -> strings.text("Favorites")
+                    OverlayStartFilterMode.FREQUENT -> strings.text("Frequently used")
+                    OverlayStartFilterMode.LAST_USED -> strings.text("Last used filter")
+                    OverlayStartFilterMode.CUSTOM_CATEGORY -> {
+                        if (libraryStartCustomCategory.isNotBlank()) {
+                            "${strings.text("Category: ")}$libraryStartCustomCategory"
+                        } else strings.text("Custom category")
+                    }
+                }
+                SettingsClickableRow(
+                    title = strings.text("Open library with"),
+                    subtitle = libraryFilterSummary,
+                    onClick = {
+                        haptics.performTick()
+                        showLibraryStartFilterDialog = true
+                    },
+                    trailing = {
+                        Icon(
+                            painter = painterResource(LucideR.drawable.lucide_ic_chevron_right),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                )
 
                 Spacer(modifier = Modifier.height(10.dp))
 
@@ -2145,6 +2179,86 @@ fun SettingsScreen(
                 },
                 confirmButton = {
                     TextButton(onClick = { showStartFilterDialog = false }) {
+                        Text(strings.done)
+                    }
+                }
+            )
+        }
+
+        if (showLibraryStartFilterDialog) {
+            AlertDialog(
+                onDismissRequest = { showLibraryStartFilterDialog = false },
+                title = { Text(strings.text("Open library with")) },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        listOf(
+                            OverlayStartFilterMode.ALL to strings.text("All stickers"),
+                            OverlayStartFilterMode.FAVORITES to strings.text("Favorites"),
+                            OverlayStartFilterMode.FREQUENT to strings.text("Frequently used"),
+                            OverlayStartFilterMode.LAST_USED to strings.text("Last used filter")
+                        ).forEach { (mode, label) ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .selectable(
+                                        selected = libraryStartFilterMode == mode,
+                                        onClick = {
+                                            haptics.performTick()
+                                            onLibraryStartFilterChange(mode, "")
+                                            showLibraryStartFilterDialog = false
+                                        }
+                                    )
+                                    .padding(vertical = 10.dp, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(selected = libraryStartFilterMode == mode, onClick = null)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(label, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                        if (availableCategories.isNotEmpty()) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                            )
+                            Text(
+                                text = strings.text("Categories"),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(vertical = 4.dp, horizontal = 4.dp)
+                            )
+                            availableCategories.forEach { cat ->
+                                val isSelected = libraryStartFilterMode == OverlayStartFilterMode.CUSTOM_CATEGORY &&
+                                    libraryStartCustomCategory.equals(cat, ignoreCase = true)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .selectable(
+                                            selected = isSelected,
+                                            onClick = {
+                                                haptics.performTick()
+                                                onLibraryStartFilterChange(OverlayStartFilterMode.CUSTOM_CATEGORY, cat)
+                                                showLibraryStartFilterDialog = false
+                                            }
+                                        )
+                                        .padding(vertical = 10.dp, horizontal = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(selected = isSelected, onClick = null)
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(cat, style = MaterialTheme.typography.bodyMedium)
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showLibraryStartFilterDialog = false }) {
                         Text(strings.done)
                     }
                 }

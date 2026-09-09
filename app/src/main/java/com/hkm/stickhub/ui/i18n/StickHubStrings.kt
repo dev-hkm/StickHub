@@ -100,6 +100,8 @@ fun StickHubStrings.text(source: String): String {
         "Close popup (Default)" to "Đóng popup (Mặc định)",
         "Keep popup open" to "Giữ popup mở",
         "Open popup with" to "Mở popup với",
+        "Open library with" to "Mở thư viện với",
+        "Category: " to "Danh mục: ",
         "After copying a sticker" to "Sau khi sao chép sticker",
         "Add to WhatsApp" to "Thêm vào WhatsApp",
         "Preparing…" to "Đang chuẩn bị…",
