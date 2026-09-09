@@ -60,6 +60,8 @@ import androidx.compose.ui.unit.sp
 import com.composables.icons.lucide.R as LucideR
 import com.hkm.stickhub.data.model.StickerItem
 import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
+import com.hkm.stickhub.ui.i18n.LocalStickHubStrings
+import com.hkm.stickhub.ui.i18n.text
 import com.hkm.stickhub.ui.theme.StickHubMotion
 import com.hkm.stickhub.util.StickerEditorUtil
 import kotlinx.coroutines.Dispatchers
@@ -77,6 +79,7 @@ fun StickerStudioBottomSheet(
     onSaveNew: (Bitmap) -> Unit,
     onOverwrite: (Bitmap) -> Unit
 ) {
+    val strings = LocalStickHubStrings.current
     val context = LocalContext.current
     val haptics = rememberStickHubHaptics()
 
@@ -178,7 +181,7 @@ fun StickerStudioBottomSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Sticker Studio",
+                    text = if (strings.locale == com.hkm.stickhub.ui.i18n.AppLanguage.VIETNAMESE) "Xưởng sticker" else "Sticker Studio",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -186,7 +189,7 @@ fun StickerStudioBottomSheet(
                 IconButton(onClick = onDismiss) {
                     Icon(
                         painter = painterResource(LucideR.drawable.lucide_ic_x),
-                        contentDescription = "Close",
+                        contentDescription = strings.text("Close"),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -214,7 +217,7 @@ fun StickerStudioBottomSheet(
                     if (bmp != null) {
                         Image(
                             bitmap = bmp.asImageBitmap(),
-                            contentDescription = "Edited Preview",
+                            contentDescription = if (strings.locale == com.hkm.stickhub.ui.i18n.AppLanguage.VIETNAMESE) "Xem trước đã chỉnh sửa" else "Edited Preview",
                             contentScale = ContentScale.Fit,
                             modifier = Modifier
                                 .fillMaxSize()
@@ -247,7 +250,7 @@ fun StickerStudioBottomSheet(
                         modifier = Modifier.size(17.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Flip")
+                    Text(strings.text("Flip"))
                 }
 
                 FilledTonalButton(
@@ -264,7 +267,7 @@ fun StickerStudioBottomSheet(
                         modifier = Modifier.size(17.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Rotate 90°")
+                    Text(strings.text("Rotate 90°"))
                 }
             }
 
@@ -278,7 +281,7 @@ fun StickerStudioBottomSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Die-Cut White Border",
+                        text = if (strings.locale == com.hkm.stickhub.ui.i18n.AppLanguage.VIETNAMESE) "Viền cắt trắng" else "Die-Cut White Border",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -310,7 +313,7 @@ fun StickerStudioBottomSheet(
             // Meme Caption Section
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "Meme Caption",
+                    text = if (strings.locale == com.hkm.stickhub.ui.i18n.AppLanguage.VIETNAMESE) "Chữ meme" else "Meme Caption",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -319,8 +322,8 @@ fun StickerStudioBottomSheet(
                 OutlinedTextField(
                     value = captionText,
                     onValueChange = { captionText = it },
-                    label = { Text("Caption text") },
-                    placeholder = { Text("WHAT IF I TOLD YOU...") },
+                    label = { Text(strings.text("Caption text")) },
+                    placeholder = { Text(if (strings.locale == com.hkm.stickhub.ui.i18n.AppLanguage.VIETNAMESE) "NẾU TÔI NÓI VỚI BẠN..." else "WHAT IF I TOLD YOU...") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
@@ -335,12 +338,12 @@ fun StickerStudioBottomSheet(
                         FilterChip(
                             selected = isCaptionTop,
                             onClick = { isCaptionTop = true },
-                            label = { Text("Top") }
+                            label = { Text(if (strings.locale == com.hkm.stickhub.ui.i18n.AppLanguage.VIETNAMESE) "Trên" else "Top") }
                         )
                         FilterChip(
                             selected = !isCaptionTop,
                             onClick = { isCaptionTop = false },
-                            label = { Text("Bottom") }
+                            label = { Text(if (strings.locale == com.hkm.stickhub.ui.i18n.AppLanguage.VIETNAMESE) "Dưới" else "Bottom") }
                         )
                     }
                 }
@@ -363,7 +366,7 @@ fun StickerStudioBottomSheet(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(14.dp)
                 ) {
-                    Text("Overwrite")
+                    Text(strings.text("Overwrite"))
                 }
 
                 Button(
@@ -382,7 +385,7 @@ fun StickerStudioBottomSheet(
                         modifier = Modifier.size(17.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Save as Copy", fontWeight = FontWeight.Bold)
+                    Text(strings.text("Save as Copy"), fontWeight = FontWeight.Bold)
                 }
             }
         }

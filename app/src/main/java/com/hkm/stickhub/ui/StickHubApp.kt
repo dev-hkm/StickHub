@@ -83,6 +83,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -165,6 +166,9 @@ import com.hkm.stickhub.ui.theme.NeoStickerMotif
 import com.hkm.stickhub.ui.theme.SketchDoodleMotif
 import com.hkm.stickhub.ui.theme.StickHubMotion
 import com.hkm.stickhub.ui.i18n.AppLanguage
+import com.hkm.stickhub.ui.i18n.LocalStickHubStrings
+import com.hkm.stickhub.ui.i18n.stringsFor
+import com.hkm.stickhub.ui.i18n.text
 import com.hkm.stickhub.util.BackupHelper
 import com.hkm.stickhub.util.BackupOperations
 import com.hkm.stickhub.util.BackupWorkState
@@ -222,6 +226,7 @@ fun StickHubApp(
     val appFocusManager = LocalFocusManager.current
     val snackbarHostState = remember { SnackbarHostState() }
     val haptics = rememberStickHubHaptics()
+    val strings = remember(language) { stringsFor(language) }
 
     val allStickers by repository.stickersFlow.collectAsState()
     val categories by repository.categoriesFlow.collectAsState()
@@ -1098,6 +1103,7 @@ fun StickHubApp(
         }
     }
 
+    CompositionLocalProvider(LocalStickHubStrings provides strings) {
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -2122,7 +2128,7 @@ fun StickHubApp(
         ModalRoute.SourceChooser -> {
             AlertDialog(
                 onDismissRequest = { activeModalRoute = ModalRoute.None },
-                title = { Text("Create sticker") },
+                title = { Text(strings.text("Create sticker")) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
@@ -2174,7 +2180,7 @@ fun StickHubApp(
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Pick photo from device")
+                            Text(strings.text("Pick photo from device"))
                         }
                         OutlinedButton(
                             onClick = {
@@ -2195,14 +2201,14 @@ fun StickHubApp(
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Use full photo as sticker")
+                            Text(strings.text("Use full photo as sticker"))
                         }
                     }
                 },
                 confirmButton = {},
                 dismissButton = {
                     TextButton(onClick = { activeModalRoute = ModalRoute.None }) {
-                        Text("Cancel")
+                        Text(strings.text("Cancel"))
                     }
                 }
             )
@@ -2459,7 +2465,7 @@ fun StickHubApp(
         val fallbackHome = CategoryItem.pickDeleteFallback(categories, cat.name)
         AlertDialog(
             onDismissRequest = { categoryToDelete = null },
-            title = { Text("Delete Category") },
+            title = { Text(strings.text("Delete Category")) },
             text = {
                 Text(
                     if (fallbackHome != null) {
@@ -2486,12 +2492,12 @@ fun StickHubApp(
                         }
                     }
                 ) {
-                    Text("Delete")
+                    Text(strings.text("Delete"))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { categoryToDelete = null }) {
-                    Text("Cancel")
+                    Text(strings.text("Cancel"))
                 }
             }
         )
@@ -2501,8 +2507,8 @@ fun StickHubApp(
     if (showBatchDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showBatchDeleteConfirm = false },
-            title = { Text("Delete Selected Stickers") },
-            text = { Text("Are you sure you want to delete ${selectedStickerIds.size} selected stickers? This action cannot be undone.") },
+            title = { Text(strings.text("Delete Selected Stickers")) },
+            text = { Text(if (strings.locale == AppLanguage.VIETNAMESE) "Ngài có chắc muốn xóa ${selectedStickerIds.size} sticker đã chọn không? Thao tác này không thể hoàn tác." else "Are you sure you want to delete ${selectedStickerIds.size} selected stickers? This action cannot be undone.") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -2516,15 +2522,16 @@ fun StickHubApp(
                         }
                     }
                 ) {
-                    Text("Delete")
+                    Text(strings.text("Delete"))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showBatchDeleteConfirm = false }) {
-                    Text("Cancel")
+                    Text(strings.text("Cancel"))
                 }
             }
         )
+    }
     }
 }
 
@@ -2927,6 +2934,7 @@ private fun LibraryLoadingView() {
 
 @Composable
 private fun LibraryLoadFailureView(onRetry: () -> Unit) {
+    val strings = LocalStickHubStrings.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -2944,14 +2952,14 @@ private fun LibraryLoadFailureView(onRetry: () -> Unit) {
                 tint = MaterialTheme.colorScheme.error
             )
             Text(
-                text = "Your stickers are safe, but the library could not load.",
+                text = if (strings.locale == AppLanguage.VIETNAMESE) "Sticker của ngài vẫn an toàn, nhưng không thể tải thư viện." else "Your stickers are safe, but the library could not load.",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "Try loading the on-device library again.",
+                text = if (strings.locale == AppLanguage.VIETNAMESE) "Hãy thử tải lại thư viện trên thiết bị." else "Try loading the on-device library again.",
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -2963,7 +2971,7 @@ private fun LibraryLoadFailureView(onRetry: () -> Unit) {
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Retry")
+                Text(strings.text("Retry"))
             }
         }
     }
@@ -2974,6 +2982,7 @@ private fun EmptyLibraryView(
     searchQuery: String,
     visualTheme: AppVisualTheme = AppVisualTheme.DEFAULT
 ) {
+    val strings = LocalStickHubStrings.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -3179,14 +3188,22 @@ private fun EmptyLibraryView(
             }
             Spacer(modifier = Modifier.height(14.dp))
             Text(
-                text = if (searchQuery.isNotEmpty()) "No matching stickers found" else "Your library is empty",
+                text = if (searchQuery.isNotEmpty()) {
+                    if (strings.locale == AppLanguage.VIETNAMESE) "Không tìm thấy sticker phù hợp" else "No matching stickers found"
+                } else {
+                    if (strings.locale == AppLanguage.VIETNAMESE) "Thư viện sticker đang trống" else "Your library is empty"
+                },
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = if (searchQuery.isNotEmpty()) "Try a different search term" else "Tap '+' to create a sticker from a photo on your device",
+                text = if (searchQuery.isNotEmpty()) {
+                    if (strings.locale == AppLanguage.VIETNAMESE) "Hãy thử từ khóa khác" else "Try a different search term"
+                } else {
+                    if (strings.locale == AppLanguage.VIETNAMESE) "Chạm '+' để tạo sticker từ ảnh trên thiết bị" else "Tap '+' to create a sticker from a photo on your device"
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.outline,
                 textAlign = TextAlign.Center

@@ -57,6 +57,8 @@ import com.composables.icons.lucide.R as LucideR
 import com.hkm.stickhub.data.model.CategoryItem
 import com.hkm.stickhub.data.model.StickerItem
 import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
+import com.hkm.stickhub.ui.i18n.LocalStickHubStrings
+import com.hkm.stickhub.ui.i18n.text
 import com.hkm.stickhub.util.AsyncActionGate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -75,6 +77,7 @@ fun StickerDetailBottomSheet(
     onUpdateDetails: (Long, String, String, String) -> Unit,
     onOpenStudio: (StickerItem) -> Unit
 ) {
+    val strings = LocalStickHubStrings.current
     val context = LocalContext.current
     val haptics = rememberStickHubHaptics()
     val scope = rememberCoroutineScope()
@@ -142,7 +145,7 @@ fun StickerDetailBottomSheet(
                 ) {
                     Icon(
                         painter = painterResource(LucideR.drawable.lucide_ic_heart),
-                        contentDescription = "Favorite",
+                        contentDescription = strings.text("Favorite"),
                         tint = if (sticker.isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(18.dp)
                     )
@@ -194,7 +197,11 @@ fun StickerDetailBottomSheet(
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (isCopying) "Copying…" else "Copy Sticker to Clipboard",
+                    text = if (isCopying) {
+                        if (strings.locale == com.hkm.stickhub.ui.i18n.AppLanguage.VIETNAMESE) "Đang sao chép…" else "Copying…"
+                    } else {
+                        if (strings.locale == com.hkm.stickhub.ui.i18n.AppLanguage.VIETNAMESE) "Sao chép sticker vào clipboard" else "Copy Sticker to Clipboard"
+                    },
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -224,7 +231,7 @@ fun StickerDetailBottomSheet(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Studio")
+                    Text(strings.text("Studio"))
                 }
 
                 FilledTonalButton(
@@ -242,7 +249,7 @@ fun StickerDetailBottomSheet(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Share as image")
+                    Text(strings.text("Share as image"))
                 }
 
                 FilledTonalButton(
@@ -262,7 +269,7 @@ fun StickerDetailBottomSheet(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Save")
+                    Text(strings.text("Save"))
                 }
             }
 
@@ -272,7 +279,7 @@ fun StickerDetailBottomSheet(
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("Title") },
+                label = { Text(strings.text("Title")) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 singleLine = true
@@ -290,7 +297,7 @@ fun StickerDetailBottomSheet(
                     value = selectedCategory,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Category") },
+                    label = { Text(strings.text("Category")) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCategoryExpanded) },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -319,8 +326,8 @@ fun StickerDetailBottomSheet(
             OutlinedTextField(
                 value = tags,
                 onValueChange = { tags = it },
-                label = { Text("Tags (comma separated)") },
-                placeholder = { Text("e.g. meme, cat, reaction") },
+                label = { Text(strings.text("Tags (comma separated)")) },
+                placeholder = { Text(if (strings.locale == com.hkm.stickhub.ui.i18n.AppLanguage.VIETNAMESE) "ví dụ: meme, mèo, biểu cảm" else "e.g. meme, cat, reaction") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 singleLine = true
@@ -349,7 +356,7 @@ fun StickerDetailBottomSheet(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Delete Sticker")
+                Text(strings.text("Delete Sticker"))
             }
         }
     }

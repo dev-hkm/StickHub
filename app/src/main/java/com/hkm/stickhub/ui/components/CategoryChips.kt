@@ -46,6 +46,8 @@ import com.composables.icons.lucide.R as LucideR
 import com.hkm.stickhub.data.model.CategoryItem
 import com.hkm.stickhub.data.repository.StickerRepository
 import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
+import com.hkm.stickhub.ui.i18n.LocalStickHubStrings
+import com.hkm.stickhub.ui.i18n.text
 import com.hkm.stickhub.ui.library.CategoryDragSession
 import com.hkm.stickhub.ui.theme.StickHubMotion
 import kotlinx.coroutines.launch
@@ -75,12 +77,13 @@ fun CategoryChips(
     modifier: Modifier = Modifier
 ) {
     val haptics = rememberStickHubHaptics()
+    val strings = LocalStickHubStrings.current
     val scope = rememberCoroutineScope()
 
     val systemFilterMap = mapOf(
-        "all" to LibraryFilter("All", "All", isSystem = true),
-        "favorites" to LibraryFilter("Favorites", "Favorites", LucideR.drawable.lucide_ic_heart, isSystem = true),
-        "frequent" to LibraryFilter("Frequent", "Frequent", LucideR.drawable.lucide_ic_gauge, isSystem = true)
+        "all" to LibraryFilter("All", strings.text("All"), isSystem = true),
+        "favorites" to LibraryFilter("Favorites", strings.text("Favorites"), LucideR.drawable.lucide_ic_heart, isSystem = true),
+        "frequent" to LibraryFilter("Frequent", strings.text("Frequent"), LucideR.drawable.lucide_ic_gauge, isSystem = true)
     )
 
     val allKnownNames = StickerRepository.SYSTEM_CATEGORIES + categories.map { it.name }

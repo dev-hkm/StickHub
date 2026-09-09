@@ -35,6 +35,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.composables.icons.lucide.R as LucideR
+import com.hkm.stickhub.ui.i18n.LocalStickHubStrings
+import com.hkm.stickhub.ui.i18n.text
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,6 +48,7 @@ fun StickerLibraryLayoutPickerSheet(
     onSelectMode: (StickerLibraryViewMode) -> Unit,
     onDismissRequest: () -> Unit
 ) {
+    val strings = LocalStickHubStrings.current
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
@@ -71,12 +74,12 @@ fun StickerLibraryLayoutPickerSheet(
             ) {
                 Column {
                     Text(
-                        text = "Library Layout",
+                        text = strings.text("Library Layout"),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Choose how stickers are displayed",
+                        text = strings.text("Choose how stickers are displayed"),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -88,7 +91,7 @@ fun StickerLibraryLayoutPickerSheet(
                 ) {
                     Icon(
                         painter = painterResource(LucideR.drawable.lucide_ic_x),
-                        contentDescription = "Close",
+                        contentDescription = strings.text("Close"),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -152,14 +155,14 @@ fun StickerLibraryLayoutPickerSheet(
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = mode.title,
+                                text = strings.text(mode.title),
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isSelected) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = mode.subtitle,
+                                text = strings.text(mode.subtitle),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

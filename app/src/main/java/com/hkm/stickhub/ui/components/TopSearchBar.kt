@@ -64,6 +64,8 @@ import com.composables.icons.lucide.R as LucideR
 import com.hkm.stickhub.ui.theme.StickHubMotion
 import com.hkm.stickhub.ui.theme.UbuntuFontFamily
 import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
+import com.hkm.stickhub.ui.i18n.LocalStickHubStrings
+import com.hkm.stickhub.ui.i18n.text
 import com.hkm.stickhub.ui.library.StickerLibraryViewMode
 import kotlinx.coroutines.delay
 
@@ -81,6 +83,7 @@ fun TopSearchBar(
     applyDefaultPadding: Boolean = true,
     modifier: Modifier = Modifier
 ) {
+    val strings = LocalStickHubStrings.current
     val focusManager = LocalFocusManager.current
     val haptics = rememberStickHubHaptics()
     val interactionSource = remember { MutableInteractionSource() }
@@ -157,7 +160,7 @@ fun TopSearchBar(
                 // Lucide Search Icon
                 Icon(
                     painter = painterResource(LucideR.drawable.lucide_ic_search),
-                    contentDescription = "Search",
+                    contentDescription = strings.text("Search"),
                     tint = iconColor,
                     modifier = Modifier.size(20.dp)
                 )
@@ -171,7 +174,7 @@ fun TopSearchBar(
                 ) {
                     if (query.isEmpty()) {
                         Text(
-                            text = "Search stickers...",
+                            text = if (strings.locale == com.hkm.stickhub.ui.i18n.AppLanguage.VIETNAMESE) "Tìm sticker..." else "Search stickers...",
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
                                 fontFamily = UbuntuFontFamily,
@@ -234,7 +237,7 @@ fun TopSearchBar(
                     ) {
                         Icon(
                             painter = painterResource(LucideR.drawable.lucide_ic_x),
-                            contentDescription = "Clear",
+                            contentDescription = strings.text("Clear"),
                             modifier = Modifier.size(17.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -244,7 +247,7 @@ fun TopSearchBar(
                 // Overlay Quick Toggle (Lucide Layers3)
                 AnimatedSearchActionButton(
                     onClick = onToggleOverlay,
-                    contentDescription = "Floating Overlay",
+                    contentDescription = if (strings.locale == com.hkm.stickhub.ui.i18n.AppLanguage.VIETNAMESE) "Lớp phủ nổi" else "Floating Overlay",
                     active = isOverlayRunning
                 ) {
                     Box(
@@ -272,7 +275,7 @@ fun TopSearchBar(
                         haptics.performNavigationTap()
                         onOpenLayoutPicker()
                     },
-                    contentDescription = "Switch layout: ${currentViewMode.title}"
+                    contentDescription = if (strings.locale == com.hkm.stickhub.ui.i18n.AppLanguage.VIETNAMESE) "Đổi bố cục: ${currentViewMode.title}" else "Switch layout: ${currentViewMode.title}"
                 ) {
                     Icon(
                         painter = painterResource(currentViewMode.iconRes),
@@ -288,7 +291,7 @@ fun TopSearchBar(
                         haptics.performNavigationTap()
                         onOpenSettings()
                     },
-                    contentDescription = "Settings"
+                    contentDescription = strings.text("Settings")
                 ) {
                     Icon(
                         painter = painterResource(LucideR.drawable.lucide_ic_settings_2),

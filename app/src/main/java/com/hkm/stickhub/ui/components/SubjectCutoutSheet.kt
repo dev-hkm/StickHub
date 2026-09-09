@@ -102,6 +102,8 @@ import com.hkm.stickhub.data.cutout.SubjectCutoutProcessor
 import com.hkm.stickhub.data.cutout.StickerCanvasNormalizer
 import com.hkm.stickhub.data.model.CategoryItem
 import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
+import com.hkm.stickhub.ui.i18n.LocalStickHubStrings
+import com.hkm.stickhub.ui.i18n.text
 import com.hkm.stickhub.ui.theme.StickHubMotion
 import com.hkm.stickhub.util.AsyncActionGate
 import com.hkm.stickhub.util.BitmapDecodeUtil
@@ -125,6 +127,7 @@ fun SubjectCutoutSheet(
     onCopySticker: suspend (bitmap: Bitmap) -> Boolean,
     onChangeImage: () -> Unit
 ) {
+    val strings = LocalStickHubStrings.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val haptics = rememberStickHubHaptics()
@@ -236,7 +239,7 @@ fun SubjectCutoutSheet(
                 IconButton(onClick = onDismiss, enabled = !isSaving) {
                     Icon(
                         painter = painterResource(LucideR.drawable.lucide_ic_x),
-                        contentDescription = "Close",
+                        contentDescription = strings.text("Close"),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -293,7 +296,7 @@ fun SubjectCutoutSheet(
 
                             Image(
                                 bitmap = selectedCutoutBitmap!!.asImageBitmap(),
-                                contentDescription = "Cutout Sticker",
+                                contentDescription = strings.text("Create sticker"),
                                 contentScale = ContentScale.Fit,
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -308,7 +311,7 @@ fun SubjectCutoutSheet(
                             value = title,
                             onValueChange = { title = it },
                             enabled = !isSaving,
-                            label = { Text("Title") },
+                            label = { Text(strings.text("Title")) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp)
@@ -326,7 +329,7 @@ fun SubjectCutoutSheet(
                                 onValueChange = {},
                                 enabled = !isSaving,
                                 readOnly = true,
-                                label = { Text("Category") },
+                                label = { Text(strings.text("Category")) },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryDropdownExpanded) },
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -355,7 +358,7 @@ fun SubjectCutoutSheet(
                             value = tags,
                             onValueChange = { tags = it },
                             enabled = !isSaving,
-                            label = { Text("Tags (comma separated)") },
+                                label = { Text(strings.text("Tags (comma separated)")) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp)
@@ -392,7 +395,7 @@ fun SubjectCutoutSheet(
                                 shape = RoundedCornerShape(14.dp),
                                 contentPadding = PaddingValues(horizontal = 8.dp)
                             ) {
-                                Text("Back", maxLines = 1, softWrap = false)
+                                Text(strings.text("Back"), maxLines = 1, softWrap = false)
                             }
 
                             OutlinedButton(
@@ -444,7 +447,7 @@ fun SubjectCutoutSheet(
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(5.dp))
-                                Text("Copy", fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+                                Text(strings.text("Copy"), fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
                             }
 
                             Button(
@@ -625,6 +628,7 @@ private fun CutoutInteractionModeSelector(
     enabled: Boolean,
     onModeSelected: (CutoutInteractionMode) -> Unit
 ) {
+    val strings = LocalStickHubStrings.current
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = "Cutout method",
@@ -641,7 +645,7 @@ private fun CutoutInteractionModeSelector(
                 selected = selectedMode == CutoutInteractionMode.Auto,
                 onClick = { onModeSelected(CutoutInteractionMode.Auto) },
                 enabled = enabled,
-                label = { Text("Auto detect") },
+                label = { Text(strings.text("Auto detect")) },
                 leadingIcon = {
                     Icon(
                         painter = painterResource(LucideR.drawable.lucide_ic_layers),
@@ -655,7 +659,7 @@ private fun CutoutInteractionModeSelector(
                 selected = selectedMode == CutoutInteractionMode.Manual,
                 onClick = { onModeSelected(CutoutInteractionMode.Manual) },
                 enabled = enabled,
-                label = { Text("Choose subject", maxLines = 1, softWrap = false) },
+                label = { Text(strings.text("Choose subject"), maxLines = 1, softWrap = false) },
                 leadingIcon = {
                     Icon(
                         painter = painterResource(LucideR.drawable.lucide_ic_move_diagonal_2),
@@ -755,6 +759,7 @@ private fun CandidatesSelectionView(
     onSelectCandidate: (CutoutCandidate) -> Unit,
     onWrongTap: () -> Unit
 ) {
+    val strings = LocalStickHubStrings.current
     var isPressedOnCandidate by remember { mutableStateOf(false) }
     val pressScale by animateFloatAsState(
         targetValue = if (isPressedOnCandidate) StickHubMotion.CandidatePressScale else 1f,
@@ -817,7 +822,7 @@ private fun CandidatesSelectionView(
                     AssistChip(
                         onClick = { if (selectionEnabled) onSelectCandidate(candidate) },
                         enabled = selectionEnabled,
-                        label = { Text("Subject ${index + 1}") },
+                        label = { Text("${strings.text("Subject")} ${index + 1}") },
                         leadingIcon = if (candidate == selectedCandidate) {
                             {
                                 Icon(

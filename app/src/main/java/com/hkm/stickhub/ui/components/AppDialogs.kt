@@ -19,6 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.hkm.stickhub.data.model.CategoryItem
 import com.hkm.stickhub.data.model.CategoryValidator
+import com.hkm.stickhub.ui.i18n.LocalStickHubStrings
+import com.hkm.stickhub.ui.i18n.text
 
 @Composable
 fun AddCategoryDialog(
@@ -26,6 +28,7 @@ fun AddCategoryDialog(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit
 ) {
+    val strings = LocalStickHubStrings.current
     var categoryName by remember { mutableStateOf("") }
     val validation = remember(categoryName, categories) {
         CategoryValidator.validate(categoryName, categories)
@@ -35,14 +38,14 @@ fun AddCategoryDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New Category") },
+        title = { Text(strings.text("New Category")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = categoryName,
                     onValueChange = { if (it.length <= CategoryValidator.MAX_LENGTH) categoryName = it },
-                    label = { Text("Category Name") },
-                    placeholder = { Text("e.g. Gaming, Anime, Pets...") },
+                    label = { Text(strings.text("Category Name")) },
+                    placeholder = { Text(if (strings.locale == com.hkm.stickhub.ui.i18n.AppLanguage.VIETNAMESE) "ví dụ: Game, Anime, Thú cưng..." else "e.g. Gaming, Anime, Pets...") },
                     singleLine = true,
                     isError = isError,
                     supportingText = {
@@ -71,7 +74,7 @@ fun AddCategoryDialog(
                 enabled = validation is CategoryValidator.Result.Valid,
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Create")
+                Text(strings.text("Create"))
             }
         },
         dismissButton = {
@@ -79,7 +82,7 @@ fun AddCategoryDialog(
                 onClick = onDismiss,
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Cancel")
+                Text(strings.text("Cancel"))
             }
         }
     )

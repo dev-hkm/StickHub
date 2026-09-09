@@ -51,6 +51,9 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.composables.icons.lucide.R as LucideR
 import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
+import com.hkm.stickhub.ui.i18n.LocalStickHubStrings
+import com.hkm.stickhub.ui.i18n.AppLanguage
+import com.hkm.stickhub.ui.i18n.text
 import com.hkm.stickhub.util.StagedClipboardItem
 
 /**
@@ -71,6 +74,7 @@ fun ClipboardImportSheet(
     onDismiss: () -> Unit
 ) {
     val haptics = rememberStickHubHaptics()
+    val strings = LocalStickHubStrings.current
     val readyItems = stagedItems.filterIsInstance<StagedClipboardItem.Ready>()
     val failedCount = stagedItems.count { it is StagedClipboardItem.Failed }
     var selectedKeys by remember(stagedItems) {
@@ -103,15 +107,15 @@ fun ClipboardImportSheet(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Import from clipboard",
+                            text = if (strings.locale == AppLanguage.VIETNAMESE) "Nhập từ clipboard" else "Import from clipboard",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
                         val subtitle = when {
-                            isStaging -> "Preparing ${stageProgress.first}/${stageProgress.second} copied images…"
-                            isImporting -> "Saving selected stickers…"
-                            readyItems.isNotEmpty() -> "${selectedKeys.size} of ${readyItems.size} selected"
-                            else -> "No copied images could be prepared."
+                            isStaging -> if (strings.locale == AppLanguage.VIETNAMESE) "Đang chuẩn bị ${stageProgress.first}/${stageProgress.second} ảnh đã sao chép…" else "Preparing ${stageProgress.first}/${stageProgress.second} copied images…"
+                            isImporting -> if (strings.locale == AppLanguage.VIETNAMESE) "Đang lưu sticker đã chọn…" else "Saving selected stickers…"
+                            readyItems.isNotEmpty() -> if (strings.locale == AppLanguage.VIETNAMESE) "Đã chọn ${selectedKeys.size}/${readyItems.size}" else "${selectedKeys.size} of ${readyItems.size} selected"
+                            else -> if (strings.locale == AppLanguage.VIETNAMESE) "Không thể chuẩn bị ảnh nào đã sao chép." else "No copied images could be prepared."
                         }
                         Text(
                             text = subtitle,
@@ -126,7 +130,7 @@ fun ClipboardImportSheet(
                     ) {
                         Icon(
                             painter = painterResource(LucideR.drawable.lucide_ic_x),
-                            contentDescription = "Close",
+                            contentDescription = strings.text("Close"),
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -136,8 +140,12 @@ fun ClipboardImportSheet(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = buildString {
-                            if (skippedCount > 0) append("$skippedCount unsupported. ")
-                            if (failedCount > 0) append("$failedCount couldn't be read.")
+                            if (skippedCount > 0) append(
+                                if (strings.locale == AppLanguage.VIETNAMESE) "$skippedCount ảnh không được hỗ trợ. " else "$skippedCount unsupported. "
+                            )
+                            if (failedCount > 0) append(
+                                if (strings.locale == AppLanguage.VIETNAMESE) "Không đọc được $failedCount ảnh." else "$failedCount couldn't be read."
+                            )
                         }.trim(),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
@@ -167,7 +175,7 @@ fun ClipboardImportSheet(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Tap image to toggle selection",
+                            text = if (strings.locale == AppLanguage.VIETNAMESE) "Chạm vào ảnh để chọn hoặc bỏ chọn" else "Tap image to toggle selection",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -184,8 +192,11 @@ fun ClipboardImportSheet(
                             enabled = !isImporting
                         ) {
                             Text(
-                                if (selectedKeys.size == readyItems.size) "Deselect all"
-                                else "Select all"
+                                if (selectedKeys.size == readyItems.size) {
+                                    if (strings.locale == AppLanguage.VIETNAMESE) "Bỏ chọn tất cả" else "Deselect all"
+                                } else {
+                                    if (strings.locale == AppLanguage.VIETNAMESE) "Chọn tất cả" else "Select all"
+                                }
                             )
                         }
                     }
@@ -229,7 +240,7 @@ fun ClipboardImportSheet(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(14.dp)
                     ) {
-                        Text("Cancel")
+                        Text(strings.text("Cancel"))
                     }
 
                     Button(
@@ -248,7 +259,7 @@ fun ClipboardImportSheet(
                                 color = MaterialTheme.colorScheme.onPrimary
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Importing…")
+                            Text(if (strings.locale == AppLanguage.VIETNAMESE) "Đang nhập…" else "Importing…")
                         } else {
                             Icon(
                                 painter = painterResource(LucideR.drawable.lucide_ic_save),
@@ -256,7 +267,7 @@ fun ClipboardImportSheet(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Import (${selectedKeys.size})", fontWeight = FontWeight.Bold)
+                            Text("${if (strings.locale == AppLanguage.VIETNAMESE) "Nhập" else "Import"} (${selectedKeys.size})", fontWeight = FontWeight.Bold)
                         }
                     }
                 }

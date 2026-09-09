@@ -63,6 +63,8 @@ import com.hkm.stickhub.data.model.CategoryValidator
 import com.hkm.stickhub.data.model.StickerItem
 import com.hkm.stickhub.data.repository.StickerOrderPolicy
 import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
+import com.hkm.stickhub.ui.i18n.LocalStickHubStrings
+import com.hkm.stickhub.ui.i18n.text
 import kotlinx.coroutines.launch
 
 /**
@@ -95,6 +97,7 @@ fun CategoryManagementScreen(
     modifier: Modifier = Modifier
 ) {
     val haptics = rememberStickHubHaptics()
+    val strings = LocalStickHubStrings.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
@@ -254,7 +257,7 @@ fun CategoryManagementScreen(
                     ) {
                         Icon(
                             painter = painterResource(LucideR.drawable.lucide_ic_arrow_left),
-                            contentDescription = "Back to Settings",
+                            contentDescription = strings.text("Back to Settings"),
                             tint = MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier.size(22.dp)
                         )
@@ -264,13 +267,13 @@ fun CategoryManagementScreen(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Categories",
+                            text = strings.text("Categories"),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onBackground
                         )
                         Text(
-                            text = "Drag or use arrows to reorder all categories and filters",
+                            text = if (strings.locale == com.hkm.stickhub.ui.i18n.AppLanguage.VIETNAMESE) "Kéo hoặc dùng mũi tên để sắp xếp danh mục và bộ lọc" else "Drag or use arrows to reorder all categories and filters",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -292,7 +295,7 @@ fun CategoryManagementScreen(
                         ) {
                             Icon(
                                 painter = painterResource(LucideR.drawable.lucide_ic_plus),
-                                contentDescription = "Add category",
+                                contentDescription = strings.text("Add category"),
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -606,7 +609,7 @@ fun CategoryManagementScreen(
                         onValueChange = { if (it.length <= CategoryValidator.MAX_LENGTH) newCategoryName = it },
                         singleLine = true,
                         isError = isError,
-                        label = { Text("Category name") },
+                        label = { Text(strings.text("Category name")) },
                         supportingText = {
                             if (isError && errorMessage != null) {
                                 Text(text = errorMessage, color = MaterialTheme.colorScheme.error)
@@ -642,7 +645,7 @@ fun CategoryManagementScreen(
                     enabled = validationResult is CategoryValidator.Result.Valid,
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Add")
+                    Text(strings.text("Add"))
                 }
             },
             dismissButton = {
@@ -650,7 +653,7 @@ fun CategoryManagementScreen(
                     onClick = { showAddDialog = false },
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Cancel")
+                    Text(strings.text("Cancel"))
                 }
             }
         )
@@ -670,7 +673,7 @@ fun CategoryManagementScreen(
             onDismissRequest = { categoryToRename = null },
             title = {
                 Text(
-                    text = "Rename category",
+                    text = strings.text("Rename category"),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -678,7 +681,7 @@ fun CategoryManagementScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Stickers in '${targetCat.name}' will be automatically updated to the new name.",
+                    text = if (strings.locale == com.hkm.stickhub.ui.i18n.AppLanguage.VIETNAMESE) "Sticker trong '${targetCat.name}' sẽ tự động được cập nhật sang tên mới." else "Stickers in '${targetCat.name}' will be automatically updated to the new name.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -687,7 +690,7 @@ fun CategoryManagementScreen(
                         onValueChange = { if (it.length <= CategoryValidator.MAX_LENGTH) updatedName = it },
                         singleLine = true,
                         isError = isError,
-                        label = { Text("New category name") },
+                        label = { Text(strings.text("New category name")) },
                         supportingText = {
                             if (isError && errorMessage != null) {
                                 Text(text = errorMessage, color = MaterialTheme.colorScheme.error)
@@ -723,7 +726,7 @@ fun CategoryManagementScreen(
                     enabled = validationResult is CategoryValidator.Result.Valid && hasChanged,
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Rename")
+                    Text(strings.text("Rename"))
                 }
             },
             dismissButton = {
@@ -731,7 +734,7 @@ fun CategoryManagementScreen(
                     onClick = { categoryToRename = null },
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Cancel")
+                    Text(strings.text("Cancel"))
                 }
             }
         )
@@ -780,7 +783,7 @@ fun CategoryManagementScreen(
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Delete")
+                    Text(strings.text("Delete"))
                 }
             },
             dismissButton = {
@@ -788,7 +791,7 @@ fun CategoryManagementScreen(
                     onClick = { categoryToDelete = null },
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Cancel")
+                    Text(strings.text("Cancel"))
                 }
             }
         )
