@@ -56,8 +56,8 @@ internal class OverlayStickerAdapter(
         stickers.getOrNull(position)?.id ?: RecyclerView.NO_ID
 
     fun submit(items: List<StickerItem>, renderOptions: RenderOptions, force: Boolean = false) {
-        if (!force && items == stickers && renderOptions == options) return
         val generation = ++submitGeneration
+        if (!force && items == stickers && renderOptions == options) return
         if (stickers.isEmpty() && items.isNotEmpty()) {
             // Publish the first snapshot synchronously. This avoids a blank first popup while
             // the background diff is being calculated; later category changes stay async.
@@ -74,6 +74,7 @@ internal class OverlayStickerAdapter(
             return
         }
         val oldItems = stickers
+        val appearanceChanged = force || options != renderOptions
         scope.launch {
             val diff = withContext(Dispatchers.Default) {
                 DiffUtil.calculateDiff(object : DiffUtil.Callback() {
@@ -82,7 +83,7 @@ internal class OverlayStickerAdapter(
                     override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean =
                         oldItems[oldItemPosition].id == items[newItemPosition].id
                     override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean =
-                        oldItems[oldItemPosition] == items[newItemPosition]
+                        !appearanceChanged && oldItems[oldItemPosition] == items[newItemPosition]
                 })
             }
             if (generation != submitGeneration) return@launch
@@ -182,6 +183,13 @@ internal class OverlayStickerAdapter(
         val render = options
         holder.job?.cancel()
         val token = ++holder.generation
+        val key = StickerShadowPolicy.buildCacheKey(
+            sticker.filePath, 0L, render.cellSize, render.shadowStrength, render.isDark
+        ) + ":${render.density}"
+        StickerShadowRenderer.getCached(key)?.let {
+            holder.image.setImageBitmap(it)
+            return
+        }
         holder.job = scope.launch {
             val bitmap = try {
                 withContext(Dispatchers.IO) {
@@ -189,10 +197,6 @@ internal class OverlayStickerAdapter(
                         ensureActive()
                         val file = File(sticker.filePath)
                         if (!file.isFile) return@withPermit null
-                        val key = StickerShadowPolicy.buildCacheKey(
-                            sticker.filePath, file.lastModified(), render.cellSize,
-                            render.shadowStrength, render.isDark
-                        ) + ":${render.density}:${file.length()}"
                         StickerShadowRenderer.getCached(key)?.let { return@withPermit it }
                         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                         BitmapFactory.decodeFile(file.absolutePath, bounds)

@@ -4,6 +4,13 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -27,7 +34,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 /**
  * A narrow, thumb-draggable scrollbar for long sticker collections. It is deliberately
@@ -38,15 +44,23 @@ import kotlin.math.roundToInt
 fun LazyGridFastScrollbar(
     state: LazyGridState,
     modifier: Modifier = Modifier,
-    thumbColor: Color
+    thumbColor: Color,
+    columns: Int = 3
 ) {
     val layoutInfo by remember(state) { derivedStateOf { state.layoutInfo } }
     val visible = layoutInfo.visibleItemsInfo
     val totalItems = layoutInfo.totalItemsCount
     val viewport = (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset).coerceAtLeast(1)
-    val averageItemSize = visible.map { it.size.height }.average().toFloat().coerceAtLeast(1f)
-    val contentSize = averageItemSize * totalItems.coerceAtLeast(1)
-    val scrollOffset = state.firstVisibleItemIndex * averageItemSize + state.firstVisibleItemScrollOffset
+    var headerHeight by remember(state) { mutableStateOf(0) }
+    val measuredHeader = visible.firstOrNull { it.index == 0 }?.size?.height
+    androidx.compose.runtime.SideEffect { measuredHeader?.let { headerHeight = it } }
+    val geometry = LibraryScrollGeometry(totalItems, columns, measuredHeader ?: headerHeight,
+        visible.firstOrNull { it.index > 0 }?.size?.height ?: 1,
+        layoutInfo.mainAxisItemSpacing, viewport,
+        layoutInfo.beforeContentPadding + layoutInfo.afterContentPadding)
+    val contentSize = geometry.contentSize
+    val scrollOffset = if (!state.canScrollForward) geometry.maxOffset else
+        geometry.offset(state.firstVisibleItemIndex, state.firstVisibleItemScrollOffset)
     FastScrollBarTrack(
         modifier = modifier,
         totalItems = totalItems,
@@ -55,8 +69,8 @@ fun LazyGridFastScrollbar(
         scrollOffset = scrollOffset,
         thumbColor = thumbColor,
         onScrollTo = { fraction ->
-            val target = (fraction * (totalItems - 1).coerceAtLeast(0)).roundToInt()
-            state.scrollToItem(target)
+            val (index, offset) = geometry.target(fraction)
+            state.scrollToItem(index, offset)
         }
     )
 }
@@ -71,9 +85,16 @@ fun LazyListFastScrollbar(
     val visible = layoutInfo.visibleItemsInfo
     val totalItems = layoutInfo.totalItemsCount
     val viewport = (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset).coerceAtLeast(1)
-    val averageItemSize = visible.map { it.size }.average().toFloat().coerceAtLeast(1f)
-    val contentSize = averageItemSize * totalItems.coerceAtLeast(1)
-    val scrollOffset = state.firstVisibleItemIndex * averageItemSize + state.firstVisibleItemScrollOffset
+    var headerHeight by remember(state) { mutableStateOf(0) }
+    val measuredHeader = visible.firstOrNull { it.index == 0 }?.size
+    androidx.compose.runtime.SideEffect { measuredHeader?.let { headerHeight = it } }
+    val geometry = LibraryScrollGeometry(totalItems, 1, measuredHeader ?: headerHeight,
+        visible.firstOrNull { it.index > 0 }?.size ?: 1,
+        layoutInfo.mainAxisItemSpacing, viewport,
+        layoutInfo.beforeContentPadding + layoutInfo.afterContentPadding)
+    val contentSize = geometry.contentSize
+    val scrollOffset = if (!state.canScrollForward) geometry.maxOffset else
+        geometry.offset(state.firstVisibleItemIndex, state.firstVisibleItemScrollOffset)
     FastScrollBarTrack(
         modifier = modifier,
         totalItems = totalItems,
@@ -82,8 +103,8 @@ fun LazyListFastScrollbar(
         scrollOffset = scrollOffset,
         thumbColor = thumbColor,
         onScrollTo = { fraction ->
-            val target = (fraction * (totalItems - 1).coerceAtLeast(0)).roundToInt()
-            state.scrollToItem(target)
+            val (index, offset) = geometry.target(fraction)
+            state.scrollToItem(index, offset)
         }
     )
 }
@@ -104,11 +125,12 @@ private fun FastScrollBarTrack(
     val scope = rememberCoroutineScope()
     var trackHeight by remember { mutableFloatStateOf(0f) }
     var dragging by remember { mutableStateOf(false) }
+    var dragFraction by remember { mutableFloatStateOf(0f) }
     var activeScrollJob by remember { mutableStateOf<Job?>(null) }
     val thumbFraction = (viewportSize / contentSize).coerceIn(0.08f, 1f)
-    val maxThumbTop = (trackHeight * (1f - thumbFraction)).coerceAtLeast(0f)
+    val latestThumbFraction by rememberUpdatedState(thumbFraction)
+    val latestScroll by rememberUpdatedState(onScrollTo)
     val scrollFraction = (scrollOffset / (contentSize - viewportSize).coerceAtLeast(1f)).coerceIn(0f, 1f)
-    val thumbTop = maxThumbTop * scrollFraction
 
     DisposableEffect(Unit) {
         onDispose { activeScrollJob?.cancel() }
@@ -118,27 +140,34 @@ private fun FastScrollBarTrack(
         modifier = modifier
             .width(24.dp)
             .fillMaxHeight()
+            .windowInsetsPadding(WindowInsets.systemBars)
+            .padding(top = 12.dp, bottom = 88.dp)
+            .clipToBounds()
             .onSizeChanged { trackHeight = it.height.toFloat() }
             .semantics { contentDescription = "Fast scroll" }
-            .pointerInput(totalItems, thumbFraction, trackHeight) {
-                var dragTop = thumbTop
+            .pointerInput(totalItems, trackHeight) {
+                var dragTop = 0f
                 detectDragGestures(
                     onDragStart = { position ->
                         dragging = true
-                        val maxTop = (size.height * (1f - thumbFraction)).coerceAtLeast(1f)
-                        dragTop = (position.y - size.height * 0.5f * thumbFraction).coerceIn(0f, maxTop)
+                        val height = (size.height * latestThumbFraction).coerceAtLeast(32.dp.toPx()).coerceAtMost(size.height.toFloat())
+                        val maxTop = (size.height - height).coerceAtLeast(1f)
+                        dragTop = (position.y - height / 2).coerceIn(0f, maxTop)
+                        dragFraction = dragTop / maxTop
                         activeScrollJob?.cancel()
                         activeScrollJob = scope.launch {
-                            onScrollTo((dragTop / maxTop).coerceIn(0f, 1f))
+                            latestScroll((dragTop / maxTop).coerceIn(0f, 1f))
                         }
                     },
                     onDrag = { change, dragAmount ->
                         change.consume()
-                        val maxTop = (size.height * (1f - thumbFraction)).coerceAtLeast(1f)
+                        val height = (size.height * latestThumbFraction).coerceAtLeast(32.dp.toPx()).coerceAtMost(size.height.toFloat())
+                        val maxTop = (size.height - height).coerceAtLeast(1f)
                         dragTop = (dragTop + dragAmount.y).coerceIn(0f, maxTop)
+                        dragFraction = dragTop / maxTop
                         activeScrollJob?.cancel()
                         activeScrollJob = scope.launch {
-                            onScrollTo((dragTop / maxTop).coerceIn(0f, 1f))
+                            latestScroll((dragTop / maxTop).coerceIn(0f, 1f))
                         }
                     },
                     onDragEnd = { dragging = false },
@@ -146,12 +175,12 @@ private fun FastScrollBarTrack(
                 )
             }
     ) {
-        Canvas(modifier = Modifier.fillMaxHeight()) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
             val inset = 3.dp.toPx()
             val thumbWidth = if (dragging) 6.dp.toPx() else 4.dp.toPx()
             val x = size.width - thumbWidth - inset
             val height = (size.height * thumbFraction).coerceAtLeast(32.dp.toPx())
-            val top = (thumbTop).coerceIn(0f, (size.height - height).coerceAtLeast(0f))
+            val top = (size.height - height).coerceAtLeast(0f) * (if (dragging) dragFraction else scrollFraction)
             drawRoundRect(
                 color = thumbColor.copy(alpha = if (dragging) 0.9f else 0.55f),
                 topLeft = Offset(x, top),

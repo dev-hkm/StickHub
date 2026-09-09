@@ -1008,31 +1008,33 @@ fun StickHubApp(
     val largeGridState = rememberLazyGridState()
     val libraryListState = rememberLazyListState()
 
-    // Warm a bounded window of thumbnails ahead of the viewport. Coil deduplicates these
-    // requests with the cards' stable cache keys, so returning to a previously visited region
-    // is a memory-cache hit instead of another full decode.
-    LaunchedEffect(filteredStickers, libraryViewMode) {
+    // Warm only six upcoming thumbnails while idle; cancel them as soon as scrolling starts.
+    // Never flood the decoder with overlapping windows competing against visible cards.
+    LaunchedEffect(filteredStickers.map { it.filePath }, libraryViewMode) {
         val imageLoader = Coil.imageLoader(context)
-        fun prefetchFrom(itemIndex: Int) {
-            filteredStickers
-                .drop(itemIndex.coerceAtLeast(0))
-                .take(56)
-                .forEach { sticker ->
-                    imageLoader.enqueue(stickerImageRequest(context, sticker, targetPx = 256))
-                }
-        }
-        prefetchFrom(0)
+        val requests = mutableMapOf<String, coil.request.Disposable>()
+        try {
         snapshotFlow {
-            when (libraryViewMode) {
-                StickerLibraryViewMode.COMPACT_GRID -> compactGridState.firstVisibleItemIndex
-                StickerLibraryViewMode.STANDARD_GRID -> libraryGridState.firstVisibleItemIndex
-                StickerLibraryViewMode.LARGE_GRID -> largeGridState.firstVisibleItemIndex
-                StickerLibraryViewMode.LIST -> libraryListState.firstVisibleItemIndex
+            val grid = when (libraryViewMode) {
+                StickerLibraryViewMode.COMPACT_GRID -> compactGridState
+                StickerLibraryViewMode.LARGE_GRID -> largeGridState
+                else -> libraryGridState
             }
-        }.distinctUntilChanged().collect { firstVisibleItem ->
-            // Every mode has one full-width header item before stickers.
-            prefetchFrom((firstVisibleItem - 1).coerceAtLeast(0))
+            if (libraryViewMode == StickerLibraryViewMode.LIST)
+                libraryListState.isScrollInProgress to (libraryListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0)
+            else grid.isScrollInProgress to (grid.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0)
+        }.distinctUntilChanged().collect { (scrolling, lastVisible) ->
+            requests.values.forEach { it.dispose() }
+            requests.clear()
+            if (!scrolling && lastVisible > 0) {
+                // Only warm the next two rows when scrolling settles. Visible requests win.
+                filteredStickers.subList(lastVisible.coerceAtMost(filteredStickers.size),
+                    (lastVisible + 6).coerceAtMost(filteredStickers.size)).forEach { sticker ->
+                    requests[sticker.filePath] = imageLoader.enqueue(stickerImageRequest(context, sticker))
+                }
+            }
         }
+        } finally { requests.values.forEach { it.dispose() } }
     }
     val autoScrollEdgePx = with(LocalDensity.current) { 64.dp.toPx() }
     var reorderPreview by remember { mutableStateOf<List<StickerItem>?>(null) }
@@ -1852,6 +1854,7 @@ fun StickHubApp(
                         }
                         when (libraryViewMode) {
                             StickerLibraryViewMode.COMPACT_GRID -> LazyGridFastScrollbar(
+                                columns = 4,
                                 state = compactGridState,
                                 modifier = Modifier.align(Alignment.CenterEnd),
                                 thumbColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1862,6 +1865,7 @@ fun StickHubApp(
                                 thumbColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             StickerLibraryViewMode.LARGE_GRID -> LazyGridFastScrollbar(
+                                columns = 2,
                                 state = largeGridState,
                                 modifier = Modifier.align(Alignment.CenterEnd),
                                 thumbColor = MaterialTheme.colorScheme.onSurfaceVariant

@@ -15,7 +15,8 @@ fun stickerImageRequest(
     targetPx: Int = 256
 ): ImageRequest {
     val file = File(sticker.filePath)
-    val cacheKey = "stickhub-sticker-${sticker.id}-${sticker.filePath}-${file.lastModified()}-${file.length()}-$targetPx"
+    // Repository edits use a new immutable file path. No disk stat calls on the UI thread.
+    val cacheKey = "stickhub-sticker-${sticker.filePath}-$targetPx"
     return ImageRequest.Builder(context)
         .data(file)
         .size(targetPx, targetPx)
@@ -28,10 +29,7 @@ fun stickerImageRequest(
 @Composable
 fun rememberStickerImageRequest(sticker: StickerItem, targetPx: Int = 256): ImageRequest {
     val context = LocalContext.current
-    val file = remember(sticker.id, sticker.filePath) { File(sticker.filePath) }
-    val modifiedAt = file.lastModified()
-    val fileLength = file.length()
-    return remember(sticker.id, sticker.filePath, modifiedAt, fileLength, targetPx) {
+    return remember(context, sticker.filePath, targetPx) {
         stickerImageRequest(context, sticker, targetPx)
     }
 }
