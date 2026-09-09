@@ -1050,7 +1050,16 @@ class OverlayService : Service() {
             layoutManager = androidx.recyclerview.widget.GridLayoutManager(
                 this@OverlayService,
                 OverlayLayoutPolicy.GRID_COLUMNS
-            )
+            ).apply {
+                initialPrefetchItemCount = OverlayLayoutPolicy.GRID_COLUMNS * 3
+                isItemPrefetchEnabled = true
+            }
+            setHasFixedSize(true)
+            // Keep a small holder pool warm so fast category changes and short flings do not
+            // repeatedly allocate view hierarchies. Bitmaps are still released on detach by
+            // OverlayStickerAdapter, so this does not retain the image payloads.
+            setItemViewCacheSize(24)
+            recycledViewPool.setMaxRecycledViews(0, 24)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0,

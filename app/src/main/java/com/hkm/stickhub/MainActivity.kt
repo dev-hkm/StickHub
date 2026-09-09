@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import java.io.File
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -23,11 +24,35 @@ import com.hkm.stickhub.ui.theme.StickHubTheme
 import com.hkm.stickhub.ui.theme.ThemePreferences
 import com.hkm.stickhub.ui.i18n.AppLanguage
 import com.hkm.stickhub.ui.i18n.LanguagePreferences
+import coil.Coil
+import coil.ImageLoader
+import coil.disk.DiskCache
+import coil.memory.MemoryCache
 
 import android.graphics.Color as AndroidColor
 import androidx.activity.SystemBarStyle
 
 class MainActivity : ComponentActivity() {
+
+    // Sticker thumbnails are local files, so a bounded app-owned cache avoids decoding the same
+    // PNG repeatedly while keeping memory predictable on low-RAM devices.
+    private val stickerImageLoader: ImageLoader by lazy {
+        ImageLoader.Builder(applicationContext)
+            .memoryCache {
+                MemoryCache.Builder(applicationContext)
+                    .maxSizePercent(0.25)
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(File(applicationContext.cacheDir, "sticker_thumbnails"))
+                    .maxSizeBytes(128L * 1024L * 1024L)
+                    .build()
+            }
+            .allowHardware(true)
+            .bitmapFactoryMaxParallelism(4)
+            .build()
+    }
 
     private lateinit var repository: StickerRepository
     private var incomingSharedUri by mutableStateOf<Uri?>(null)
@@ -41,6 +66,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Coil.setImageLoader(stickerImageLoader)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(
                 AndroidColor.TRANSPARENT,

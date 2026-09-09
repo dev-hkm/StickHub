@@ -56,6 +56,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -113,6 +114,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.Coil
 import coil.request.ImageRequest
 import com.composables.icons.lucide.R as LucideR
 import com.hkm.stickhub.data.model.CategoryItem
@@ -129,6 +131,9 @@ import com.hkm.stickhub.ui.components.CategoryManagementScreen
 import com.hkm.stickhub.ui.components.CheckerboardBackground
 import com.hkm.stickhub.ui.components.ClipboardImportSheet
 import com.hkm.stickhub.ui.components.CompactStickerCard
+import com.hkm.stickhub.ui.components.LazyGridFastScrollbar
+import com.hkm.stickhub.ui.components.LazyListFastScrollbar
+import com.hkm.stickhub.ui.components.stickerImageRequest
 import com.hkm.stickhub.ui.components.LargeStickerCard
 import com.hkm.stickhub.ui.components.SettingsScreen
 import com.hkm.stickhub.ui.components.StickerCard
@@ -186,6 +191,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
+import androidx.compose.runtime.snapshotFlow
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -995,7 +1003,37 @@ fun StickHubApp(
     // flip so one continuous hold can select at timeout and still become a reorder
     // drag if the finger keeps moving.
     val canReorderStickers = selectedCategory == "All" && searchQuery.isBlank()
+    val compactGridState = rememberLazyGridState()
     val libraryGridState = rememberLazyGridState()
+    val largeGridState = rememberLazyGridState()
+    val libraryListState = rememberLazyListState()
+
+    // Warm a bounded window of thumbnails ahead of the viewport. Coil deduplicates these
+    // requests with the cards' stable cache keys, so returning to a previously visited region
+    // is a memory-cache hit instead of another full decode.
+    LaunchedEffect(filteredStickers, libraryViewMode) {
+        val imageLoader = Coil.imageLoader(context)
+        fun prefetchFrom(itemIndex: Int) {
+            filteredStickers
+                .drop(itemIndex.coerceAtLeast(0))
+                .take(56)
+                .forEach { sticker ->
+                    imageLoader.enqueue(stickerImageRequest(context, sticker, targetPx = 256))
+                }
+        }
+        prefetchFrom(0)
+        snapshotFlow {
+            when (libraryViewMode) {
+                StickerLibraryViewMode.COMPACT_GRID -> compactGridState.firstVisibleItemIndex
+                StickerLibraryViewMode.STANDARD_GRID -> libraryGridState.firstVisibleItemIndex
+                StickerLibraryViewMode.LARGE_GRID -> largeGridState.firstVisibleItemIndex
+                StickerLibraryViewMode.LIST -> libraryListState.firstVisibleItemIndex
+            }
+        }.distinctUntilChanged().collect { firstVisibleItem ->
+            // Every mode has one full-width header item before stickers.
+            prefetchFrom((firstVisibleItem - 1).coerceAtLeast(0))
+        }
+    }
     val autoScrollEdgePx = with(LocalDensity.current) { 64.dp.toPx() }
     var reorderPreview by remember { mutableStateOf<List<StickerItem>?>(null) }
     var draggedStickerId by remember { mutableStateOf<Long?>(null) }
@@ -1179,18 +1217,20 @@ fun StickHubApp(
                         val navBarBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
                         val listBottomPadding = navBarBottomPadding + 96.dp
 
+                        Box(modifier = Modifier.padding(innerPadding)) {
                         AnimatedContent(
                             targetState = libraryViewMode,
                             transitionSpec = {
                                 fadeIn(tween(StickHubMotion.DurationShort)) togetherWith fadeOut(tween(StickHubMotion.DurationShort))
                             },
                             label = "library_view_mode",
-                            modifier = Modifier.padding(innerPadding)
+                            modifier = Modifier.fillMaxSize()
                         ) { viewMode ->
                             when (viewMode) {
                                 StickerLibraryViewMode.COMPACT_GRID -> {
                                     LazyVerticalGrid(
                                         columns = GridCells.Fixed(4),
+                                        state = compactGridState,
                                         contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 0.dp, bottom = listBottomPadding),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -1542,6 +1582,7 @@ fun StickHubApp(
                                 StickerLibraryViewMode.LARGE_GRID -> {
                                     LazyVerticalGrid(
                                         columns = GridCells.Fixed(2),
+                                        state = largeGridState,
                                         contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 0.dp, bottom = listBottomPadding),
                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                                         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -1676,6 +1717,7 @@ fun StickHubApp(
 
                                 StickerLibraryViewMode.LIST -> {
                                     LazyColumn(
+                                        state = libraryListState,
                                         contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 0.dp, bottom = listBottomPadding),
                                         verticalArrangement = Arrangement.spacedBy(8.dp),
                                         modifier = Modifier
@@ -1807,6 +1849,29 @@ fun StickHubApp(
                                     }
                                 }
                             }
+                        }
+                        when (libraryViewMode) {
+                            StickerLibraryViewMode.COMPACT_GRID -> LazyGridFastScrollbar(
+                                state = compactGridState,
+                                modifier = Modifier.align(Alignment.CenterEnd),
+                                thumbColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            StickerLibraryViewMode.STANDARD_GRID -> LazyGridFastScrollbar(
+                                state = libraryGridState,
+                                modifier = Modifier.align(Alignment.CenterEnd),
+                                thumbColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            StickerLibraryViewMode.LARGE_GRID -> LazyGridFastScrollbar(
+                                state = largeGridState,
+                                modifier = Modifier.align(Alignment.CenterEnd),
+                                thumbColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            StickerLibraryViewMode.LIST -> LazyListFastScrollbar(
+                                state = libraryListState,
+                                modifier = Modifier.align(Alignment.CenterEnd),
+                                thumbColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         }
                     }
         }

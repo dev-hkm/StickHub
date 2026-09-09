@@ -40,19 +40,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.composables.icons.lucide.R as LucideR
 import com.hkm.stickhub.data.model.StickerItem
 import com.hkm.stickhub.ui.theme.StickHubMotion
 import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
-import java.io.File
 
 /**
  * High-density 4-column compact sticker card with maximized artwork.
@@ -68,7 +65,6 @@ fun CompactStickerCard(
     showCopiedBadge: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     val interactionSource = remember { MutableInteractionSource() }
     val haptics = rememberStickHubHaptics()
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -113,10 +109,7 @@ fun CompactStickerCard(
         contentAlignment = Alignment.Center
     ) {
         AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(File(sticker.filePath))
-                .crossfade(false)
-                .build(),
+            model = rememberStickerImageRequest(sticker),
             contentDescription = sticker.title,
             contentScale = ContentScale.Fit,
             modifier = Modifier.fillMaxSize()
@@ -211,7 +204,6 @@ fun LargeStickerCard(
     showCopiedBadge: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     val interactionSource = remember { MutableInteractionSource() }
     val haptics = rememberStickHubHaptics()
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -266,10 +258,7 @@ fun LargeStickerCard(
                 contentAlignment = Alignment.Center
             ) {
                 AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(File(sticker.filePath))
-                        .crossfade(false)
-                        .build(),
+                    model = rememberStickerImageRequest(sticker),
                     contentDescription = sticker.title,
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize()
@@ -398,7 +387,6 @@ fun StickerListItem(
     showCopiedBadge: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     val interactionSource = remember { MutableInteractionSource() }
     val haptics = rememberStickHubHaptics()
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -481,10 +469,7 @@ fun StickerListItem(
                 contentAlignment = Alignment.Center
             ) {
                 AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(File(sticker.filePath))
-                        .crossfade(false)
-                        .build(),
+                    model = rememberStickerImageRequest(sticker),
                     contentDescription = sticker.title,
                     contentScale = ContentScale.Fit,
                     modifier = Modifier

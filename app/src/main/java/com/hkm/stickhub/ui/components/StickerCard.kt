@@ -37,16 +37,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.composables.icons.lucide.R as LucideR
 import com.hkm.stickhub.data.model.StickerItem
 import com.hkm.stickhub.ui.theme.StickHubMotion
 import com.hkm.stickhub.ui.haptics.rememberStickHubHaptics
-import java.io.File
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -63,7 +60,6 @@ fun StickerCard(
     showCopiedBadge: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     val interactionSource = remember { MutableInteractionSource() }
     val haptics = rememberStickHubHaptics()
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -160,11 +156,7 @@ fun StickerCard(
         contentAlignment = Alignment.Center
     ) {
         AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(File(sticker.filePath))
-                // A whole filtered grid should never restart dozens of image fades together.
-                .crossfade(false)
-                .build(),
+            model = rememberStickerImageRequest(sticker),
             contentDescription = sticker.title,
             contentScale = ContentScale.Fit,
             modifier = Modifier.fillMaxSize()

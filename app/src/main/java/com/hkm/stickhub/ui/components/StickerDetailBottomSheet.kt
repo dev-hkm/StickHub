@@ -52,7 +52,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.composables.icons.lucide.R as LucideR
 import com.hkm.stickhub.data.model.CategoryItem
 import com.hkm.stickhub.data.model.StickerItem
@@ -120,10 +119,7 @@ fun StickerDetailBottomSheet(
                 CheckerboardBackground(modifier = Modifier.clip(RoundedCornerShape(16.dp)))
 
                 AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(File(sticker.filePath))
-                        .crossfade(true)
-                        .build(),
+                    model = rememberStickerImageRequest(sticker, targetPx = 512),
                     contentDescription = sticker.title,
                     contentScale = ContentScale.Fit,
                     modifier = Modifier

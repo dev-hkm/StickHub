@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.composables.icons.lucide.R as LucideR
 import com.hkm.stickhub.data.model.StickerItem
@@ -38,6 +39,7 @@ internal class OverlayStickerAdapter(
 
     private var stickers = emptyList<StickerItem>()
     private var options = RenderOptions(1, 0, 0f, false, 1f)
+    private var submitGeneration = 0L
     private val decodeSlots = Semaphore(2)
     private val holders = mutableSetOf<Holder>()
 
@@ -55,9 +57,39 @@ internal class OverlayStickerAdapter(
 
     fun submit(items: List<StickerItem>, renderOptions: RenderOptions, force: Boolean = false) {
         if (!force && items == stickers && renderOptions == options) return
-        stickers = items
-        options = renderOptions
-        notifyDataSetChanged()
+        val generation = ++submitGeneration
+        if (stickers.isEmpty() && items.isNotEmpty()) {
+            // Publish the first snapshot synchronously. This avoids a blank first popup while
+            // the background diff is being calculated; later category changes stay async.
+            stickers = items
+            options = renderOptions
+            notifyDataSetChanged()
+            return
+        }
+        if (items == stickers) {
+            // Appearance changes (theme/shadow/opacity) need a rebind even when the filter
+            // returned the same rows. Keep this path cheap and avoid a full diff.
+            options = renderOptions
+            notifyItemRangeChanged(0, itemCount)
+            return
+        }
+        val oldItems = stickers
+        scope.launch {
+            val diff = withContext(Dispatchers.Default) {
+                DiffUtil.calculateDiff(object : DiffUtil.Callback() {
+                    override fun getOldListSize(): Int = oldItems.size
+                    override fun getNewListSize(): Int = items.size
+                    override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean =
+                        oldItems[oldItemPosition].id == items[newItemPosition].id
+                    override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean =
+                        oldItems[oldItemPosition] == items[newItemPosition]
+                })
+            }
+            if (generation != submitGeneration) return@launch
+            stickers = items
+            options = renderOptions
+            diff.dispatchUpdatesTo(this@OverlayStickerAdapter)
+        }
     }
 
     fun cancelRequests() {
