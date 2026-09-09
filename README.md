@@ -13,8 +13,8 @@
   [![UI](https://img.shields.io/badge/UI-Jetpack_Compose_Material_3-4285F4?style=flat&logo=jetpackcompose&logoColor=white)](#)
   [![License](https://img.shields.io/badge/License-Proprietary_All_Rights_Reserved-red.svg)](#)
   [![Website](https://img.shields.io/badge/Website-stickhub.web.app-FFB703?style=flat&logo=firebase&logoColor=black)](https://stickhub.web.app)
-  [![GitHub Release](https://img.shields.io/badge/GitHub_Release-v5.2.24-238636?style=flat&logo=github&logoColor=white)](https://github.com/dev-hkm/StickHub/releases/tag/v5.2.24)
-  [![Download APK](https://img.shields.io/badge/Direct_APK-v5.2.24-007ACC?style=flat&logo=googleplay&logoColor=white)](https://github.com/dev-hkm/StickHub/releases/download/v5.2.24/StickHub-v5.2.24.apk)
+  [![GitHub Release](https://img.shields.io/badge/GitHub_Release-v5.2.34-238636?style=flat&logo=github&logoColor=white)](https://github.com/dev-hkm/StickHub/releases/tag/v5.2.34)
+  [![Download APK](https://img.shields.io/badge/Direct_APK-v5.2.34-007ACC?style=flat&logo=googleplay&logoColor=white)](https://github.com/dev-hkm/StickHub/releases/download/v5.2.34/StickHub-v5.2.34.apk)
 
   <br /><br />
 
@@ -127,8 +127,8 @@ StickHub/
 
 The latest signed Release APK is available for download:
 
-* **Version:** 5.2.24 (versionCode 75)
-* **Direct Download:** [StickHub-v5.2.24.apk](https://github.com/dev-hkm/StickHub/releases/download/v5.2.24/StickHub-v5.2.24.apk)
+* **Version:** 5.2.34 (versionCode 85)
+* **Direct Download:** [StickHub-v5.2.34.apk](https://github.com/dev-hkm/StickHub/releases/download/v5.2.34/StickHub-v5.2.34.apk)
 * **Android Requirement:** Android 8.0 (API level 26) or higher.
 
 ---
