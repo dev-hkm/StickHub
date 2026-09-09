@@ -6,12 +6,6 @@ import android.provider.Settings
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.RadioButton
@@ -25,8 +19,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.input.pointer.pointerInput
 import com.hkm.stickhub.ui.theme.AppVisualTheme
 import com.hkm.stickhub.ui.theme.BotanicalColors
 import com.hkm.stickhub.ui.theme.NeubrutalismColors
@@ -48,7 +40,6 @@ import com.hkm.stickhub.ui.theme.NouveauColors
 import com.hkm.stickhub.ui.theme.SketchbookColors
 import com.hkm.stickhub.ui.theme.ThemePreferences
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -68,8 +59,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -95,7 +87,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -216,19 +207,12 @@ fun SettingsScreen(
 ) {
     val haptics = rememberStickHubHaptics()
     val strings = remember(language) { stringsFor(language) }
-    var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
-    val selectedTab = SettingsTab.entries[selectedTabIndex.coerceIn(0, SettingsTab.entries.lastIndex)]
+    val pagerState = rememberPagerState(pageCount = { SettingsTab.entries.size })
+    val selectedTabIndex = pagerState.targetPage
     val generalListState = rememberLazyListState()
     val quickStickersListState = rememberLazyListState()
     val libraryListState = rememberLazyListState()
     val backupPrivacyListState = rememberLazyListState()
-    val horizontalSwipeThreshold = with(LocalDensity.current) { 72.dp.toPx() }
-    val activeListState: LazyListState = when (selectedTab) {
-        SettingsTab.GENERAL -> generalListState
-        SettingsTab.QUICK_STICKERS -> quickStickersListState
-        SettingsTab.LIBRARY -> libraryListState
-        SettingsTab.BACKUP_PRIVACY -> backupPrivacyListState
-    }
     var previewBubbleSizeDp by remember(overlayBubbleSizeDp) {
         mutableFloatStateOf(overlayBubbleSizeDp)
     }
@@ -315,58 +299,8 @@ fun SettingsScreen(
             modifier = modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
         ) {
-            AnimatedContent(
-                targetState = selectedTab,
-                transitionSpec = {
-                    val direction = if (targetState.ordinal >= initialState.ordinal) 1 else -1
-                    (
-                        slideInHorizontally(
-                            animationSpec = tween(280),
-                            initialOffsetX = { fullWidth -> direction * (fullWidth / 3) }
-                        ) + fadeIn(animationSpec = tween(180))
-                    ) togetherWith (
-                        slideOutHorizontally(
-                            animationSpec = tween(240),
-                            targetOffsetX = { fullWidth -> -direction * (fullWidth / 3) }
-                        ) + fadeOut(animationSpec = tween(150))
-                    )
-                },
-                label = "settings_tab_content"
-            ) { _ ->
-                LazyColumn(
-            state = activeListState,
-            modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(selectedTabIndex) {
-                    var horizontalDistance = 0f
-                    detectHorizontalDragGestures(
-                        onDragStart = { horizontalDistance = 0f },
-                        onHorizontalDrag = { change, amount ->
-                            horizontalDistance += amount
-                            change.consume()
-                        },
-                        onDragEnd = {
-                            if (kotlin.math.abs(horizontalDistance) >= horizontalSwipeThreshold) {
-                                val direction = if (horizontalDistance < 0f) 1 else -1
-                                val nextIndex = (selectedTabIndex + direction)
-                                    .coerceIn(0, SettingsTab.entries.lastIndex)
-                                if (nextIndex != selectedTabIndex) {
-                                    haptics.performTick()
-                                    selectedTabIndex = nextIndex
-                                }
-                            }
-                        },
-                        onDragCancel = { horizontalDistance = 0f }
-                    )
-                },
-            contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
-                top = 0.dp,
-                bottom = navBarsBottom + 32.dp
-            )
-        ) {
-            stickyHeader(key = "settings_header") {
+            Column(modifier = Modifier.fillMaxSize()) {
+
                 Surface(
                     color = MaterialTheme.colorScheme.background,
                     modifier = Modifier.fillMaxWidth()
@@ -432,7 +366,9 @@ fun SettingsScreen(
                             selected = selectedTabIndex == index,
                             onClick = {
                                 if (selectedTabIndex != index) haptics.performTick()
-                                selectedTabIndex = index
+                                sheetCoroutineScope.launch {
+                                    pagerState.animateScrollToPage(index, animationSpec = tween(320))
+                                }
                             },
                             text = {
                                 Text(
@@ -446,7 +382,27 @@ fun SettingsScreen(
                 }
                 }
                 }
-            }
+
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    key = { SettingsTab.entries[it].name }
+                ) { page ->
+                    val selectedTab = SettingsTab.entries[page]
+                    val activeListState = when (selectedTab) {
+                        SettingsTab.GENERAL -> generalListState
+                        SettingsTab.QUICK_STICKERS -> quickStickersListState
+                        SettingsTab.LIBRARY -> libraryListState
+                        SettingsTab.BACKUP_PRIVACY -> backupPrivacyListState
+                    }
+                    LazyColumn(
+                        state = activeListState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = 16.dp, end = 16.dp,
+                            bottom = navBarsBottom + 32.dp
+                        )
+                    ) {
 
             if (selectedTab == SettingsTab.GENERAL) item(key = "section_appearance") {
                 SectionHeader(strings.appearance)
@@ -2008,6 +1964,8 @@ fun SettingsScreen(
                 }
             }
 
+
+            }
 
         if (showCloudRecoveryDialog) {
             AlertDialog(
